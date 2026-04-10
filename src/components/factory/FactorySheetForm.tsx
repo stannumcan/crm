@@ -212,7 +212,7 @@ export default function FactorySheetForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
       {/* Sheet Header */}
       <Card>
         <CardHeader><CardTitle className="text-base">Sheet Info</CardTitle></CardHeader>

@@ -393,7 +393,7 @@ export default function QuoteRequestForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
 
         {/* Company + Workorder */}
         <Card>

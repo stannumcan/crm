@@ -112,7 +112,7 @@ export default function CompanyForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl" autoComplete="off">
       {/* Names */}
       <Card>
         <CardHeader><CardTitle className="text-base">Company Name</CardTitle></CardHeader>

@@ -90,7 +90,7 @@ export default function QuoteForm({ locale }: { locale: string }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
       {/* Header info */}
       <Card>
         <CardHeader>

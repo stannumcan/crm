@@ -211,7 +211,7 @@ export default function WOForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
+      <form onSubmit={handleSubmit} className="space-y-6 max-w-xl" autoComplete="off">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t("details")}</CardTitle>
