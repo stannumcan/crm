@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   if (quantity_tiers?.length) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from("quotation_quantity_tiers").insert(
-      quantity_tiers.map((t: { tier_label: string; quantity_type: string; quantity?: number; sort_order: number }) => ({
+      quantity_tiers.map((t: { tier_label: string; quantity_type: string; quantity?: number; tier_notes?: string; sort_order: number }) => ({
         ...t,
         quotation_id: quotation.id,
       }))
