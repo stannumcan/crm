@@ -33,6 +33,57 @@ interface WOOption {
   project_name: string;
 }
 
+// Quick-create workorder modal
+function QuickWOForm({
+  companyId,
+  companyName,
+  onCreated,
+  onCancel,
+}: {
+  companyId: string;
+  companyName: string;
+  onCreated: (wo: WOOption) => void;
+  onCancel: () => void;
+}) {
+  const [projectName, setProjectName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleSave = async () => {
+    if (!projectName.trim()) { setErr("Project name is required"); return; }
+    setSaving(true);
+    setErr("");
+    try {
+      const res = await fetch("/api/workorders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company_name: companyName, company_id: companyId, project_name: projectName.trim() }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+      const wo = await res.json();
+      onCreated({ id: wo.id, wo_number: wo.wo_number, project_name: wo.project_name });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Unknown error");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-500">Creating a workorder for <strong>{companyName}</strong>.</p>
+      <div className="space-y-2">
+        <Label>Project Name <span className="text-red-500">*</span></Label>
+        <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. Star Shaped Tin New Mold" autoFocus />
+      </div>
+      {err && <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{err}</div>}
+      <div className="flex gap-3 justify-end pt-2">
+        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="button" onClick={handleSave} disabled={saving}>{saving ? "Creating..." : "Create Workorder"}</Button>
+      </div>
+    </div>
+  );
+}
+
 const TIER_LABELS = ["A", "B", "C", "D", "E", "F"];
 
 // Quick-create company modal (same as WOForm)
@@ -139,9 +190,11 @@ export default function QuoteRequestForm({
 
   // ── Workorder selector ───────────────────────────────────────────
   const [woOptions, setWoOptions] = useState<WOOption[]>([]);
+  const [woComboOptions, setWoComboOptions] = useState<ComboboxOption[]>([]);
   const [woLoading, setWoLoading] = useState(false);
   const [selectedWoId, setSelectedWoId] = useState(prefilledWoId ?? "");
   const [selectedWoNumber, setSelectedWoNumber] = useState(prefilledWoNumber ?? "");
+  const [newWoModal, setNewWoModal] = useState(false);
 
   // ── Request info ─────────────────────────────────────────────────
   const [urgency, setUrgency] = useState(false);
@@ -182,14 +235,18 @@ export default function QuoteRequestForm({
   };
 
   // ── Workorder fetch (when company changes) ────────────────────────
-  const fetchWorkorders = async (companyId: string) => {
+  const fetchWorkorders = async (companyId: string, keepSelection = false) => {
     setWoLoading(true);
-    setSelectedWoId("");
-    setSelectedWoNumber("");
+    if (!keepSelection) { setSelectedWoId(""); setSelectedWoNumber(""); }
     try {
       const res = await fetch(`/api/workorders?company_id=${companyId}`);
       const data = await res.json() as WOOption[];
       setWoOptions(data);
+      setWoComboOptions(data.map((w) => ({
+        value: w.id,
+        label: w.wo_number,
+        sublabel: w.project_name,
+      })));
     } catch { /* ignore */ } finally {
       setWoLoading(false);
     }
@@ -201,9 +258,12 @@ export default function QuoteRequestForm({
     if (prefilledCompanyId && prefilledCompanyName) {
       setCompanyOptions([{ value: prefilledCompanyId, label: prefilledCompanyName }]);
     }
-    // Pre-fill WO options so the select shows the pre-selected WO
+    // Pre-fill WO options so the combobox shows the pre-selected WO
     if (prefilledCompanyId) {
-      fetchWorkorders(prefilledCompanyId);
+      fetchWorkorders(prefilledCompanyId, true);
+    }
+    if (prefilledWoId && prefilledWoNumber) {
+      setWoComboOptions([{ value: prefilledWoId, label: prefilledWoNumber, sublabel: "" }]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -323,51 +383,24 @@ export default function QuoteRequestForm({
               <Label>
                 {tw("title")} <span className="text-red-500">*</span>
               </Label>
-              {!selectedCompanyId ? (
-                <div className="flex items-center h-9 px-3 rounded-md border border-dashed border-gray-300 text-sm text-gray-400">
-                  Select a company first
-                </div>
-              ) : woLoading ? (
-                <div className="flex items-center h-9 px-3 rounded-md border border-gray-200 text-sm text-gray-400">
-                  Loading workorders...
-                </div>
-              ) : woOptions.length === 0 ? (
-                <div className="flex items-center justify-between h-9 px-3 rounded-md border border-dashed border-amber-300 bg-amber-50 text-sm text-amber-700">
-                  No workorders for this company.
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs h-6 text-amber-700 hover:text-amber-900"
-                    onClick={() => router.push(`/${locale}/workorders/new?company_id=${selectedCompanyId}&company_name=${encodeURIComponent(selectedCompanyName)}`)}
-                  >
-                    Create one →
-                  </Button>
-                </div>
-              ) : (
-                <Select
-                  value={selectedWoId}
-                  onValueChange={(v) => {
-                    const wo = woOptions.find((w) => w.id === v);
-                    if (wo) { setSelectedWoId(wo.id); setSelectedWoNumber(wo.wo_number); }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select workorder..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {woOptions.map((wo) => (
-                      <SelectItem key={wo.id} value={wo.id}>
-                        <span className="font-mono font-medium">{wo.wo_number}</span>
-                        <span className="text-gray-500 ml-2">— {wo.project_name}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {selectedWoId && (
-                <p className="text-xs text-green-600">✓ {selectedWoNumber}</p>
-              )}
+              <Combobox
+                options={woComboOptions}
+                value={selectedWoId}
+                onSelect={(opt) => {
+                  const wo = woOptions.find((w) => w.id === opt.value);
+                  setSelectedWoId(opt.value);
+                  setSelectedWoNumber(wo?.wo_number ?? opt.label);
+                }}
+                onAddNew={() => setNewWoModal(true)}
+                placeholder={!selectedCompanyId ? "Select a company first..." : woLoading ? "Loading workorders..." : "Select workorder..."}
+                loading={woLoading}
+                disabled={!selectedCompanyId}
+                addNewLabel="Create new workorder"
+              />
+              {selectedWoId && (() => {
+                const wo = woOptions.find((w) => w.id === selectedWoId);
+                return <p className="text-xs text-green-600">✓ {wo?.wo_number} — {wo?.project_name}</p>;
+              })()}
             </div>
           </CardContent>
         </Card>
@@ -571,6 +604,21 @@ export default function QuoteRequestForm({
           initialName={newCompanyInitialName}
           onCreated={handleCompanyCreated}
           onCancel={() => setNewCompanyModal(false)}
+        />
+      </Modal>
+
+      <Modal open={newWoModal} onClose={() => setNewWoModal(false)} title="New Workorder">
+        <QuickWOForm
+          companyId={selectedCompanyId}
+          companyName={selectedCompanyName}
+          onCreated={(wo) => {
+            setWoOptions((prev) => [wo, ...prev]);
+            setWoComboOptions((prev) => [{ value: wo.id, label: wo.wo_number, sublabel: wo.project_name }, ...prev]);
+            setSelectedWoId(wo.id);
+            setSelectedWoNumber(wo.wo_number);
+            setNewWoModal(false);
+          }}
+          onCancel={() => setNewWoModal(false)}
         />
       </Modal>
     </>
