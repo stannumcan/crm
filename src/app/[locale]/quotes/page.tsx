@@ -1,56 +1,20 @@
-import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Plus } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FileText } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 
-const STATUS_COLORS: Record<string, string> = {
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   draft: "secondary",
-  sent: "default",
+  pending_factory: "default",
+  pending_wilfred: "default",
+  pending_natsuki: "default",
+  sent: "outline",
   approved: "outline",
   rejected: "destructive",
-  expired: "secondary",
 };
-
-// Placeholder data — will be replaced by Supabase
-const MOCK_QUOTES = [
-  {
-    id: "Q-2024-001",
-    customer: "田中商事",
-    date: "2024-01-15",
-    validUntil: "2024-02-15",
-    status: "sent",
-    amount: 1250000,
-    currency: "JPY",
-  },
-  {
-    id: "Q-2024-002",
-    customer: "上海科技有限公司",
-    date: "2024-01-18",
-    validUntil: "2024-02-18",
-    status: "draft",
-    amount: 8500,
-    currency: "USD",
-  },
-  {
-    id: "Q-2024-003",
-    customer: "Maple Trading Co.",
-    date: "2024-01-20",
-    validUntil: "2024-02-20",
-    status: "approved",
-    amount: 12400,
-    currency: "CAD",
-  },
-];
 
 export default async function QuotesPage({
   params,
@@ -60,25 +24,25 @@ export default async function QuotesPage({
   const { locale } = await params;
   const t = await getTranslations("quotes");
   const tc = await getTranslations("common");
+  const tw = await getTranslations("workorders");
 
-  const formatAmount = (amount: number, currency: string) => {
-    return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : locale === "zh" ? "zh-CN" : "en-CA", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: quotations } = await (supabase as any)
+    .from("quotations")
+    .select("*, work_orders(wo_number, company_name, project_name)")
+    .order("created_at", { ascending: false });
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t("title")}</h1>
-          <p className="text-sm text-gray-500 mt-1">{MOCK_QUOTES.length} quotes</p>
+          <p className="text-sm text-gray-500 mt-1">{quotations?.length ?? 0} {tc("total")}</p>
         </div>
-        <Link href={`/${locale}/quotes/new`}>
+        <Link href={`/${locale}/workorders`}>
           <Button className="gap-2">
-            <Plus className="h-4 w-4" />
+            <FileText className="h-4 w-4" />
             {t("new")}
           </Button>
         </Link>
@@ -88,41 +52,52 @@ export default async function QuotesPage({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("quoteNumber")}</TableHead>
-              <TableHead>{t("customer")}</TableHead>
-              <TableHead>{t("date")}</TableHead>
-              <TableHead>{t("validUntil")}</TableHead>
+              <TableHead>{tw("woNumber")}</TableHead>
+              <TableHead>{tw("company")}</TableHead>
+              <TableHead>{tw("project")}</TableHead>
+              <TableHead>{t("version")}</TableHead>
               <TableHead>{tc("status")}</TableHead>
-              <TableHead className="text-right">{t("amount")}</TableHead>
+              <TableHead>{tc("deadline")}</TableHead>
               <TableHead className="w-20">{tc("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {MOCK_QUOTES.map((quote) => (
-              <TableRow key={quote.id} className="hover:bg-gray-50">
-                <TableCell className="font-medium text-blue-600">
-                  <Link href={`/${locale}/quotes/${quote.id}`}>
-                    {quote.id}
-                  </Link>
-                </TableCell>
-                <TableCell>{quote.customer}</TableCell>
-                <TableCell>{quote.date}</TableCell>
-                <TableCell>{quote.validUntil}</TableCell>
-                <TableCell>
-                  <Badge variant={STATUS_COLORS[quote.status] as "default" | "secondary" | "destructive" | "outline"}>
-                    {t(`statuses.${quote.status}`)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  {formatAmount(quote.amount, quote.currency)}
-                </TableCell>
-                <TableCell>
-                  <Link href={`/${locale}/quotes/${quote.id}`}>
-                    <Button variant="ghost" size="sm">{tc("edit")}</Button>
-                  </Link>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {quotations?.map((q: any) => {
+              const wo = q.work_orders as { wo_number: string; company_name: string; project_name: string } | null;
+              return (
+                <TableRow key={q.id}>
+                  <TableCell className="font-mono font-semibold text-blue-700">
+                    {wo?.wo_number ?? "—"}
+                  </TableCell>
+                  <TableCell className="font-medium">{wo?.company_name ?? "—"}</TableCell>
+                  <TableCell className="text-gray-600">{wo?.project_name ?? "—"}</TableCell>
+                  <TableCell>
+                    <span className="text-sm text-gray-500">{t("version")} {q.quote_version}</span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={STATUS_VARIANT[q.status]}>
+                      {t(`statuses.${q.status}`)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-gray-500 text-sm">
+                    {q.deadline ? new Date(q.deadline).toLocaleDateString() : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Link href={`/${locale}/quotes/${q.id}`}>
+                      <Button variant="ghost" size="sm">{tc("view")}</Button>
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {!quotations?.length && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-gray-400 py-8">
+                  {t("empty")}
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </div>

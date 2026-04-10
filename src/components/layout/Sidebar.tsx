@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { FileText, LayoutDashboard, Users, Package, Settings } from "lucide-react";
+import { FileText, ClipboardList, LayoutDashboard, Users, Package, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LOCALES = [
@@ -17,9 +17,9 @@ export default function Sidebar({ locale }: { locale: string }) {
   const pathname = usePathname();
 
   const navItems = [
+    { href: `/${locale}/workorders`, label: t("workorders"), icon: ClipboardList },
     { href: `/${locale}/quotes`, label: t("quotes"), icon: FileText },
     { href: `/${locale}/customers`, label: t("customers"), icon: Users },
-    { href: `/${locale}/products`, label: t("products"), icon: Package },
     { href: `/${locale}/settings`, label: t("settings"), icon: Settings },
   ];
 
