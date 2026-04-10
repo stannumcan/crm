@@ -75,6 +75,8 @@
     "productSpec": "製品仕様",
     "molds": "金型",
     "addMold": "金型追加",
+    "moldType": "種別",
+    "moldNumber": "金型番号",
     "existing": "既存金型",
     "newMold": "新規金型",
     "newMoldPlaceholder": "新規金型の説明",

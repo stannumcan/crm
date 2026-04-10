@@ -16,7 +16,19 @@ import { Modal } from "@/components/ui/modal";
 interface MoldEntry {
   id: string;
   type: "existing" | "new";
-  value: string;
+  value: string;       // mold number or new mold description
+  size: string;        // e.g. 200×200×40mm BH
+  design_count: string; // number of designs for this mold
+}
+
+interface MoldRecord {
+  id: string;
+  mold_number: string;
+  hm_number: string;
+  category: string;
+  variant: string;
+  dimensions: string;
+  feature: string | null;
 }
 
 interface QuantityTier {
@@ -199,14 +211,12 @@ export default function QuoteRequestForm({
   // ── Request info ─────────────────────────────────────────────────
   const [urgency, setUrgency] = useState(false);
   const [deadline, setDeadline] = useState("");
-  const [designCount, setDesignCount] = useState("1");
   const [shippingInfoRequired, setShippingInfoRequired] = useState(false);
 
   // ── Product spec ─────────────────────────────────────────────────
   const [molds, setMolds] = useState<MoldEntry[]>([
-    { id: "1", type: "existing", value: "" },
+    { id: "1", type: "existing", value: "", size: "", design_count: "1" },
   ]);
-  const [sizeDimensions, setSizeDimensions] = useState("");
   const [printingNotes, setPrintingNotes] = useState("");
   const [embossmentNotes, setEmbossmentNotes] = useState("");
 
@@ -290,8 +300,31 @@ export default function QuoteRequestForm({
     fetchWorkorders(company.id);
   };
 
+  // ── Mold search ───────────────────────────────────────────────────
+  const [moldOptions, setMoldOptions] = useState<Record<string, ComboboxOption[]>>({});
+  const [moldSearchCache, setMoldSearchCache] = useState<Record<string, ComboboxOption[]>>({});
+
+  const searchMolds = async (moldId: string, q: string) => {
+    const cacheKey = q.toLowerCase();
+    if (moldSearchCache[cacheKey]) {
+      setMoldOptions((prev) => ({ ...prev, [moldId]: moldSearchCache[cacheKey] }));
+      return;
+    }
+    try {
+      const res = await fetch(`/api/molds?q=${encodeURIComponent(q)}`);
+      const data = await res.json() as MoldRecord[];
+      const opts = data.map((m) => ({
+        value: m.mold_number,
+        label: m.mold_number,
+        sublabel: [m.variant, m.dimensions, m.feature].filter(Boolean).join(" · "),
+      }));
+      setMoldSearchCache((prev) => ({ ...prev, [cacheKey]: opts }));
+      setMoldOptions((prev) => ({ ...prev, [moldId]: opts }));
+    } catch { /* ignore */ }
+  };
+
   // ── Mold handlers ──────────────────────────────────────────────────
-  const addMold = () => setMolds([...molds, { id: Date.now().toString(), type: "existing", value: "" }]);
+  const addMold = () => setMolds([...molds, { id: Date.now().toString(), type: "existing", value: "", size: "", design_count: "1" }]);
   const removeMold = (id: string) => { if (molds.length > 1) setMolds(molds.filter((m) => m.id !== id)); };
   const updateMold = (id: string, field: keyof MoldEntry, value: string) =>
     setMolds(molds.map((m) => m.id === id ? { ...m, [field]: value } : m));
@@ -317,10 +350,15 @@ export default function QuoteRequestForm({
       wo_id: selectedWoId,
       urgency,
       deadline: deadline || null,
-      design_count: parseInt(designCount) || 1,
       shipping_info_required: shippingInfoRequired,
-      molds: molds.map(({ type, value }) => ({ type, value: value.trim() })).filter((m) => m.value),
-      size_dimensions: sizeDimensions || null,
+      molds: molds
+        .map(({ type, value, size, design_count }) => ({
+          type,
+          value: value.trim(),
+          size: size.trim() || null,
+          design_count: parseInt(design_count) || 1,
+        }))
+        .filter((m) => m.value),
       printing_notes: printingNotes || null,
       embossment_notes: embossmentNotes || null,
       internal_notes: internalNotes || null,
@@ -420,22 +458,9 @@ export default function QuoteRequestForm({
                 <span className="text-sm font-medium">{t("shippingInfoRequired")}</span>
               </label>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="deadline">{t("deadline")} <span className="text-red-500">*</span></Label>
-                <Input id="deadline" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("designCount")}</Label>
-                <Select value={designCount} onValueChange={(v) => v && setDesignCount(v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <SelectItem key={n} value={String(n)}>{n} {t("design")}{n > 1 ? "s" : ""}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="deadline">{t("deadline")}</Label>
+              <Input id="deadline" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} className="max-w-xs" />
             </div>
           </CardContent>
         </Card>
@@ -445,7 +470,7 @@ export default function QuoteRequestForm({
           <CardHeader><CardTitle className="text-base">{t("productSpec")}</CardTitle></CardHeader>
           <CardContent className="space-y-5">
 
-            {/* Molds */}
+            {/* Molds table */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>{t("molds")}</Label>
@@ -454,34 +479,85 @@ export default function QuoteRequestForm({
                   {t("addMold")}
                 </Button>
               </div>
-              <div className="space-y-2">
-                {molds.map((mold) => (
-                  <div key={mold.id} className="flex items-center gap-2">
-                    <Select value={mold.type} onValueChange={(v) => v && updateMold(mold.id, "type", v)}>
-                      <SelectTrigger className="w-36 shrink-0 text-sm"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="existing">{t("existing")}</SelectItem>
-                        <SelectItem value="new">{t("newMold")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      className="flex-1 text-sm"
-                      value={mold.value}
-                      onChange={(e) => updateMold(mold.id, "value", e.target.value)}
-                      placeholder={mold.type === "existing" ? "ML-1004B" : t("newMoldPlaceholder")}
-                    />
-                    <Button type="button" variant="ghost" size="sm" onClick={() => removeMold(mold.id)} disabled={molds.length <= 1} className="shrink-0 px-2">
-                      <Trash2 className="h-3.5 w-3.5 text-gray-400" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Size */}
-            <div className="space-y-2">
-              <Label htmlFor="size">{t("sizeDimensions")}</Label>
-              <Input id="size" value={sizeDimensions} onChange={(e) => setSizeDimensions(e.target.value)} placeholder="e.g. 200×200×40mm BH" />
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-32">{t("moldType")}</th>
+                    <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("moldNumber")}</th>
+                    <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-44">{t("sizeDimensions")}</th>
+                    <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-24">{t("designCount")}</th>
+                    <th className="w-8"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {molds.map((mold) => (
+                    <tr key={mold.id} className="align-middle">
+                      <td className="px-3 py-2">
+                        <Select value={mold.type} onValueChange={(v) => v && updateMold(mold.id, "type", v)}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="existing">{t("existing")}</SelectItem>
+                            <SelectItem value="new">{t("newMold")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-3 py-2">
+                        {mold.type === "existing" ? (
+                          <Combobox
+                            options={moldOptions[mold.id] ?? []}
+                            value={mold.value}
+                            onSelect={(opt) => {
+                              // find the dimensions from the last search result to auto-fill size
+                              const allOpts = Object.values(moldOptions).flat();
+                              const found = allOpts.find((o) => o.value === opt.value);
+                              updateMold(mold.id, "value", opt.value);
+                              if (found?.sublabel) {
+                                // sublabel is "variant · dimensions · feature" — extract dimensions part
+                                const parts = found.sublabel.split(" · ");
+                                const dims = parts.find((p) => p.match(/\d+x\d+/));
+                                if (dims && !mold.size) updateMold(mold.id, "size", dims);
+                              }
+                            }}
+                            onSearch={(q) => searchMolds(mold.id, q)}
+                            placeholder="ML-1004B"
+                          />
+                        ) : (
+                          <Input
+                            className="h-8 text-sm"
+                            value={mold.value}
+                            onChange={(e) => updateMold(mold.id, "value", e.target.value)}
+                            placeholder={t("newMoldPlaceholder")}
+                          />
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <Input
+                          className="h-8 text-sm"
+                          value={mold.size}
+                          onChange={(e) => updateMold(mold.id, "size", e.target.value)}
+                          placeholder="200×200×40mm"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="20"
+                          className="h-8 text-sm"
+                          value={mold.design_count}
+                          onChange={(e) => updateMold(mold.id, "design_count", e.target.value)}
+                          placeholder="1"
+                        />
+                      </td>
+                      <td className="pr-2 py-2">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeMold(mold.id)} disabled={molds.length <= 1} className="h-7 w-7 p-0">
+                          <Trash2 className="h-3.5 w-3.5 text-gray-400" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             {/* Printing */}

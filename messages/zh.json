@@ -75,6 +75,8 @@
     "productSpec": "产品规格",
     "molds": "模具",
     "addMold": "添加模具",
+    "moldType": "类型",
+    "moldNumber": "模具编号",
     "existing": "现有模具",
     "newMold": "新模具",
     "newMoldPlaceholder": "描述新模具",

@@ -75,6 +75,8 @@
     "productSpec": "Product Specification",
     "molds": "Molds",
     "addMold": "Add Mold",
+    "moldType": "Type",
+    "moldNumber": "Mold Number",
     "existing": "Existing",
     "newMold": "New Mold",
     "newMoldPlaceholder": "Describe the new mold",
