@@ -2,24 +2,24 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import WOForm from "@/components/workorders/WOForm";
+import CompanyForm from "@/components/companies/CompanyForm";
 
-export default async function NewWorkOrderPage({
+export default async function NewCompanyPage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ company_id?: string; company_name?: string }>;
+  searchParams: Promise<{ name?: string }>;
 }) {
   const { locale } = await params;
-  const { company_id, company_name } = await searchParams;
-  const t = await getTranslations("workorders");
+  const { name } = await searchParams;
+  const t = await getTranslations("companies");
   const tc = await getTranslations("common");
 
   return (
     <div className="p-6">
       <div className="flex items-center gap-3 mb-6">
-        <Link href={company_id ? `/${locale}/companies/${company_id}` : `/${locale}/workorders`}>
+        <Link href={`/${locale}/companies`}>
           <Button variant="ghost" size="sm" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             {tc("back")}
@@ -27,11 +27,9 @@ export default async function NewWorkOrderPage({
         </Link>
         <h1 className="text-2xl font-bold text-gray-900">{t("new")}</h1>
       </div>
-      <WOForm
-        locale={locale}
-        prefilledCompanyId={company_id}
-        prefilledCompanyName={company_name}
-      />
+
+      {/* Pre-fill name if coming from WO form "Add new company" */}
+      <CompanyForm locale={locale} initial={name ? { name } : undefined} />
     </div>
   );
 }

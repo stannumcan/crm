@@ -10,6 +10,7 @@
     "status": "状态",
     "date": "日期",
     "deadline": "截止日期",
+    "country": "国家",
     "actions": "操作",
     "back": "返回",
     "next": "下一步",
@@ -23,9 +24,22 @@
     "dashboard": "仪表板",
     "workorders": "工作单",
     "quotes": "报价单",
-    "customers": "客户",
-    "products": "产品",
+    "companies": "客户公司",
     "settings": "设置"
+  },
+  "companies": {
+    "title": "客户公司",
+    "new": "新建公司",
+    "active": "条",
+    "empty": "暂无公司，请添加第一个客户。",
+    "name": "公司名称",
+    "nameJa": "日文名称",
+    "nameZh": "中文名称",
+    "location": "所在地",
+    "primaryContact": "主要联系人",
+    "phone": "电话",
+    "address": "地址",
+    "contactInfo": "联系方式"
   },
   "workorders": {
     "title": "工作单",

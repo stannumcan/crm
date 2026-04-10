@@ -10,6 +10,7 @@
     "status": "Status",
     "date": "Date",
     "deadline": "Deadline",
+    "country": "Country",
     "actions": "Actions",
     "back": "Back",
     "next": "Next",
@@ -23,9 +24,22 @@
     "dashboard": "Dashboard",
     "workorders": "Work Orders",
     "quotes": "Quotes",
-    "customers": "Customers",
-    "products": "Products",
+    "companies": "Companies",
     "settings": "Settings"
+  },
+  "companies": {
+    "title": "Companies",
+    "new": "New Company",
+    "active": "active",
+    "empty": "No companies yet. Add your first client.",
+    "name": "Company Name",
+    "nameJa": "Japanese Name",
+    "nameZh": "Chinese Name",
+    "location": "Location",
+    "primaryContact": "Primary Contact",
+    "phone": "Phone",
+    "address": "Address",
+    "contactInfo": "Contact Info"
   },
   "workorders": {
     "title": "Work Orders",

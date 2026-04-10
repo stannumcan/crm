@@ -10,6 +10,7 @@
     "status": "ステータス",
     "date": "日付",
     "deadline": "締め切り",
+    "country": "国",
     "actions": "操作",
     "back": "戻る",
     "next": "次へ",
@@ -23,9 +24,22 @@
     "dashboard": "ダッシュボード",
     "workorders": "作業指示書",
     "quotes": "見積書",
-    "customers": "顧客",
-    "products": "製品",
+    "companies": "取引先",
     "settings": "設定"
+  },
+  "companies": {
+    "title": "取引先",
+    "new": "新規取引先",
+    "active": "件",
+    "empty": "取引先がまだありません。",
+    "name": "会社名",
+    "nameJa": "日本語名",
+    "nameZh": "中国語名",
+    "location": "所在地",
+    "primaryContact": "主担当者",
+    "phone": "電話",
+    "address": "住所",
+    "contactInfo": "連絡先情報"
   },
   "workorders": {
     "title": "作業指示書",
