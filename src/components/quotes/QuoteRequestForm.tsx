@@ -210,7 +210,6 @@ export default function QuoteRequestForm({
 
   // ── Request info ─────────────────────────────────────────────────
   const [urgency, setUrgency] = useState(false);
-  const [deadline, setDeadline] = useState("");
   const [shippingInfoRequired, setShippingInfoRequired] = useState(false);
 
   // ── Product spec ─────────────────────────────────────────────────
@@ -324,10 +323,13 @@ export default function QuoteRequestForm({
   };
 
   // ── Mold handlers ──────────────────────────────────────────────────
-  const addMold = () => setMolds([...molds, { id: Date.now().toString(), type: "existing", value: "", size: "", design_count: "1" }]);
-  const removeMold = (id: string) => { if (molds.length > 1) setMolds(molds.filter((m) => m.id !== id)); };
-  const updateMold = (id: string, field: keyof MoldEntry, value: string) =>
-    setMolds(molds.map((m) => m.id === id ? { ...m, [field]: value } : m));
+  const addMold = () => setMolds((prev) => [...prev, { id: Date.now().toString(), type: "existing", value: "", size: "", design_count: "1" }]);
+  const removeMold = (id: string) => { if (molds.length > 1) setMolds((prev) => prev.filter((m) => m.id !== id)); };
+  // Use functional updater so batched calls compose correctly (not stale-closure overwrite)
+  const updateMold = (id: string, field: keyof MoldEntry, val: string) =>
+    setMolds((prev) => prev.map((m) => m.id === id ? { ...m, [field]: val } : m));
+  const updateMoldFields = (id: string, fields: Partial<MoldEntry>) =>
+    setMolds((prev) => prev.map((m) => m.id === id ? { ...m, ...fields } : m));
 
   // ── Tier handlers ───────────────────────────────────────────────────
   const addTier = () => {
@@ -349,7 +351,6 @@ export default function QuoteRequestForm({
     const payload = {
       wo_id: selectedWoId,
       urgency,
-      deadline: deadline || null,
       shipping_info_required: shippingInfoRequired,
       molds: molds
         .map(({ type, value, size, design_count }) => ({
@@ -458,10 +459,6 @@ export default function QuoteRequestForm({
                 <span className="text-sm font-medium">{t("shippingInfoRequired")}</span>
               </label>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="deadline">{t("deadline")}</Label>
-              <Input id="deadline" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} className="max-w-xs" />
-            </div>
           </CardContent>
         </Card>
 
@@ -507,18 +504,19 @@ export default function QuoteRequestForm({
                             options={moldOptions[mold.id] ?? []}
                             value={mold.value}
                             onSelect={(opt) => {
-                              // find the dimensions from the last search result to auto-fill size
                               const allOpts = Object.values(moldOptions).flat();
                               const found = allOpts.find((o) => o.value === opt.value);
-                              updateMold(mold.id, "value", opt.value);
-                              if (found?.sublabel) {
-                                // sublabel is "variant · dimensions · feature" — extract dimensions part
-                                const parts = found.sublabel.split(" · ");
-                                const dims = parts.find((p) => p.match(/\d+x\d+/));
-                                if (dims && !mold.size) updateMold(mold.id, "size", dims);
-                              }
+                              // Single functional update avoids stale-closure overwrite
+                              const parts = found?.sublabel?.split(" · ") ?? [];
+                              const dims = parts.find((p) => /\d+x\d+/.test(p));
+                              updateMoldFields(mold.id, {
+                                value: opt.value,
+                                ...(dims && !mold.size ? { size: dims } : {}),
+                              });
                             }}
                             onSearch={(q) => searchMolds(mold.id, q)}
+                            onAddNew={(q) => updateMoldFields(mold.id, { type: "new", value: q })}
+                            addNewLabel="New mold (not in catalog)"
                             placeholder="ML-1004B"
                           />
                         ) : (
