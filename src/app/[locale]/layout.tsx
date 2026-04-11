@@ -23,9 +23,9 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider messages={messages}>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-background">
         <Sidebar locale={locale} />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto page-enter">
           {children}
         </main>
       </div>
