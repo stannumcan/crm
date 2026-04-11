@@ -41,13 +41,23 @@ interface ApprovedCalc {
   estimated_cost_rmb: number | null;
 }
 
+interface DDPSettings {
+  lcl_rate_per_cbm: number;
+  lcl_base_fee: number;
+  fcl_20gp_jpy: number;
+  fcl_40gp_jpy: number;
+  fcl_40hq_jpy: number;
+  margin_values: number[];
+}
+
 interface TierState {
   tier_label: string;
   quantity: string;
   rmbUnitPrice: string;
-  shippingType: "lcl" | "fcl_20ft" | "fcl_40ft" | "multi_container";
+  bufferPct: string;
+  shippingType: "lcl" | "fcl_20gp" | "fcl_40gp" | "fcl_40hq" | "multi_container";
   manualShippingCostJpy: string;
-  selectedMargin: string;
+  selectedMarginIdx: string; // index into marginValues array
 }
 
 interface PackagingState {
@@ -64,8 +74,9 @@ interface PackagingState {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function autoShippingType(quantityType: string): TierState["shippingType"] {
-  if (quantityType === "fcl_20ft") return "fcl_20ft";
-  if (quantityType === "fcl_40ft") return "fcl_40ft";
+  if (quantityType === "fcl_20gp") return "fcl_20gp";
+  if (quantityType === "fcl_40gp") return "fcl_40gp";
+  if (quantityType === "fcl_40hq") return "fcl_40hq";
   return "lcl";
 }
 
@@ -74,9 +85,10 @@ function initTier(calc: ApprovedCalc): TierState {
     tier_label: calc.tier_label,
     quantity: String(calc.quantity ?? ""),
     rmbUnitPrice: calc.estimated_cost_rmb != null ? calc.estimated_cost_rmb.toFixed(4) : "",
+    bufferPct: "5",
     shippingType: autoShippingType(calc.quantity_type),
     manualShippingCostJpy: "",
-    selectedMargin: "40",
+    selectedMarginIdx: "4", // index 4 = 40% in default array
   };
 }
 
@@ -93,14 +105,13 @@ function initPackaging(defaults: PackagingDefaults): PackagingState {
   };
 }
 
-const SHIPPING_LABELS: Record<string, string> = {
-  lcl: "LCL (auto-calculated)",
-  fcl_20ft: "20ft FCL (¥250,000)",
-  fcl_40ft: "40ft FCL (¥400,000)",
-  multi_container: "Multiple containers (manual)",
-};
-
-const ALL_MARGINS = [60, 55, 50, 45, 40, 35, 30, 25];
+const SHIPPING_OPTIONS: { value: TierState["shippingType"]; label: string }[] = [
+  { value: "lcl", label: "LCL" },
+  { value: "fcl_20gp", label: "20GP" },
+  { value: "fcl_40gp", label: "40GP" },
+  { value: "fcl_40hq", label: "40HQ" },
+  { value: "multi_container", label: "Multiple containers (manual)" },
+];
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -112,6 +123,7 @@ export default function DDPCalcForm({
   packagingDefaults,
   approvedCalcs,
   existingDDP,
+  shippingRates: defaultSettings,
 }: {
   locale: string;
   quoteId: string;
@@ -120,6 +132,7 @@ export default function DDPCalcForm({
   packagingDefaults: PackagingDefaults;
   approvedCalcs: ApprovedCalc[];
   existingDDP: Record<string, unknown>[];
+  shippingRates: DDPSettings;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -129,6 +142,18 @@ export default function DDPCalcForm({
   const [fxRate, setFxRate] = useState("20");
   const [importDutyRate, setImportDutyRate] = useState("4");
   const [consumptionTaxRate, setConsumptionTaxRate] = useState("0");
+
+  // Shipping rates + margin values (editable, persisted globally on save)
+  const [lclRatePerCbm, setLclRatePerCbm] = useState(String(defaultSettings.lcl_rate_per_cbm));
+  const [lclBaseFee, setLclBaseFee] = useState(String(defaultSettings.lcl_base_fee));
+  const [fcl20gpCost, setFcl20gpCost] = useState(String(defaultSettings.fcl_20gp_jpy));
+  const [fcl40gpCost, setFcl40gpCost] = useState(String(defaultSettings.fcl_40gp_jpy));
+  const [fcl40hqCost, setFcl40hqCost] = useState(String(defaultSettings.fcl_40hq_jpy));
+  const [marginValues, setMarginValues] = useState<string[]>(
+    () => (defaultSettings.margin_values ?? [60, 55, 50, 45, 40, 35, 30, 25]).map(String)
+  );
+  const updateMarginValue = (idx: number, val: string) =>
+    setMarginValues((prev) => prev.map((v, i) => (i === idx ? val : v)));
 
   // Packaging (auto-filled, editable)
   const [pkg, setPkg] = useState<PackagingState>(() => initPackaging(packagingDefaults));
@@ -148,6 +173,8 @@ export default function DDPCalcForm({
     const pcs = parseInt(pkg.pcsPerCarton);
     const bpp = parseInt(pkg.boxesPerPallet);
     if (!qty || !rmb || !fx || !pcs || !bpp) return null;
+    const parsedMargins = marginValues.map((m) => parseFloat(m) / 100).filter((m) => !isNaN(m) && m >= 0);
+    const selIdx = Math.min(parseInt(tier.selectedMarginIdx) || 0, parsedMargins.length - 1);
     return calculateDDP({
       customerOrderQty: qty,
       rmbUnitPrice: rmb,
@@ -160,11 +187,18 @@ export default function DDPCalcForm({
       palletWmm: parseFloat(pkg.palletW) || 1000,
       palletHmm: parseFloat(pkg.palletH) || 1100,
       boxesPerPallet: bpp,
+      bufferPct: parseFloat(tier.bufferPct) / 100 || 0.05,
       shippingType: tier.shippingType,
       manualShippingCostJpy: tier.manualShippingCostJpy ? parseInt(tier.manualShippingCostJpy) : undefined,
+      lclRatePerCbm: parseFloat(lclRatePerCbm) || 23000,
+      lclBaseFee: parseFloat(lclBaseFee) || 0,
+      fcl20gpCost: parseFloat(fcl20gpCost) || 250000,
+      fcl40gpCost: parseFloat(fcl40gpCost) || 400000,
+      fcl40hqCost: parseFloat(fcl40hqCost) || 450000,
+      margins: parsedMargins,
       importDutyRate: parseFloat(importDutyRate) / 100,
       consumptionTaxRate: parseFloat(consumptionTaxRate) / 100,
-      selectedMargin: parseFloat(tier.selectedMargin) / 100,
+      selectedMargin: parsedMargins[selIdx] ?? 0.4,
     });
   }
 
@@ -181,6 +215,8 @@ export default function DDPCalcForm({
         if (!qty || !rmb || !fx || !pcs || !bpp) {
           throw new Error(`Tier ${tier.tier_label}: fill in all required fields`);
         }
+        const parsedMargins = marginValues.map((m) => parseFloat(m) / 100).filter((m) => !isNaN(m) && m >= 0);
+        const selIdx = Math.min(parseInt(tier.selectedMarginIdx) || 0, parsedMargins.length - 1);
         return {
           tier_label: tier.tier_label,
           customerOrderQty: qty,
@@ -194,19 +230,44 @@ export default function DDPCalcForm({
           palletWmm: parseFloat(pkg.palletW) || 1000,
           palletHmm: parseFloat(pkg.palletH) || 1100,
           boxesPerPallet: bpp,
+          bufferPct: parseFloat(tier.bufferPct) / 100 || 0.05,
           shippingType: tier.shippingType,
           manualShippingCostJpy: tier.manualShippingCostJpy ? parseInt(tier.manualShippingCostJpy) : undefined,
+          lclRatePerCbm: parseFloat(lclRatePerCbm) || 23000,
+          lclBaseFee: parseFloat(lclBaseFee) || 0,
+          fcl20gpCost: parseFloat(fcl20gpCost) || 250000,
+          fcl40gpCost: parseFloat(fcl40gpCost) || 400000,
+          fcl40hqCost: parseFloat(fcl40hqCost) || 450000,
+          margins: parsedMargins,
           importDutyRate: parseFloat(importDutyRate) / 100,
           consumptionTaxRate: parseFloat(consumptionTaxRate) / 100,
-          selectedMargin: parseFloat(tier.selectedMargin) / 100,
+          selectedMargin: parsedMargins[selIdx] ?? 0.4,
         };
       });
 
-      const res = await fetch("/api/ddp-calc", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quotation_id: quoteId, cost_sheet_id: costSheetId, tiers: tiersPayload }),
-      });
+      // Save DDP records and shipping settings in parallel
+      const [res] = await Promise.all([
+        fetch("/api/ddp-calc", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quotation_id: quoteId, cost_sheet_id: costSheetId, tiers: tiersPayload }),
+        }),
+        fetch("/api/app-settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            key: "ddp_shipping",
+            value: {
+              lcl_rate_per_cbm: parseFloat(lclRatePerCbm) || 23000,
+              lcl_base_fee: parseFloat(lclBaseFee) || 0,
+              fcl_20gp_jpy: parseFloat(fcl20gpCost) || 250000,
+              fcl_40gp_jpy: parseFloat(fcl40gpCost) || 400000,
+              fcl_40hq_jpy: parseFloat(fcl40hqCost) || 450000,
+              margin_values: marginValues.map((m) => parseFloat(m)).filter((m) => !isNaN(m) && m >= 0),
+            },
+          }),
+        }),
+      ]);
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed to save");
       router.push(`/${locale}/quotes/${quoteId}`);
     } catch (err) {
@@ -247,11 +308,11 @@ export default function DDPCalcForm({
 
       {/* ── Shared Settings + Packaging ──────────────────────────── */}
       <div className="grid grid-cols-2 gap-5">
-        {/* Shared currency / tax */}
+        {/* Shared currency / tax / shipping rates */}
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-sm">Shared Settings</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-xs text-gray-400 mb-3">Applies to all quantities</p>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-gray-400">Applies to all quantities. Shipping rates are saved globally for future sessions.</p>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">FX Rate (1 RMB = JPY)</Label>
@@ -264,6 +325,50 @@ export default function DDPCalcForm({
               <div className="space-y-1.5">
                 <Label className="text-xs">Consumption Tax %</Label>
                 <Input type="number" step="0.1" value={consumptionTaxRate} onChange={(e) => setConsumptionTaxRate(e.target.value)} placeholder="0" className="h-8" />
+              </div>
+            </div>
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-xs font-medium text-gray-500 mb-2">Margin Options (%)</p>
+              <div className="grid grid-cols-4 gap-2 mb-1">
+                {marginValues.map((mv, i) => (
+                  <div key={i} className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="100"
+                      value={mv}
+                      onChange={(e) => updateMarginValue(i, e.target.value)}
+                      className="h-7 font-mono text-xs"
+                    />
+                    <span className="text-xs text-gray-400 shrink-0">%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-xs font-medium text-gray-500 mb-2">Shipping Rates (JPY)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">LCL Rate per CBM (¥)</Label>
+                  <Input type="number" value={lclRatePerCbm} onChange={(e) => setLclRatePerCbm(e.target.value)} className="h-8 font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">LCL Base Fee (¥)</Label>
+                  <Input type="number" value={lclBaseFee} onChange={(e) => setLclBaseFee(e.target.value)} className="h-8 font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">20GP Cost (¥)</Label>
+                  <Input type="number" value={fcl20gpCost} onChange={(e) => setFcl20gpCost(e.target.value)} className="h-8 font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">40GP Cost (¥)</Label>
+                  <Input type="number" value={fcl40gpCost} onChange={(e) => setFcl40gpCost(e.target.value)} className="h-8 font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">40HQ Cost (¥)</Label>
+                  <Input type="number" value={fcl40hqCost} onChange={(e) => setFcl40hqCost(e.target.value)} className="h-8 font-mono" />
+                </div>
               </div>
             </div>
           </CardContent>
@@ -330,14 +435,30 @@ export default function DDPCalcForm({
                   <Card>
                     <CardHeader className="pb-3"><CardTitle className="text-sm">Qty {tier.quantity ? parseInt(tier.quantity).toLocaleString() : "—"} pcs — Inputs</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Customer Order Qty (pcs)</Label>
-                        <Input
-                          type="number"
-                          value={tier.quantity}
-                          onChange={(e) => updateTier(tier.tier_label, "quantity", e.target.value)}
-                          className="font-mono"
-                        />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5 col-span-1">
+                          <Label className="text-xs">Customer Order Qty (pcs)</Label>
+                          <Input
+                            type="number"
+                            value={tier.quantity}
+                            onChange={(e) => updateTier(tier.tier_label, "quantity", e.target.value)}
+                            className="font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1.5 col-span-1">
+                          <Label className="text-xs">Buffer %</Label>
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              value={tier.bufferPct}
+                              onChange={(e) => updateTier(tier.tier_label, "bufferPct", e.target.value)}
+                              className="font-mono"
+                            />
+                            <span className="text-sm text-gray-400 shrink-0">%</span>
+                          </div>
+                        </div>
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Manufacturing Unit Price (RMB/pc)</Label>
@@ -358,20 +479,20 @@ export default function DDPCalcForm({
                         >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            {Object.entries(SHIPPING_LABELS).map(([v, l]) => (
-                              <SelectItem key={v} value={v}>{l}</SelectItem>
+                            {SHIPPING_OPTIONS.map(({ value, label }) => (
+                              <SelectItem key={value} value={value}>{label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                      {(tier.shippingType === "multi_container" || tier.shippingType === "fcl_20ft" || tier.shippingType === "fcl_40ft") && (
+                      {tier.shippingType === "multi_container" && (
                         <div className="space-y-1.5">
                           <Label className="text-xs">Manual Shipping Cost (JPY)</Label>
                           <Input
                             type="number"
                             value={tier.manualShippingCostJpy}
                             onChange={(e) => updateTier(tier.tier_label, "manualShippingCostJpy", e.target.value)}
-                            placeholder="Leave blank for default FCL rate"
+                            placeholder="Enter total shipping cost"
                             className="font-mono"
                           />
                         </div>
@@ -395,7 +516,7 @@ export default function DDPCalcForm({
                           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Logistics</p>
                           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
                             <Row label="Customer order qty" value={`${qty.toLocaleString()} pcs`} />
-                            <Row label="+5% buffer qty" value={`${(qty * 1.05).toLocaleString(undefined, { maximumFractionDigits: 0 })} pcs`} />
+                            <Row label={`+${tier.bufferPct || 5}% buffer qty`} value={`${Math.round(qty * (1 + (parseFloat(tier.bufferPct) || 5) / 100)).toLocaleString()} pcs`} />
                             <Row label="Cartons ordered" value={result.cartonsOrdered.toLocaleString()} />
                             <Row label="Factory production qty" value={`${result.factoryProductionQty.toLocaleString()} pcs`} />
                             <Row label="Pallets" value={result.pallets.toLocaleString()} />
@@ -410,7 +531,7 @@ export default function DDPCalcForm({
                           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Cost Breakdown</p>
                           <div className="space-y-1 text-sm">
                             <Row label="Manufacturing" value={formatJPY(result.manufacturingCostJpy)} />
-                            <Row label={`Shipping (${tier.shippingType === "lcl" ? "LCL auto" : SHIPPING_LABELS[tier.shippingType]})`} value={formatJPY(result.shippingCostJpy)} />
+                            <Row label={`Shipping (${SHIPPING_OPTIONS.find((o) => o.value === tier.shippingType)?.label ?? tier.shippingType})`} value={formatJPY(result.shippingCostJpy)} />
                             <Row label={`Import duty (${importDutyRate}%)`} value={formatJPY(result.importDutyJpy)} />
                             {result.consumptionTaxJpy > 0 && (
                               <Row label={`Consumption tax (${consumptionTaxRate}%)`} value={formatJPY(result.consumptionTaxJpy)} />
@@ -428,14 +549,14 @@ export default function DDPCalcForm({
                         <div>
                           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Selling Price by Margin</p>
                           <div className="grid grid-cols-4 gap-1.5">
-                            {result.marginOptions.map((opt) => {
-                              const pct = Math.round(opt.margin * 100);
-                              const isSelected = String(pct) === tier.selectedMargin;
+                            {result.marginOptions.map((opt, i) => {
+                              const pct = +(opt.margin * 100).toFixed(2);
+                              const isSelected = tier.selectedMarginIdx === String(i);
                               return (
                                 <button
-                                  key={pct}
+                                  key={i}
                                   type="button"
-                                  onClick={() => updateTier(tier.tier_label, "selectedMargin", String(pct))}
+                                  onClick={() => updateTier(tier.tier_label, "selectedMarginIdx", String(i))}
                                   className={`rounded-md border p-2 text-left transition-colors ${
                                     isSelected
                                       ? "border-blue-500 bg-blue-50"
@@ -456,7 +577,7 @@ export default function DDPCalcForm({
                         {/* Selected price banner */}
                         <div className="flex items-center justify-between rounded-lg bg-blue-700 text-white px-4 py-3">
                           <div>
-                            <p className="text-xs opacity-70">Selected: {tier.selectedMargin}% margin</p>
+                            <p className="text-xs opacity-70">Selected: {marginValues[parseInt(tier.selectedMarginIdx)] ?? "—"}% margin</p>
                             <p className="text-2xl font-bold">{formatJPY(result.unitPriceJpy)}<span className="text-sm font-normal opacity-80"> / pc</span></p>
                           </div>
                           <div className="text-right">

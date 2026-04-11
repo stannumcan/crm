@@ -41,8 +41,18 @@ export interface DDPInputs {
   palletHmm: number;
   boxesPerPallet: number;
   // Shipping
-  shippingType: "lcl" | "fcl_20ft" | "fcl_40ft" | "multi_container";
-  manualShippingCostJpy?: number; // override for FCL/multi
+  shippingType: "lcl" | "fcl_20gp" | "fcl_40gp" | "fcl_40hq" | "multi_container";
+  manualShippingCostJpy?: number; // override for multi_container
+  // Buffer for production order (default 5%)
+  bufferPct?: number;      // default 0.05
+  // Configurable shipping rates (fall back to defaults if not provided)
+  lclRatePerCbm?: number;  // default 23000
+  lclBaseFee?: number;     // default 10000
+  fcl20gpCost?: number;    // default 250000
+  fcl40gpCost?: number;    // default 400000
+  fcl40hqCost?: number;    // default 450000
+  // Margin options to compute (default [0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25])
+  margins?: number[];
   // Costs
   importDutyRate: number; // default 0.04
   consumptionTaxRate: number; // default 0.0
@@ -83,6 +93,13 @@ export function calculateDDP(inputs: DDPInputs): DDPResult {
     boxesPerPallet,
     shippingType,
     manualShippingCostJpy,
+    bufferPct = 0.05,
+    lclRatePerCbm = 23000,
+    lclBaseFee = 10000,
+    fcl20gpCost = 250000,
+    fcl40gpCost = 400000,
+    fcl40hqCost = 450000,
+    margins = [0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25],
     importDutyRate,
     consumptionTaxRate,
     selectedMargin,
@@ -93,8 +110,8 @@ export function calculateDDP(inputs: DDPInputs): DDPResult {
   const palletBaseCBM = (palletLmm * palletWmm * palletHmm) / 1_000_000_000;
   const palletCBM = boxCBM * boxesPerPallet + palletBaseCBM;
 
-  // Production qty (customer qty + 5% buffer, rounded DOWN to full cartons)
-  const cartonsOrdered = Math.floor((customerOrderQty * 1.05) / pcsPerCarton);
+  // Production qty (customer qty + buffer%, rounded DOWN to full cartons)
+  const cartonsOrdered = Math.floor((customerOrderQty * (1 + bufferPct)) / pcsPerCarton);
   const factoryProductionQty = cartonsOrdered * pcsPerCarton;
 
   // Pallets and total CBM
@@ -106,16 +123,18 @@ export function calculateDDP(inputs: DDPInputs): DDPResult {
 
   // Shipping cost (JPY)
   let shippingCostJpy: number;
-  if (manualShippingCostJpy !== undefined) {
-    shippingCostJpy = manualShippingCostJpy;
-  } else if (shippingType === "lcl") {
-    shippingCostJpy = Math.round(totalCBM * 23000 + 10000);
-  } else if (shippingType === "fcl_20ft") {
-    shippingCostJpy = 250000;
-  } else if (shippingType === "fcl_40ft") {
-    shippingCostJpy = 400000;
-  } else {
+  if (shippingType === "multi_container") {
     shippingCostJpy = manualShippingCostJpy ?? 0;
+  } else if (shippingType === "lcl") {
+    shippingCostJpy = Math.round(totalCBM * lclRatePerCbm + lclBaseFee);
+  } else if (shippingType === "fcl_20gp") {
+    shippingCostJpy = fcl20gpCost;
+  } else if (shippingType === "fcl_40gp") {
+    shippingCostJpy = fcl40gpCost;
+  } else if (shippingType === "fcl_40hq") {
+    shippingCostJpy = fcl40hqCost;
+  } else {
+    shippingCostJpy = 0;
   }
 
   // Duty and tax
@@ -129,8 +148,7 @@ export function calculateDDP(inputs: DDPInputs): DDPResult {
   const totalRevenueJpy = Math.round(totalCostJpy * (1 + selectedMargin));
   const unitPriceJpy = Math.round(totalRevenueJpy / customerOrderQty);
 
-  // All margin options
-  const margins = [0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25];
+  // All margin options (using provided or default margins array)
   const marginOptions = margins.map((margin) => {
     const total = Math.round(totalCostJpy * (1 + margin));
     return {

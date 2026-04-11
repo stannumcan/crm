@@ -17,6 +17,23 @@ export default async function DDPCalcPage({
 
   const supabase = await createClient();
 
+  // Fetch global shipping rate settings
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: settingsRow } = await (supabase as any)
+    .from("app_settings")
+    .select("value")
+    .eq("key", "ddp_shipping")
+    .single();
+
+  const shippingRates = {
+    lcl_rate_per_cbm: settingsRow?.value?.lcl_rate_per_cbm ?? 23000,
+    lcl_base_fee: settingsRow?.value?.lcl_base_fee ?? 10000,
+    fcl_20gp_jpy: settingsRow?.value?.fcl_20gp_jpy ?? 250000,
+    fcl_40gp_jpy: settingsRow?.value?.fcl_40gp_jpy ?? 400000,
+    fcl_40hq_jpy: settingsRow?.value?.fcl_40hq_jpy ?? 450000,
+    margin_values: (settingsRow?.value?.margin_values as number[] | undefined) ?? [60, 55, 50, 45, 40, 35, 30, 25],
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: quote, error: queryError } = await (supabase as any)
     .from("quotations")
@@ -175,6 +192,7 @@ export default async function DDPCalcPage({
           packagingDefaults={typedSheets[0].packagingDefaults}
           approvedCalcs={typedSheets[0].approvedCalcs}
           existingDDP={typedSheets[0].existingDDP}
+          shippingRates={shippingRates}
         />
       ) : (
         <Tabs defaultValue={typedSheets[0].id}>
@@ -195,6 +213,7 @@ export default async function DDPCalcPage({
                 packagingDefaults={sheet.packagingDefaults}
                 approvedCalcs={sheet.approvedCalcs}
                 existingDDP={sheet.existingDDP}
+                shippingRates={shippingRates}
               />
             </TabsContent>
           ))}

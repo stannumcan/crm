@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     await deleteQuery.is("cost_sheet_id", null);
   }
 
-  const records = tiers.map((t: DDPInputs & { tier_label: string }) => {
+  const records = tiers.map((t: DDPInputs & { tier_label: string; lclRatePerCbm?: number; lclBaseFee?: number; fcl20gpCost?: number; fcl40gpCost?: number; fcl40hqCost?: number }) => {
     const result = calculateDDP(t);
     return {
       quotation_id,
