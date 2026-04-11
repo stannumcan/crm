@@ -46,6 +46,7 @@ interface Quote {
   internal_notes: string | null;
   attachments: { name: string; url: string; size: number; type: string }[] | null;
   created_at: string;
+  created_by: string | null;
   work_orders: { id: string; wo_number: string; company_name: string; project_name: string } | null;
   quotation_quantity_tiers: QuantityTier[];
 }
