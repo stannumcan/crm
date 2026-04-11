@@ -28,7 +28,7 @@ export default async function DDPCalcPage({
         packaging_lines,
         wilfred_calculations(tier_label, quantity, estimated_cost_rmb, approved)
       ),
-      natsuki_ddp_calculations(*)
+      natsuki_ddp_calculations!quotation_id(*)
     `)
     .eq("id", id)
     .single();

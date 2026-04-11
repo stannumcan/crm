@@ -24,7 +24,7 @@ export default async function CustomerQuotePage({
       design_count, shipping_info_required,
       work_orders(id, wo_number, company_name, project_name),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order),
-      natsuki_ddp_calculations(
+      natsuki_ddp_calculations!quotation_id(
         id, tier_label, quantity, unit_price_jpy, total_revenue_jpy,
         selected_margin, shipping_cost_jpy, total_cost_jpy, manufacturing_cost_jpy
       ),

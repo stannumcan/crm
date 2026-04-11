@@ -61,7 +61,7 @@ export default async function QuoteDetailPage({
       work_orders(id, wo_number, company_name, project_name),
       quotation_quantity_tiers(*),
       factory_cost_sheets(id, wilfred_calculations(id)),
-      natsuki_ddp_calculations(id),
+      natsuki_ddp_calculations!quotation_id(id),
       customer_quotes(id)
     `)
     .eq("id", id)

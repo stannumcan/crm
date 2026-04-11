@@ -20,7 +20,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
         wilfred_calculations(*)
       ),
       annie_quotations(*),
-      natsuki_ddp_calculations(*),
+      natsuki_ddp_calculations!quotation_id(*),
       customer_quotes(*)
     `)
     .eq("id", id)
