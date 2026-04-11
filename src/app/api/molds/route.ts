@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from("molds")
-    .select("id, mold_number, hm_number, category, variant, length_mm, width_mm, height_mm, dimensions, feature, is_active")
+    .select("id, mold_number, category, variant, length_mm, width_mm, height_mm, dimensions, feature, is_active")
     .order("mold_number");
 
   if (!all) query = query.eq("is_active", true);
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
-  const { mold_number, hm_number, category, variant, length_mm, width_mm, height_mm, feature } = body;
+  const { mold_number, category, variant, length_mm, width_mm, height_mm, feature } = body;
 
   if (!mold_number?.trim()) {
     return NextResponse.json({ error: "mold_number is required" }, { status: 400 });
@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
     .from("molds")
     .insert({
       mold_number: mold_number.trim().toUpperCase(),
-      hm_number: hm_number?.trim() || null,
       category: category?.trim() || null,
       variant: variant?.trim() || null,
       length_mm: length_mm || null,

@@ -9,7 +9,7 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  const allowed = ["mold_number", "hm_number", "category", "variant", "length_mm", "width_mm", "height_mm", "feature", "is_active"];
+  const allowed = ["mold_number", "category", "variant", "length_mm", "width_mm", "height_mm", "feature", "is_active", "image_url"];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updates: Record<string, any> = {};
   for (const key of allowed) {

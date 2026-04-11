@@ -13,7 +13,6 @@ import { Pencil, Plus, Search } from "lucide-react";
 interface Mold {
   id: string;
   mold_number: string;
-  hm_number: string | null;
   category: string | null;
   variant: string | null;
   length_mm: number | null;
@@ -37,7 +36,6 @@ function MoldForm({
 }) {
   const [form, setForm] = useState({
     mold_number: initial?.mold_number ?? "",
-    hm_number: initial?.hm_number ?? "",
     category: initial?.category ?? "",
     variant: initial?.variant ?? "",
     length_mm: initial?.length_mm?.toString() ?? "",
@@ -59,7 +57,6 @@ function MoldForm({
     try {
       await onSave({
         mold_number: form.mold_number.trim().toUpperCase(),
-        hm_number: form.hm_number.trim() || null,
         category: form.category || null,
         variant: form.variant.trim() || null,
         length_mm: form.length_mm ? parseFloat(form.length_mm) : null,
@@ -76,15 +73,9 @@ function MoldForm({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label>Mold Number <span className="text-red-500">*</span></Label>
-          <Input value={form.mold_number} onChange={(e) => set("mold_number", e.target.value)} placeholder="ML-1234" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>HM Number</Label>
-          <Input value={form.hm_number} onChange={(e) => set("hm_number", e.target.value)} placeholder="HM1234" />
-        </div>
+      <div className="space-y-1.5">
+        <Label>Mold Number <span className="text-red-500">*</span></Label>
+        <Input value={form.mold_number} onChange={(e) => set("mold_number", e.target.value)} placeholder="ML-1234" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
@@ -160,7 +151,6 @@ export default function MoldsSettings() {
     const q = search.toLowerCase();
     return (
       m.mold_number.toLowerCase().includes(q) ||
-      (m.hm_number ?? "").toLowerCase().includes(q) ||
       (m.category ?? "").toLowerCase().includes(q) ||
       (m.variant ?? "").toLowerCase().includes(q)
     );
@@ -224,7 +214,6 @@ export default function MoldsSettings() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-28">Mold #</th>
-                  <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-24">HM #</th>
                   <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-28">Category</th>
                   <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">Variant</th>
                   <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-36">Dimensions</th>
@@ -235,12 +224,11 @@ export default function MoldsSettings() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.length === 0 && (
-                  <tr><td colSpan={8} className="text-center text-gray-400 py-8">No molds found</td></tr>
+                  <tr><td colSpan={7} className="text-center text-gray-400 py-8">No molds found</td></tr>
                 )}
                 {filtered.map((m) => (
                   <tr key={m.id} className={`align-middle ${!m.is_active ? "opacity-50" : ""}`}>
                     <td className="px-3 py-2 font-mono text-xs font-medium">{m.mold_number}</td>
-                    <td className="px-3 py-2 text-xs text-gray-500">{m.hm_number ?? "—"}</td>
                     <td className="px-3 py-2 text-xs">{m.category ?? "—"}</td>
                     <td className="px-3 py-2 text-xs text-gray-600">{m.variant ?? "—"}</td>
                     <td className="px-3 py-2 text-xs text-gray-500">{m.dimensions ?? "—"}</td>
