@@ -54,32 +54,34 @@ export default async function QuoteDetailPage({
 
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: quote } = await (supabase as any)
+  const { data: quote, error: quoteError } = await (supabase as any)
     .from("quotations")
     .select(`
       *,
       work_orders(id, wo_number, company_name, project_name),
       quotation_quantity_tiers(*),
-      factory_cost_sheets(id),
-      wilfred_calculations(id),
+      factory_cost_sheets(id, wilfred_calculations(id)),
       natsuki_ddp_calculations(id),
       customer_quotes(id)
     `)
     .eq("id", id)
     .single();
 
-  if (!quote) notFound();
+  if (quoteError || !quote) notFound();
 
   const wo = quote.work_orders as { id: string; wo_number: string; company_name: string; project_name: string } | null;
   const tiers = (quote.quotation_quantity_tiers as { id: string; tier_label: string; quantity_type: string; quantity: number | null; sort_order: number }[] | null) ?? [];
-  const hasFactorySheet = Array.isArray(quote.factory_cost_sheets) ? quote.factory_cost_sheets.length > 0 : !!quote.factory_cost_sheets;
-  const hasWilfredCalc = Array.isArray(quote.wilfred_calculations) ? quote.wilfred_calculations.length > 0 : !!quote.wilfred_calculations;
+
+  // factory_cost_sheets is an array (one-to-many FK)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const factorySheets = (Array.isArray(quote.factory_cost_sheets) ? quote.factory_cost_sheets : (quote.factory_cost_sheets ? [quote.factory_cost_sheets] : [])) as { id: string; wilfred_calculations: unknown }[];
+  const hasFactorySheet = factorySheets.length > 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hasWilfredCalc = factorySheets.some((fs: any) => Array.isArray(fs.wilfred_calculations) ? fs.wilfred_calculations.length > 0 : !!fs.wilfred_calculations);
   const hasDDPCalc = Array.isArray(quote.natsuki_ddp_calculations) ? quote.natsuki_ddp_calculations.length > 0 : !!quote.natsuki_ddp_calculations;
   const hasCustomerQuote = Array.isArray(quote.customer_quotes) ? quote.customer_quotes.length > 0 : !!quote.customer_quotes;
 
-  const factorySheetId = hasFactorySheet
-    ? (Array.isArray(quote.factory_cost_sheets) ? (quote.factory_cost_sheets as { id: string }[])[0]?.id : (quote.factory_cost_sheets as { id: string } | null)?.id)
-    : null;
+  const factorySheetId = hasFactorySheet ? factorySheets[0]?.id : null;
 
   const currentStatus = quote.status as QuoteStatus;
 
