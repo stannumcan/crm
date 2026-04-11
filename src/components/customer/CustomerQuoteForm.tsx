@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,23 +114,8 @@ export default function CustomerQuoteForm({
         backgroundColor: "#ffffff",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onclone: (clonedDoc: any) => {
-          // Remove all stylesheets that use modern CSS color functions (lab, oklch)
-          // that html2canvas cannot parse. The print document uses inline styles only.
-          const sheets: CSSStyleSheet[] = Array.from(clonedDoc.styleSheets);
-          for (const sheet of sheets) {
-            try {
-              const rules: CSSRule[] = Array.from(sheet.cssRules ?? []);
-              const hasLab = rules.some((r) => r.cssText.includes("lab(") || r.cssText.includes("oklch("));
-              if (hasLab && sheet.ownerNode) {
-                (sheet.ownerNode as Element).parentNode?.removeChild(sheet.ownerNode as Element);
-              }
-            } catch {
-              // Cross-origin sheets throw on cssRules access — remove them too
-              if (sheet.ownerNode) {
-                (sheet.ownerNode as Element).parentNode?.removeChild(sheet.ownerNode as Element);
-              }
-            }
-          }
+          // Remove all external stylesheets — print document is fully inline-styled
+          clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach((el: Element) => el.remove());
         },
       });
 
@@ -368,10 +353,49 @@ export default function CustomerQuoteForm({
     }
   };
 
-  // ── shared cell style ───────────────────────────────────────
-  const cellBase = "border border-gray-400 px-2 py-1 text-xs align-top";
-  const labelCell = `${cellBase} bg-gray-100 font-medium whitespace-nowrap w-28`;
-  const labelCellWide = `${cellBase} bg-gray-100 font-medium whitespace-nowrap w-36`;
+  // ── shared cell styles (inline — Tailwind stripped by html2canvas) ──────────
+  const S = {
+    cell: {
+      border: "1px solid #9ca3af",
+      padding: "4px 8px",
+      fontSize: "11px",
+      verticalAlign: "top" as const,
+    } as React.CSSProperties,
+    labelCell: {
+      border: "1px solid #9ca3af",
+      padding: "4px 8px",
+      fontSize: "11px",
+      verticalAlign: "top" as const,
+      backgroundColor: "#f3f4f6",
+      fontWeight: 500,
+      whiteSpace: "nowrap" as const,
+      width: "112px",
+    } as React.CSSProperties,
+    labelCellWide: {
+      border: "1px solid #9ca3af",
+      padding: "4px 8px",
+      fontSize: "11px",
+      verticalAlign: "top" as const,
+      backgroundColor: "#f3f4f6",
+      fontWeight: 500,
+      whiteSpace: "nowrap" as const,
+      width: "144px",
+    } as React.CSSProperties,
+    thCell: {
+      border: "1px solid #9ca3af",
+      padding: "4px 8px",
+      fontSize: "11px",
+      textAlign: "center" as const,
+      color: "#fff",
+    } as React.CSSProperties,
+    tdCenter: {
+      border: "1px solid #9ca3af",
+      padding: "4px 8px",
+      fontSize: "11px",
+      textAlign: "center" as const,
+      verticalAlign: "top" as const,
+    } as React.CSSProperties,
+  };
 
   return (
     <div className="space-y-6">
@@ -653,8 +677,9 @@ export default function CustomerQuoteForm({
       ═══════════════════════════════════════════════════════ */}
       <div
         ref={printRef}
-        className="bg-white border border-gray-300 print:border-0 print:shadow-none"
         style={{
+          background: "#fff",
+          border: "1px solid #d1d5db",
           fontFamily: "'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif",
           fontSize: "11px",
           padding: "24px 32px",
@@ -663,35 +688,33 @@ export default function CustomerQuoteForm({
         }}
       >
         {/* ── Date top-right ── */}
-        <div className="text-right mb-1" style={{ fontSize: "11px" }}>
+        <div style={{ textAlign: "right", marginBottom: "4px", fontSize: "11px" }}>
           日付 : {displayDate}
         </div>
 
         {/* ── Title row ── */}
-        <div className="flex items-center justify-between mb-1">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
           <div style={{ flex: 1 }} />
           <div
-            className="text-center font-bold"
-            style={{ fontSize: "18px", letterSpacing: "0.3em", flex: 2 }}
+            style={{ fontSize: "18px", letterSpacing: "0.3em", flex: 2, textAlign: "center", fontWeight: 700 }}
           >
             御　見　積　書
           </div>
-          <div className="text-right" style={{ flex: 1, fontSize: "11px" }}>
+          <div style={{ flex: 1, fontSize: "11px", textAlign: "right" }}>
             見積番号: {quoteNumber}
           </div>
         </div>
 
-        <div className="mb-3" style={{ borderBottom: "2px solid #000" }} />
+        <div style={{ marginBottom: "12px", borderBottom: "2px solid #000" }} />
 
         {/* ── Two-column: customer left | WINHOOP right ── */}
-        <table className="w-full mb-3" style={{ borderCollapse: "collapse" }}>
+        <table style={{ width: "100%", marginBottom: "12px", borderCollapse: "collapse" }}>
           <tbody>
             <tr>
               {/* Customer block */}
-              <td className="align-top" style={{ width: "55%", paddingRight: "16px" }}>
+              <td style={{ verticalAlign: "top", width: "55%", paddingRight: "16px" }}>
                 <div
-                  className="font-bold"
-                  style={{ fontSize: "15px", borderBottom: "1px solid #000", paddingBottom: "2px", marginBottom: "4px" }}
+                  style={{ fontWeight: 700, fontSize: "15px", borderBottom: "1px solid #000", paddingBottom: "2px", marginBottom: "4px" }}
                 >
                   {customerName}&nbsp;御中
                 </div>
@@ -722,10 +745,10 @@ export default function CustomerQuoteForm({
               </td>
 
               {/* WINHOOP address — fixed */}
-              <td className="align-top" style={{ width: "45%", fontSize: "11px" }}>
+              <td style={{ verticalAlign: "top", width: "45%", fontSize: "11px" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
                   <div style={{ flex: 1 }}>
-                    <div className="font-bold" style={{ fontSize: "13px" }}>
+                    <div style={{ fontWeight: 700, fontSize: "13px" }}>
                       株式会社WINHOOP
                     </div>
                     <div>〒541-0044</div>
@@ -752,46 +775,45 @@ export default function CustomerQuoteForm({
         </table>
 
         {/* ── Intro line ── */}
-        <div className="mb-3" style={{ fontSize: "11px" }}>
+        <div style={{ marginBottom: "12px", fontSize: "11px" }}>
           下記の通りお見積申し上げます。
         </div>
 
         {/* ── Item details table ── */}
         <table
-          className="w-full mb-2"
-          style={{ borderCollapse: "collapse", fontSize: "11px" }}
+          style={{ width: "100%", marginBottom: "8px", borderCollapse: "collapse", fontSize: "11px" }}
         >
           <tbody>
             {/* アイテム / サイズ */}
             <tr>
-              <td className={labelCell}>アイテム</td>
-              <td className={cellBase} style={{ width: "30%" }}>
+              <td style={S.labelCell}>アイテム</td>
+              <td style={{ ...S.cell, width: "30%" }}>
                 {itemName}
               </td>
-              <td className={labelCell}>サイズ</td>
-              <td className={cellBase}>{sizeNoteState}</td>
+              <td style={S.labelCell}>サイズ</td>
+              <td style={S.cell}>{sizeNoteState}</td>
             </tr>
             {/* 素材 / 厚さ */}
             <tr>
-              <td className={labelCell}>素材</td>
-              <td className={cellBase}>{material}</td>
-              <td className={labelCell}>厚さ</td>
-              <td className={cellBase}>{thickness}</td>
+              <td style={S.labelCell}>素材</td>
+              <td style={S.cell}>{material}</td>
+              <td style={S.labelCell}>厚さ</td>
+              <td style={S.cell}>{thickness}</td>
             </tr>
             {/* 印刷方法 rows */}
             {printingLines.length === 0 ? (
               <tr>
-                <td className={labelCell}>印刷方法</td>
-                <td className={cellBase} colSpan={3}></td>
+                <td style={S.labelCell}>印刷方法</td>
+                <td style={S.cell} colSpan={3}></td>
               </tr>
             ) : (
               printingLines.map((ln, i) => (
                 <tr key={i}>
-                  <td className={labelCell}>
+                  <td style={S.labelCell}>
                     {i === 0 ? "印刷方法" : ""}
                   </td>
-                  <td className={cellBase}>{ln.part}</td>
-                  <td className={cellBase} colSpan={2}>
+                  <td style={S.cell}>{ln.part}</td>
+                  <td style={S.cell} colSpan={2}>
                     {ln.spec}
                   </td>
                 </tr>
@@ -799,8 +821,8 @@ export default function CustomerQuoteForm({
             )}
             {/* 梱包方法 */}
             <tr>
-              <td className={labelCell}>梱包方法</td>
-              <td className={cellBase} colSpan={3}>
+              <td style={S.labelCell}>梱包方法</td>
+              <td style={S.cell} colSpan={3}>
                 {packingDetails}
               </td>
             </tr>
@@ -808,17 +830,17 @@ export default function CustomerQuoteForm({
             {(moldType === "new" || moldCostJpy) && (
               <>
                 <tr>
-                  <td className={labelCell} rowSpan={2}>
+                  <td style={S.labelCell} rowSpan={2}>
                     金型代
                   </td>
-                  <td className={cellBase}>金型費用</td>
-                  <td className={cellBase} colSpan={2} style={{ textAlign: "right" }}>
+                  <td style={S.cell}>金型費用</td>
+                  <td style={{ ...S.cell, textAlign: "right" }} colSpan={2}>
                     {moldCostJpy ? fmtJpy(moldCostJpy) : "―"}
                   </td>
                 </tr>
                 <tr>
-                  <td className={cellBase}>エンボスプレート</td>
-                  <td className={cellBase} colSpan={2} style={{ textAlign: "right" }}>
+                  <td style={S.cell}>エンボスプレート</td>
+                  <td style={{ ...S.cell, textAlign: "right" }} colSpan={2}>
                     {embossCostJpy ? fmtJpy(embossCostJpy) : "―"}
                   </td>
                 </tr>
@@ -829,27 +851,17 @@ export default function CustomerQuoteForm({
 
         {/* ── Pricing table ── */}
         <table
-          className="w-full mb-2"
-          style={{ borderCollapse: "collapse", fontSize: "11px" }}
+          style={{ width: "100%", marginBottom: "8px", borderCollapse: "collapse", fontSize: "11px" }}
         >
           <thead>
             <tr style={{ backgroundColor: "#4a4a4a", color: "#fff" }}>
-              <th
-                className="border border-gray-400 px-2 py-1 text-center"
-                style={{ width: "33%" }}
-              >
+              <th style={{ ...S.thCell, width: "33%" }}>
                 ご発注ロット数
               </th>
-              <th
-                className="border border-gray-400 px-2 py-1 text-center"
-                style={{ width: "33%" }}
-              >
+              <th style={{ ...S.thCell, width: "33%" }}>
                 単価
               </th>
-              <th
-                className="border border-gray-400 px-2 py-1 text-center"
-                style={{ width: "34%" }}
-              >
+              <th style={{ ...S.thCell, width: "34%" }}>
                 ご発注合計金額（税別）
               </th>
             </tr>
@@ -857,18 +869,15 @@ export default function CustomerQuoteForm({
           <tbody>
             {sortedCalcs.map((calc) => (
               <tr key={calc.id}>
-                <td
-                  className="border border-gray-400 px-2 py-1 text-center"
-                  style={{ fontWeight: 600 }}
-                >
+                <td style={{ ...S.tdCenter, fontWeight: 600 }}>
                   {calc.quantity.toLocaleString("ja-JP")}
                 </td>
-                <td className="border border-gray-400 px-2 py-1 text-center">
+                <td style={S.tdCenter}>
                   {calc.unit_price_jpy != null
                     ? calc.unit_price_jpy.toLocaleString("ja-JP")
                     : "―"}
                 </td>
-                <td className="border border-gray-400 px-2 py-1 text-center">
+                <td style={S.tdCenter}>
                   {calc.total_revenue_jpy != null
                     ? calc.total_revenue_jpy.toLocaleString("ja-JP")
                     : "―"}
@@ -880,22 +889,21 @@ export default function CustomerQuoteForm({
 
         {/* ── Sample costs ── */}
         <table
-          className="w-full mb-2"
-          style={{ borderCollapse: "collapse", fontSize: "11px" }}
+          style={{ width: "100%", marginBottom: "8px", borderCollapse: "collapse", fontSize: "11px" }}
         >
           <tbody>
             <tr>
-              <td className={labelCellWide} rowSpan={2}>
+              <td style={S.labelCellWide} rowSpan={2}>
                 サンプル費用
               </td>
-              <td className={cellBase} colSpan={3}>
+              <td style={S.cell} colSpan={3}>
                 {sampleCostMachineJpy
                   ? `${fmtJpy(sampleCostMachineJpy)}円/回（サンプル校正機使用の場合、1種あたり）`
                   : "―"}
               </td>
             </tr>
             <tr>
-              <td className={cellBase} colSpan={3}>
+              <td style={S.cell} colSpan={3}>
                 {sampleCostPlasticJpy
                   ? `プラサンプル　${fmtJpy(sampleCostPlasticJpy)}円/個`
                   : "―"}
@@ -906,71 +914,69 @@ export default function CustomerQuoteForm({
 
         {/* ── Lead times ── */}
         <table
-          className="w-full mb-2"
-          style={{ borderCollapse: "collapse", fontSize: "11px" }}
+          style={{ width: "100%", marginBottom: "8px", borderCollapse: "collapse", fontSize: "11px" }}
         >
           <tbody>
             <tr>
-              <td className={labelCellWide} rowSpan={3}>
+              <td style={S.labelCellWide} rowSpan={3}>
                 製造日数
               </td>
-              <td className={labelCell}>金型</td>
-              <td className={cellBase}>{leadTimeMold}</td>
+              <td style={S.labelCell}>金型</td>
+              <td style={S.cell}>{leadTimeMold}</td>
             </tr>
             <tr>
-              <td className={labelCell}>サンプル</td>
-              <td className={cellBase}>{leadTimeSample}</td>
+              <td style={S.labelCell}>サンプル</td>
+              <td style={S.cell}>{leadTimeSample}</td>
             </tr>
             <tr>
-              <td className={labelCell}>本生産</td>
-              <td className={cellBase}>{leadTimeProduction}</td>
+              <td style={S.labelCell}>本生産</td>
+              <td style={S.cell}>{leadTimeProduction}</td>
             </tr>
           </tbody>
         </table>
 
         {/* ── Payment terms ── */}
         <table
-          className="w-full mb-2"
-          style={{ borderCollapse: "collapse", fontSize: "11px" }}
+          style={{ width: "100%", marginBottom: "8px", borderCollapse: "collapse", fontSize: "11px" }}
         >
           <tbody>
             <tr>
-              <td className={labelCellWide} rowSpan={2}>
+              <td style={S.labelCellWide} rowSpan={2}>
                 お支払い条件
               </td>
-              <td className={labelCell}>金型・サンプル</td>
-              <td className={cellBase}>{paymentTooling}</td>
+              <td style={S.labelCell}>金型・サンプル</td>
+              <td style={S.cell}>{paymentTooling}</td>
             </tr>
             <tr>
-              <td className={labelCell}>本生産</td>
-              <td className={cellBase}>{paymentProduction}</td>
+              <td style={S.labelCell}>本生産</td>
+              <td style={S.cell}>{paymentProduction}</td>
             </tr>
           </tbody>
         </table>
 
         {/* ── Validity / Delivery ── */}
         <table
-          className="w-full mb-3"
-          style={{ borderCollapse: "collapse", fontSize: "11px" }}
+          style={{ width: "100%", marginBottom: "12px", borderCollapse: "collapse", fontSize: "11px" }}
         >
           <tbody>
             <tr>
-              <td className={labelCellWide}>お見積り有効期限</td>
-              <td className={cellBase} style={{ width: "20%" }}>
+              <td style={S.labelCellWide}>お見積り有効期限</td>
+              <td style={{ ...S.cell, width: "20%" }}>
                 {validityDays}日間
               </td>
-              <td className={labelCell}>納品条件</td>
-              <td className={cellBase}>{deliveryCondition}</td>
+              <td style={S.labelCell}>納品条件</td>
+              <td style={S.cell}>{deliveryCondition}</td>
             </tr>
           </tbody>
         </table>
 
         {/* ── Notes ── */}
         {notesLines.length > 0 && (
-          <div className="mb-4">
+          <div style={{ marginBottom: "16px" }}>
             <div
-              className="font-medium mb-1"
               style={{
+                fontWeight: 500,
+                marginBottom: "4px",
                 fontSize: "11px",
                 borderBottom: "1px solid #bbb",
                 paddingBottom: "2px",
