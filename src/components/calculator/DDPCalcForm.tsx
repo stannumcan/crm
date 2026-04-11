@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { calculateDDP, formatJPY } from "@/lib/calculations";
@@ -121,6 +120,7 @@ export default function DDPCalcForm({
   existingDDP: Record<string, unknown>[];
 }) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState(approvedCalcs[0]?.tier_label ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -315,21 +315,34 @@ export default function DDPCalcForm({
       </div>
 
       {/* ── Per-Tier Tabs ─────────────────────────────────────────── */}
-      <Tabs defaultValue={tiers[0]?.tier_label}>
-        <TabsList>
-          {tiers.map((tier) => (
-            <TabsTrigger key={tier.tier_label} value={tier.tier_label}>
-              Tier {tier.tier_label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <div>
+        {/* Tab buttons */}
+        {tiers.length > 1 && (
+          <div className="flex gap-2 mb-4">
+            {tiers.map((tier) => (
+              <button
+                key={tier.tier_label}
+                type="button"
+                onClick={() => setActiveTab(tier.tier_label)}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+                  activeTab === tier.tier_label
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Tier {tier.tier_label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {tiers.map((tier) => {
+          if (tier.tier_label !== activeTab) return null;
           const result = calcTier(tier);
           const qty = parseInt(tier.quantity) || 0;
 
           return (
-            <TabsContent key={tier.tier_label} value={tier.tier_label}>
+            <div key={tier.tier_label}>
               <div className="grid grid-cols-5 gap-5 mt-2">
 
                 {/* Left: inputs (2/5) */}
@@ -477,10 +490,10 @@ export default function DDPCalcForm({
                   )}
                 </div>
               </div>
-            </TabsContent>
+            </div>
           );
         })}
-      </Tabs>
+      </div>
 
       {error && (
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
