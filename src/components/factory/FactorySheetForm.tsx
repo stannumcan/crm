@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ScanLine, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface Tier {
   tier_label: string;
@@ -77,6 +78,126 @@ export default function FactorySheetForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // ── OCR ──────────────────────────────────────────────────────────────
+  const [ocrState, setOcrState] = useState<"idle" | "scanning" | "done" | "error">("idle");
+  const [ocrMessage, setOcrMessage] = useState("");
+  const scanInputRef = useRef<HTMLInputElement>(null);
+
+  const handleScanFile = async (file: File) => {
+    setOcrState("scanning");
+    setOcrMessage("");
+    try {
+      // Convert to base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const res = await fetch("/api/ocr-factory-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64, mediaType: file.type }),
+      });
+
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error ?? "OCR failed");
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = await res.json() as Record<string, any>;
+
+      // Fill header fields
+      if (d.factory_ref_no != null) setFactoryRefNo(String(d.factory_ref_no));
+      if (d.sheet_date != null) setSheetDate(String(d.sheet_date));
+      if (d.mold_number != null) setMoldNum(String(d.mold_number));
+      if (d.product_dimensions != null) setProductDims(String(d.product_dimensions));
+      if (d.steel_type != null) setSteelType(String(d.steel_type));
+      if (d.steel_thickness != null) setSteelThickness(String(d.steel_thickness));
+      if (d.steel_price_per_ton != null) setSteelPricePerTon(String(d.steel_price_per_ton));
+      if (d.process != null) setProcess(String(d.process));
+      if (d.accessories_name != null) setAccessoriesName(String(d.accessories_name));
+      if (d.accessories_description != null) setAccessoriesDesc(String(d.accessories_description));
+
+      // Carton / pallet
+      if (d.outer_carton_qty != null) setOuterCartonQty(String(d.outer_carton_qty));
+      if (d.outer_carton_config != null) setOuterCartonConfig(String(d.outer_carton_config));
+      if (d.outer_carton_l != null) setOuterCartonL(String(d.outer_carton_l));
+      if (d.outer_carton_w != null) setOuterCartonW(String(d.outer_carton_w));
+      if (d.outer_carton_h != null) setOuterCartonH(String(d.outer_carton_h));
+      if (d.outer_carton_cbm != null) setOuterCartonCbm(String(d.outer_carton_cbm));
+      if (d.inner_carton_qty != null) setInnerCartonQty(String(d.inner_carton_qty));
+      if (d.pallet_type != null) setPalletType(String(d.pallet_type));
+      if (d.pallet_l != null) setPalletL(String(d.pallet_l));
+      if (d.pallet_w != null) setPalletW(String(d.pallet_w));
+      if (d.pallet_h != null) setPalletH(String(d.pallet_h));
+      if (d.pallet_config != null) setPalletConfig(String(d.pallet_config));
+      if (d.cans_per_pallet != null) setCansPerPallet(String(d.cans_per_pallet));
+
+      // Mold costs
+      if (d.mold_cost_new != null) setMoldCostNew(String(d.mold_cost_new));
+      if (d.mold_cost_modify != null) setMoldCostModify(String(d.mold_cost_modify));
+      if (d.mold_lead_time_days != null) setMoldLeadTime(String(d.mold_lead_time_days));
+
+      // Components
+      if (Array.isArray(d.components) && d.components.length > 0) {
+        setComponents((prev) => prev.map((existing) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const match = d.components.find((c: any) => c.component === existing.component);
+          if (!match) return existing;
+          return {
+            ...existing,
+            cut_size: match.cut_size != null ? String(match.cut_size) : existing.cut_size,
+            layout: match.layout != null ? String(match.layout) : existing.layout,
+            steel_unit_price: match.steel_unit_price != null ? String(match.steel_unit_price) : existing.steel_unit_price,
+            printing_requirements: match.printing_requirements != null ? String(match.printing_requirements) : existing.printing_requirements,
+            printing_cost_per_sheet: match.printing_cost_per_sheet != null ? String(match.printing_cost_per_sheet) : existing.printing_cost_per_sheet,
+            printing_unit_price: match.printing_unit_price != null ? String(match.printing_unit_price) : existing.printing_unit_price,
+          };
+        }));
+      }
+
+      // Tiers
+      if (Array.isArray(d.tiers) && d.tiers.length > 0) {
+        setTierCosts((prev) => {
+          if (prev.length === 0) return prev;
+          return prev.map((existing, i) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const match = d.tiers.find((t: any) => t.tier_label === existing.tier_label) ?? d.tiers[i];
+            if (!match) return existing;
+            return {
+              ...existing,
+              quantity: match.quantity != null ? String(match.quantity) : existing.quantity,
+              steel_cost: match.steel_cost != null ? String(match.steel_cost) : existing.steel_cost,
+              printing_cost: match.printing_cost != null ? String(match.printing_cost) : existing.printing_cost,
+              packaging_cost: match.packaging_cost != null ? String(match.packaging_cost) : existing.packaging_cost,
+              shipping_cost: match.shipping_cost != null ? String(match.shipping_cost) : existing.shipping_cost,
+              total_subtotal: match.total_subtotal != null ? String(match.total_subtotal) : existing.total_subtotal,
+              labor_cost: match.labor_cost != null ? String(match.labor_cost) : existing.labor_cost,
+              accessories_cost: match.accessories_cost != null ? String(match.accessories_cost) : existing.accessories_cost,
+              container_info: match.container_info != null ? String(match.container_info) : existing.container_info,
+            };
+          });
+        });
+      }
+
+      // Count non-null extracted fields for summary
+      const count = Object.values(d).filter((v) => v != null && !Array.isArray(v)).length
+        + (d.components?.reduce((acc: number, c: Record<string, unknown>) => acc + Object.values(c).filter((v) => v != null).length, 0) ?? 0)
+        + (d.tiers?.reduce((acc: number, t: Record<string, unknown>) => acc + Object.values(t).filter((v) => v != null).length, 0) ?? 0);
+
+      setOcrState("done");
+      setOcrMessage(`Extracted ${count} values — review fields below and correct any errors before saving.`);
+    } catch (err) {
+      setOcrState("error");
+      setOcrMessage(err instanceof Error ? err.message : "OCR failed");
+    } finally {
+      if (scanInputRef.current) scanInputRef.current.value = "";
+    }
+  };
 
   // Sheet header fields
   const [factoryRefNo, setFactoryRefNo] = useState(String(existingSheet?.factory_ref_no ?? ""));
@@ -213,6 +334,49 @@ export default function FactorySheetForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+
+      {/* OCR scan bar */}
+      <div className="flex items-center gap-3 p-4 rounded-lg border border-dashed border-gray-200 bg-gray-50">
+        <ScanLine className="h-5 w-5 text-gray-400 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-700">Scan factory sheet</p>
+          <p className="text-xs text-gray-400">Upload a photo or scan — Claude will read the values and pre-fill the form</p>
+        </div>
+        {ocrState === "done" && (
+          <div className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-1.5 max-w-xs">
+            <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>{ocrMessage}</span>
+          </div>
+        )}
+        {ocrState === "error" && (
+          <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-1.5 max-w-xs">
+            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>{ocrMessage}</span>
+          </div>
+        )}
+        <input
+          ref={scanInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleScanFile(f); }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={ocrState === "scanning"}
+          onClick={() => scanInputRef.current?.click()}
+          className="flex-shrink-0 gap-2"
+        >
+          {ocrState === "scanning" ? (
+            <><Loader2 className="h-4 w-4 animate-spin" />Scanning...</>
+          ) : (
+            <><ScanLine className="h-4 w-4" />Scan Sheet</>
+          )}
+        </Button>
+      </div>
+
       {/* Sheet Header */}
       <Card>
         <CardHeader><CardTitle className="text-base">Sheet Info</CardTitle></CardHeader>
