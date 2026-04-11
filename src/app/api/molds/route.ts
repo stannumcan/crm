@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from("molds")
-    .select("id, mold_number, category, variant, length_mm, width_mm, height_mm, dimensions, feature, is_active")
+    .select("id, mold_number, category, variant, length_mm, width_mm, height_mm, dimensions, feature, image_url, is_active")
     .order("mold_number");
 
   if (!all) query = query.eq("is_active", true);
