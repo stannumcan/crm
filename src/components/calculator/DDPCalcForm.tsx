@@ -597,6 +597,9 @@ export default function DDPCalcForm({
                                     {formatJPY(opt.unitPrice)}<span className="text-xs font-normal">/pc</span>
                                   </p>
                                   <p className="text-xs text-gray-400 mt-0.5">{formatJPY(opt.total)}</p>
+                                  <p className={`text-xs mt-0.5 font-medium ${isSelected ? "text-green-600" : "text-green-500"}`}>
+                                    +{formatJPY(opt.total - result.totalCostJpy)}
+                                  </p>
                                 </button>
                               );
                             })}
@@ -612,6 +615,7 @@ export default function DDPCalcForm({
                           <div className="text-right">
                             <p className="text-xs opacity-70">Total revenue</p>
                             <p className="text-lg font-semibold">{formatJPY(result.totalRevenueJpy)}</p>
+                            <p className="text-xs opacity-80 mt-0.5">Profit: {formatJPY(result.totalRevenueJpy - result.totalCostJpy)}</p>
                           </div>
                         </div>
 
