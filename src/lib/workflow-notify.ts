@@ -163,6 +163,182 @@ function buildSections(quote: any, tiers: any[]) {
   return sections;
 }
 
+// ── Factory sheet–specific notification ──────────────────────────────────────
+
+export async function notifyFactorySheet(sheetId: string, quotationId: string) {
+  try {
+    const supabase = createAdminClient();
+
+    // Get workflow step config for pending_wilfred
+    const { data: step } = await supabase
+      .from("workflow_steps")
+      .select("*")
+      .eq("step_key", "pending_wilfred")
+      .single();
+
+    if (!step || !step.send_email || !step.assignee_emails?.length) return;
+
+    // Get the factory sheet with all details
+    const { data: sheet } = await supabase
+      .from("factory_cost_sheets")
+      .select("*, factory_cost_tiers(*)")
+      .eq("id", sheetId)
+      .single();
+
+    if (!sheet) return;
+
+    // Get quotation + work order
+    const { data: quote } = await supabase
+      .from("quotations")
+      .select("*, work_orders(wo_number, company_name, project_name)")
+      .eq("id", quotationId)
+      .single();
+
+    if (!quote) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wo = (quote as any).work_orders;
+    const woNumber = wo?.wo_number ?? "—";
+    const companyName = wo?.company_name ?? "—";
+    const projectName = wo?.project_name ?? "—";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = sheet as any;
+    const moldNumber = s.mold_number ?? "—";
+
+    const subject = `Pricing Request - ${companyName} - ${projectName} - ${woNumber} - ${moldNumber}`;
+
+    // Build sections from factory sheet data
+    const sections = buildFactorySheetSections(s);
+
+    const html = buildQuoteEmail({
+      stepLabel: step.label,
+      taskDescription: step.task_description,
+      woNumber,
+      companyName,
+      projectName,
+      quoteVersion: quote.quote_version ?? 1,
+      sections,
+      ctaUrl: `${APP_URL}/en/quotes/${quotationId}/factory-sheet/${sheetId}`,
+      ctaLabel: "Open Factory Sheet",
+    });
+
+    // Collect attachments: mold picture + written sheet scans
+    const fileAttachments: { name: string; url: string }[] = [];
+
+    if (s.mold_image_url) {
+      fileAttachments.push({ name: `mold-${moldNumber}.jpg`, url: s.mold_image_url });
+    }
+
+    if (Array.isArray(s.attachments)) {
+      for (const att of s.attachments) {
+        if (att.url && att.name) fileAttachments.push({ name: att.name, url: att.url });
+      }
+    }
+
+    const emailAttachments = await downloadAttachments(fileAttachments);
+
+    const resend = getResend();
+
+    for (const email of step.assignee_emails) {
+      const { data: sendResult, error: sendError } = await resend.emails.send({
+        from: EMAIL_FROM,
+        replyTo: EMAIL_REPLY_TO,
+        to: email,
+        subject,
+        html,
+        attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
+      });
+
+      if (sendError) {
+        console.error(`[workflow-notify] Resend error for ${email}:`, JSON.stringify(sendError));
+        continue;
+      }
+
+      console.log(`[workflow-notify] Factory sheet email sent to ${email}, id: ${sendResult?.id}`);
+
+      await supabase.from("workflow_email_log").insert({
+        quotation_id: quotationId,
+        step_key: "pending_wilfred",
+        recipient_email: email,
+        subject,
+      });
+    }
+  } catch (err) {
+    console.error(`[workflow-notify] Factory sheet notify failed for ${sheetId}:`, err);
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildFactorySheetSections(sheet: any) {
+  const sections: { label: string; rows: { label: string; value: string }[] }[] = [];
+
+  // Mold info
+  const mold: { label: string; value: string }[] = [];
+  if (sheet.mold_number) mold.push({ label: "Mold Number", value: sheet.mold_number });
+  if (sheet.product_dimensions) mold.push({ label: "Dimensions", value: sheet.product_dimensions });
+  if (sheet.steel_thickness) mold.push({ label: "Thickness", value: `${sheet.steel_thickness}mm` });
+  if (sheet.sheet_date) mold.push({ label: "Sheet Date", value: new Date(sheet.sheet_date).toLocaleDateString() });
+  if (mold.length > 0) sections.push({ label: "Mold Information", rows: mold });
+
+  // Printing
+  const printingLines = sheet.printing_lines as { surface: string; part: string; spec: string }[] | null;
+  if (printingLines?.length) {
+    const rows = printingLines.map((ln, i) => ({
+      label: `${ln.surface}${ln.part ? ` / ${ln.part}` : ""}`,
+      value: ln.spec || "—",
+    }));
+    sections.push({ label: "Printing", rows });
+  }
+
+  // Embossing
+  const embossingLines = sheet.embossing_lines as { component: string; cost_rmb: string; notes: string }[] | null;
+  if (embossingLines?.length) {
+    const rows = embossingLines.map((ln) => ({
+      label: ln.component || "Embossing",
+      value: `${ln.cost_rmb ? `¥${ln.cost_rmb} RMB` : ""}${ln.notes ? ` — ${ln.notes}` : ""}`.trim() || "—",
+    }));
+    sections.push({ label: "Embossing", rows });
+  }
+
+  // Mold costs
+  const costs: { label: string; value: string }[] = [];
+  if (sheet.mold_cost_new) costs.push({ label: "New Mold Cost", value: `¥${Number(sheet.mold_cost_new).toLocaleString()} RMB` });
+  if (sheet.mold_cost_modify) costs.push({ label: "Adjustment Cost", value: `¥${Number(sheet.mold_cost_modify).toLocaleString()} RMB` });
+  if (sheet.mold_lead_time_days) costs.push({ label: "Lead Time", value: `${sheet.mold_lead_time_days} days` });
+  if (costs.length > 0) sections.push({ label: "Mold Costs", rows: costs });
+
+  // Packaging
+  const pkgLines = sheet.packaging_lines as { type: string; config: string; l: number; w: number; h: number; cbm: number; tins: number }[] | null;
+  if (pkgLines?.length) {
+    const rows = pkgLines.map((p) => ({
+      label: p.type,
+      value: [
+        p.config,
+        p.l && p.w && p.h ? `${p.l}×${p.w}×${p.h}mm` : null,
+        p.cbm ? `${p.cbm} m³` : null,
+        p.tins ? `${p.tins} tins` : null,
+      ].filter(Boolean).join(" · ") || "—",
+    }));
+    sections.push({ label: "Packaging", rows });
+  }
+
+  // Tier costs
+  const tierCosts = sheet.factory_cost_tiers as { tier_label: string; quantity: number; total_subtotal: number; labor_cost: number; accessories_cost: number }[] | null;
+  if (tierCosts?.length) {
+    const rows = tierCosts.map((t) => ({
+      label: `Tier ${t.tier_label} (${t.quantity?.toLocaleString() ?? "—"} pcs)`,
+      value: [
+        t.total_subtotal ? `Total: ¥${Number(t.total_subtotal).toFixed(4)}` : null,
+        t.labor_cost ? `Labor: ¥${Number(t.labor_cost).toFixed(4)}` : null,
+        t.accessories_cost ? `Acc: ¥${Number(t.accessories_cost).toFixed(4)}` : null,
+      ].filter(Boolean).join(" · ") || "—",
+    }));
+    sections.push({ label: "Cost per Tier (RMB/pc)", rows });
+  }
+
+  return sections;
+}
+
 // Download file attachments from Supabase Storage URLs
 async function downloadAttachments(
   attachments: { name: string; url: string }[] | null | undefined

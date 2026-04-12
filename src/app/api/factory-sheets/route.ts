@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { notifyWorkflowStep } from "@/lib/workflow-notify";
+import { notifyWorkflowStep, notifyFactorySheet } from "@/lib/workflow-notify";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     .update({ status: "pending_wilfred" })
     .eq("id", sheetData.quotation_id);
 
-  await notifyWorkflowStep(sheetData.quotation_id, "pending_wilfred");
+  await notifyFactorySheet(sheet.id, sheetData.quotation_id);
 
   return NextResponse.json(sheet, { status: 201 });
 }
@@ -61,7 +61,7 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  // Update quotation status and notify
+  // Update quotation status and send factory sheet–specific email
   if (data?.quotation_id) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest) {
       .update({ status: "pending_wilfred" })
       .eq("id", data.quotation_id);
 
-    await notifyWorkflowStep(data.quotation_id, "pending_wilfred");
+    await notifyFactorySheet(id, data.quotation_id);
   }
 
   return NextResponse.json(data);
