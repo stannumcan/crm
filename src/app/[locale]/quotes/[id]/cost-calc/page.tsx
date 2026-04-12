@@ -27,6 +27,14 @@ export default async function CostCalcPage({
         id,
         mold_number,
         steel_thickness,
+        mold_cost_new,
+        mold_cost_modify,
+        embossing_lines,
+        wilfred_embossing_cost,
+        wilfred_mold_cost_new,
+        wilfred_mold_cost_adjust,
+        wilfred_fees_approved,
+        wilfred_fees_notes,
         factory_cost_tiers(*),
         wilfred_calculations(*)
       )
@@ -42,6 +50,14 @@ export default async function CostCalcPage({
     id: string;
     mold_number: string | null;
     steel_thickness: number | null;
+    mold_cost_new: number | null;
+    mold_cost_modify: number | null;
+    embossing_lines: { component: string; cost_rmb: string; notes: string }[] | null;
+    wilfred_embossing_cost: number | null;
+    wilfred_mold_cost_new: number | null;
+    wilfred_mold_cost_adjust: number | null;
+    wilfred_fees_approved: boolean;
+    wilfred_fees_notes: string | null;
     factory_cost_tiers: {
       id: string;
       tier_label: string;
@@ -120,6 +136,16 @@ export default async function CostCalcPage({
           costSheetId={sheets[0].id}
           factoryTiers={sheets[0].factory_cost_tiers ?? []}
           existingCalcs={sheets[0].wilfred_calculations ?? []}
+          fees={{
+            moldCostNew: sheets[0].mold_cost_new,
+            moldCostAdjust: sheets[0].mold_cost_modify,
+            embossingLines: sheets[0].embossing_lines,
+            wilfredEmbossingCost: sheets[0].wilfred_embossing_cost,
+            wilfredMoldCostNew: sheets[0].wilfred_mold_cost_new,
+            wilfredMoldCostAdjust: sheets[0].wilfred_mold_cost_adjust,
+            feesApproved: sheets[0].wilfred_fees_approved,
+            feesNotes: sheets[0].wilfred_fees_notes,
+          }}
         />
       ) : (
         <Tabs defaultValue={sheets[0].id}>
@@ -139,6 +165,16 @@ export default async function CostCalcPage({
                 costSheetId={sheet.id}
                 factoryTiers={sheet.factory_cost_tiers ?? []}
                 existingCalcs={sheet.wilfred_calculations ?? []}
+                fees={{
+                  moldCostNew: sheet.mold_cost_new,
+                  moldCostAdjust: sheet.mold_cost_modify,
+                  embossingLines: sheet.embossing_lines,
+                  wilfredEmbossingCost: sheet.wilfred_embossing_cost,
+                  wilfredMoldCostNew: sheet.wilfred_mold_cost_new,
+                  wilfredMoldCostAdjust: sheet.wilfred_mold_cost_adjust,
+                  feesApproved: sheet.wilfred_fees_approved,
+                  feesNotes: sheet.wilfred_fees_notes,
+                }}
               />
             </TabsContent>
           ))}
