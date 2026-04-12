@@ -222,11 +222,27 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string) {
       ctaLabel: "Open Factory Sheet",
     });
 
+    // Look up mold image from the molds table if not on the sheet
+    let moldImageUrl = s.mold_image_url as string | null;
+    if (!moldImageUrl && s.mold_number) {
+      const { data: moldRecord } = await supabase
+        .from("molds")
+        .select("image_url")
+        .eq("mold_number", s.mold_number)
+        .single();
+      moldImageUrl = moldRecord?.image_url ?? null;
+    }
+
+    // Convert relative paths to absolute URLs
+    if (moldImageUrl && moldImageUrl.startsWith("/")) {
+      moldImageUrl = `${APP_URL}${moldImageUrl}`;
+    }
+
     // Collect attachments: mold picture + written sheet scans
     const fileAttachments: { name: string; url: string }[] = [];
 
-    if (s.mold_image_url) {
-      fileAttachments.push({ name: `mold-${moldNumber}.jpg`, url: s.mold_image_url });
+    if (moldImageUrl) {
+      fileAttachments.push({ name: `mold-${moldNumber}.jpg`, url: moldImageUrl });
     }
 
     if (Array.isArray(s.attachments)) {
@@ -283,7 +299,7 @@ function buildFactorySheetSections(sheet: any) {
   // Printing
   const printingLines = sheet.printing_lines as { surface: string; part: string; spec: string }[] | null;
   if (printingLines?.length) {
-    const rows = printingLines.map((ln, i) => ({
+    const rows = printingLines.map((ln) => ({
       label: `${ln.surface}${ln.part ? ` / ${ln.part}` : ""}`,
       value: ln.spec || "—",
     }));
