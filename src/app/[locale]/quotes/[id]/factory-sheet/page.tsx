@@ -56,10 +56,10 @@ export default async function FactorySheetListPage({
         ...(quote.printing_bottom ? [{ surface: "外面", part: "底", spec: quote.printing_bottom }] : []),
         ...(quote.printing_inner ? [{ surface: "内面", part: "", spec: quote.printing_inner }] : []),
       ],
-      // Copy embossment from quote
-      embossment: quote.embossment ?? false,
-      embossment_components: quote.embossment_components ?? null,
-      embossment_notes: quote.embossment_notes ?? null,
+      // Build embossing lines from quote
+      embossing_lines: quote.embossment
+        ? [{ component: quote.embossment_components ?? "", cost_rmb: "", notes: quote.embossment_notes ?? "" }]
+        : [],
     }));
 
     const { data: created } = await db

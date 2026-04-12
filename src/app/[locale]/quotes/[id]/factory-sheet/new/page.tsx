@@ -77,9 +77,7 @@ export default async function NewFactorySheetPage({
         productDimensions={quote.size_dimensions ?? ""}
         tinThickness={tinThickness}
         defaultPrintingLines={defaultPrintingLines.length > 0 ? defaultPrintingLines : undefined}
-        embossment={quote.embossment ?? undefined}
-        embossmentComponents={quote.embossment_components ?? undefined}
-        embossmentNotes={quote.embossment_notes ?? undefined}
+        defaultEmbossingLines={quote.embossment ? [{ component: quote.embossment_components ?? "", cost_rmb: "", notes: quote.embossment_notes ?? "" }] : undefined}
         returnTo={`/${locale}/quotes/${id}/factory-sheet`}
       />
     </div>

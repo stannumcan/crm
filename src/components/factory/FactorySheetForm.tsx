@@ -22,6 +22,12 @@ const SURFACE_OPTIONS_EN = ["Outside", "Inside"];
 const PART_PRESETS_JA = ["蓋", "身", "底", "蓋・身", "蓋・身・底"];
 const PART_PRESETS_EN = ["Lid", "Body", "Bottom", "Lid & Body", "Lid, Body & Bottom"];
 
+interface EmbossingLine {
+  component: string;
+  cost_rmb: string;
+  notes: string;
+}
+
 interface Tier {
   tier_label: string;
   quantity_type: string;
@@ -107,9 +113,7 @@ export default function FactorySheetForm({
   productDimensions,
   tinThickness,
   defaultPrintingLines,
-  embossment: defaultEmbossment,
-  embossmentComponents: defaultEmbossmentComponents,
-  embossmentNotes: defaultEmbossmentNotes,
+  defaultEmbossingLines,
   returnTo,
 }: {
   locale: string;
@@ -122,9 +126,7 @@ export default function FactorySheetForm({
   tinThickness?: string;
   // Pre-filled from quote request
   defaultPrintingLines?: PrintingLine[];
-  embossment?: boolean;
-  embossmentComponents?: string;
-  embossmentNotes?: string;
+  defaultEmbossingLines?: EmbossingLine[];
   returnTo?: string;
 }) {
   const router = useRouter();
@@ -170,11 +172,19 @@ export default function FactorySheetForm({
   const addPrintingLine = () =>
     setPrintingLines((prev) => [...prev, { surface: defaultSurface, part: "", spec: "" }]);
 
-  const [embossmentFlag, setEmbossmentFlag] = useState(
-    existingSheet?.embossment != null ? Boolean(existingSheet.embossment) : (defaultEmbossment ?? false)
-  );
-  const [embossmentComp, setEmbossmentComp] = useState(String(existingSheet?.embossment_components ?? defaultEmbossmentComponents ?? ""));
-  const [embossmentNotesVal, setEmbossmentNotesVal] = useState(String(existingSheet?.embossment_notes ?? defaultEmbossmentNotes ?? ""));
+  // Embossing lines
+  const [embossingLines, setEmbossingLines] = useState<EmbossingLine[]>(() => {
+    const saved = existingSheet?.embossing_lines;
+    if (Array.isArray(saved) && saved.length > 0) return saved as EmbossingLine[];
+    if (defaultEmbossingLines?.length) return defaultEmbossingLines;
+    return [];
+  });
+  const updateEmbossingLine = (idx: number, field: keyof EmbossingLine, val: string) =>
+    setEmbossingLines((prev) => prev.map((ln, i) => i === idx ? { ...ln, [field]: val } : ln));
+  const removeEmbossingLine = (idx: number) =>
+    setEmbossingLines((prev) => prev.filter((_, i) => i !== idx));
+  const addEmbossingLine = () =>
+    setEmbossingLines((prev) => [...prev, { component: "", cost_rmb: "", notes: "" }]);
 
   // Mold Costs
   const [moldCostNew, setMoldCostNew] = useState(String(existingSheet?.mold_cost_new ?? ""));
@@ -247,9 +257,7 @@ export default function FactorySheetForm({
       product_dimensions: productDims || null,
       steel_thickness: parseFloat(steelThickness) || null,
       printing_lines: printingLines.filter((ln) => ln.spec || ln.part),
-      embossment: embossmentFlag,
-      embossment_components: embossmentComp || null,
-      embossment_notes: embossmentNotesVal || null,
+      embossing_lines: embossingLines.filter((ln) => ln.component || ln.cost_rmb || ln.notes),
       mold_cost_new: parseFloat(moldCostNew) || null,
       mold_cost_modify: parseFloat(moldCostAdjust) || null,
       mold_lead_time_days: parseInt(moldLeadTime) || null,
@@ -411,36 +419,62 @@ export default function FactorySheetForm({
         </CardContent>
       </Card>
 
-      {/* Embossment */}
+      {/* Embossing */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-base">Embossment (起鼓)</CardTitle>
-          <button
-            type="button"
-            onClick={() => setEmbossmentFlag(!embossmentFlag)}
-            className="relative w-10 h-5 rounded-full transition-colors"
-            style={{ background: embossmentFlag ? "var(--primary)" : "oklch(0.85 0 0)" }}
-          >
-            <div
-              className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform"
-              style={{ left: embossmentFlag ? "calc(100% - 18px)" : "2px" }}
-            />
-          </button>
+          <CardTitle className="text-base">Embossing</CardTitle>
+          <Button type="button" variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={addEmbossingLine}>
+            <Plus className="h-3 w-3" /> Add Line
+          </Button>
         </CardHeader>
-        {embossmentFlag && (
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Components</Label>
-                <Input value={embossmentComp} onChange={(e) => setEmbossmentComp(e.target.value)} placeholder="e.g. Lid top, body band" />
+        <CardContent>
+          {embossingLines.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">No embossing. Click "Add Line" to add.</p>
+          ) : (
+            <div className="space-y-2">
+              {/* Header */}
+              <div className="flex gap-2 items-center text-xs font-medium text-muted-foreground px-1">
+                <span className="flex-1">Component</span>
+                <span className="w-28">Cost (RMB)</span>
+                <span className="flex-1">Notes</span>
+                <span className="w-7" />
               </div>
-              <div className="space-y-2">
-                <Label>Notes</Label>
-                <Input value={embossmentNotesVal} onChange={(e) => setEmbossmentNotesVal(e.target.value)} placeholder="Embossment details..." />
-              </div>
+              {embossingLines.map((ln, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <Input
+                    className="flex-1 h-8 text-xs"
+                    placeholder="e.g. Lid top, body band"
+                    value={ln.component}
+                    onChange={(e) => updateEmbossingLine(i, "component", e.target.value)}
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    className="w-28 h-8 text-xs font-mono shrink-0"
+                    placeholder="0.00"
+                    value={ln.cost_rmb}
+                    onChange={(e) => updateEmbossingLine(i, "cost_rmb", e.target.value)}
+                  />
+                  <Input
+                    className="flex-1 h-8 text-xs"
+                    placeholder="Optional notes"
+                    value={ln.notes}
+                    onChange={(e) => updateEmbossingLine(i, "notes", e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 shrink-0"
+                    onClick={() => removeEmbossingLine(i)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-gray-400" />
+                  </Button>
+                </div>
+              ))}
             </div>
-          </CardContent>
-        )}
+          )}
+        </CardContent>
       </Card>
 
       {/* Mold Costs */}
