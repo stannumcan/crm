@@ -6,15 +6,46 @@ import { FileText, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import QuoteTabNav from "@/components/quotes/QuoteTabNav";
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  draft: "secondary",
-  pending_factory: "default",
-  pending_wilfred: "default",
-  pending_natsuki: "default",
-  sent: "outline",
-  approved: "outline",
-  rejected: "destructive",
-};
+const STATUS_STEPS = [
+  { key: "draft",           label: "Draft" },
+  { key: "pending_factory", label: "Factory" },
+  { key: "pending_wilfred", label: "Wilfred" },
+  { key: "pending_natsuki", label: "DDP" },
+  { key: "sent",            label: "Sent" },
+  { key: "approved",        label: "Approved" },
+];
+
+function QuoteProgress({ status }: { status: string }) {
+  if (status === "rejected") {
+    return (
+      <div className="flex items-center gap-1.5">
+        <div className="h-1.5 w-24 rounded-full bg-red-200 overflow-hidden">
+          <div className="h-full w-full bg-red-500 rounded-full" />
+        </div>
+        <span className="text-xs text-red-600 font-medium">Rejected</span>
+      </div>
+    );
+  }
+  const currentIdx = STATUS_STEPS.findIndex((s) => s.key === status);
+  const total = STATUS_STEPS.length - 1; // 0-indexed max
+  const pct = currentIdx <= 0 ? 4 : Math.round((currentIdx / total) * 100);
+  const label = STATUS_STEPS[currentIdx]?.label ?? status;
+  const done = status === "approved";
+  return (
+    <div className="flex items-center gap-2 min-w-[140px]">
+      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{
+            width: `${pct}%`,
+            background: done ? "oklch(0.60 0.15 145)" : "var(--primary)",
+          }}
+        />
+      </div>
+      <span className="text-xs text-muted-foreground whitespace-nowrap">{label}</span>
+    </div>
+  );
+}
 
 // ── Table wrappers ───────────────────────────────────────────────────────────
 function Th({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
@@ -119,8 +150,8 @@ export default async function QuotesPage({
                 <Th>Company</Th>
                 <Th>Project</Th>
                 <Th>Version</Th>
-                <Th>Status</Th>
-                <Th>Deadline</Th>
+                <Th>Progress</Th>
+                <Th>Created</Th>
                 <Th className="w-10" />
               </tr>
             </thead>
@@ -128,6 +159,7 @@ export default async function QuotesPage({
               {rows.length === 0 && (
                 <tr><td colSpan={7} className="text-center text-muted-foreground py-10">No quote requests yet</td></tr>
               )}
+
               {rows.map((q) => {
                 const wo = q.work_orders;
                 return (
@@ -136,12 +168,8 @@ export default async function QuotesPage({
                     <Td className="font-medium">{wo?.company_name ?? "—"}</Td>
                     <Td className="text-muted-foreground">{wo?.project_name ?? "—"}</Td>
                     <Td className="text-muted-foreground">{t("version")} {q.quote_version}</Td>
-                    <Td>
-                      <Badge variant={STATUS_VARIANT[q.status] ?? "secondary"}>
-                        {t(`statuses.${q.status}`)}
-                      </Badge>
-                    </Td>
-                    <Td className="text-muted-foreground">{q.deadline ? new Date(q.deadline).toLocaleDateString() : "—"}</Td>
+                    <Td><QuoteProgress status={q.status} /></Td>
+                    <Td className="text-muted-foreground">{q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"}</Td>
                     <Td>
                       <Link href={`/${locale}/quotes/${q.id}/request`}>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
