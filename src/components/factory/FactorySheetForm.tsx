@@ -18,7 +18,7 @@ interface PrintingLine {
 }
 
 const SURFACE_OPTIONS_JA = ["外面", "内面"];
-const SURFACE_OPTIONS_EN = ["Exterior", "Interior"];
+const SURFACE_OPTIONS_EN = ["Outside", "Inside"];
 const PART_PRESETS_JA = ["蓋", "身", "底", "蓋・身", "蓋・身・底"];
 const PART_PRESETS_EN = ["Lid", "Body", "Bottom", "Lid & Body", "Lid, Body & Bottom"];
 

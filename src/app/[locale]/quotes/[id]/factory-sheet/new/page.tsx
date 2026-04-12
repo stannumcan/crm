@@ -39,8 +39,8 @@ export default async function NewFactorySheetPage({
 
   // Build default printing lines from quote request fields
   const isJa = locale === "ja" || locale === "zh";
-  const ext = isJa ? "外面" : "Exterior";
-  const int = isJa ? "内面" : "Interior";
+  const ext = isJa ? "外面" : "Outside";
+  const int = isJa ? "内面" : "Inside";
   const lid = isJa ? "蓋" : "Lid";
   const body = isJa ? "身" : "Body";
   const bottom = isJa ? "底" : "Bottom";
