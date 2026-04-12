@@ -17,7 +17,7 @@ interface Mold {
 
 interface Props {
   value: string;
-  onChange: (moldNumber: string, dimensions: string) => void;
+  onChange: (moldNumber: string, dimensions: string, imageUrl: string | null, moldId: string | null) => void;
   placeholder?: string;
 }
 
@@ -56,7 +56,7 @@ export default function MoldSelect({ value, onChange, placeholder = "Search mold
         ? `${mold.length_mm}×${mold.width_mm}×${mold.height_mm}mm`
         : "");
     setQuery(mold.mold_number);
-    onChange(mold.mold_number, dims);
+    onChange(mold.mold_number, dims, mold.image_url, mold.id);
     setOpen(false);
   };
 

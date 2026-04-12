@@ -49,6 +49,22 @@ export default async function EditFactorySheetPage({
   const matchedMold = molds.find((m: any) => m.value === sheet.mold_number) ?? molds[0];
   const tinThickness = matchedMold?.thickness ?? undefined;
 
+  // Look up mold ID and image from the molds table
+  let moldDbId: string | null = null;
+  let moldDbImageUrl: string | null = null;
+  if (sheet.mold_number) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: moldRecord } = await (supabase as any)
+      .from("molds")
+      .select("id, image_url")
+      .eq("mold_number", sheet.mold_number)
+      .single();
+    if (moldRecord) {
+      moldDbId = moldRecord.id;
+      moldDbImageUrl = moldRecord.image_url;
+    }
+  }
+
   return (
     <div className="p-6 max-w-5xl">
       <div className="flex items-center gap-3 mb-6">
@@ -75,6 +91,8 @@ export default async function EditFactorySheetPage({
         moldNumber={quote.mold_number ?? ""}
         productDimensions={quote.size_dimensions ?? ""}
         tinThickness={tinThickness}
+        initialMoldImageUrl={moldDbImageUrl ?? (sheet.mold_image_url as string | null)}
+        initialMoldId={moldDbId}
         returnTo={`/${locale}/quotes/${id}/factory-sheet`}
       />
     </div>

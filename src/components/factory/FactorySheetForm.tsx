@@ -114,6 +114,8 @@ export default function FactorySheetForm({
   tinThickness,
   defaultPrintingLines,
   defaultEmbossingLines,
+  initialMoldImageUrl,
+  initialMoldId,
   returnTo,
 }: {
   locale: string;
@@ -127,6 +129,8 @@ export default function FactorySheetForm({
   // Pre-filled from quote request
   defaultPrintingLines?: PrintingLine[];
   defaultEmbossingLines?: EmbossingLine[];
+  initialMoldImageUrl?: string | null;
+  initialMoldId?: string | null;
   returnTo?: string;
 }) {
   const router = useRouter();
@@ -155,6 +159,14 @@ export default function FactorySheetForm({
   const [steelThickness, setSteelThickness] = useState(
     existingSheet?.steel_thickness != null ? String(existingSheet.steel_thickness) : (tinThickness ?? "")
   );
+
+  // Mold image
+  const [moldImageUrl, setMoldImageUrl] = useState<string | null>(
+    (existingSheet?.mold_image_url as string | null) ?? initialMoldImageUrl ?? null
+  );
+  const [moldId, setMoldId] = useState<string | null>(initialMoldId ?? null);
+  const [newMoldImage, setNewMoldImage] = useState<UploadedFile[]>([]);
+  const moldImageSessionId = useId().replace(/:/g, "");
 
   // Printing lines
   const [printingLines, setPrintingLines] = useState<PrintingLine[]>(() => {
@@ -258,6 +270,7 @@ export default function FactorySheetForm({
       steel_thickness: parseFloat(steelThickness) || null,
       printing_lines: printingLines.filter((ln) => ln.spec || ln.part),
       embossing_lines: embossingLines.filter((ln) => ln.component || ln.cost_rmb || ln.notes),
+      mold_image_url: newMoldImage.length > 0 ? newMoldImage[0].url : moldImageUrl,
       mold_cost_new: parseFloat(moldCostNew) || null,
       mold_cost_modify: parseFloat(moldCostAdjust) || null,
       mold_lead_time_days: parseInt(moldLeadTime) || null,
@@ -295,6 +308,16 @@ export default function FactorySheetForm({
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed to save");
+
+      // If user uploaded a new image for an existing mold, update the mold record
+      if (newMoldImage.length > 0 && moldId) {
+        await fetch("/api/molds/image", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mold_id: moldId, image_url: newMoldImage[0].url }),
+        });
+      }
+
       router.push(returnTo ?? `/${locale}/quotes/${quoteId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -318,9 +341,12 @@ export default function FactorySheetForm({
               <Label>Mold Number</Label>
               <MoldSelect
                 value={moldNum}
-                onChange={(num, dims) => {
+                onChange={(num, dims, imgUrl, id) => {
                   setMoldNum(num);
                   if (dims && !productDims) setProductDims(dims);
+                  setMoldImageUrl(imgUrl);
+                  setMoldId(id);
+                  setNewMoldImage([]);
                 }}
               />
             </div>
@@ -339,6 +365,65 @@ export default function FactorySheetForm({
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Mold Picture */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Mold Picture</CardTitle></CardHeader>
+        <CardContent>
+          {moldImageUrl && newMoldImage.length === 0 ? (
+            <div className="space-y-3">
+              <div className="rounded-lg border overflow-hidden bg-muted/30 max-w-sm">
+                <img
+                  src={moldImageUrl}
+                  alt={`Mold ${moldNum}`}
+                  className="w-full h-auto object-contain max-h-64"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Current image on file.{" "}
+                {moldId && (
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() => setMoldImageUrl(null)}
+                  >
+                    Replace with new image
+                  </button>
+                )}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {!moldImageUrl && moldId && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  No image on file for this mold. Upload one below — it will be saved to the mold record.
+                </p>
+              )}
+              {!moldId && moldNum && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  New mold — upload a reference picture for this sheet.
+                </p>
+              )}
+              <FileUpload
+                sessionId={`mold-images/${moldImageSessionId}`}
+                onChange={setNewMoldImage}
+              />
+              {newMoldImage.length > 0 && (
+                <div className="rounded-lg border overflow-hidden bg-muted/30 max-w-sm mt-2">
+                  <img
+                    src={newMoldImage[0].url}
+                    alt="New mold"
+                    className="w-full h-auto object-contain max-h-64"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          {!moldNum && (
+            <p className="text-xs text-muted-foreground italic">Select a mold above to see or add a picture.</p>
+          )}
         </CardContent>
       </Card>
 
