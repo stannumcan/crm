@@ -46,6 +46,17 @@ interface TierRow {
   approved?: boolean;
 }
 
+interface FeesData {
+  moldCostNew: number | null;
+  moldCostAdjust: number | null;
+  embossingLines: { component: string; cost_rmb: string; notes: string }[] | null;
+  wilfredEmbossingCost: number | null;
+  wilfredMoldCostNew: number | null;
+  wilfredMoldCostAdjust: number | null;
+  feesApproved: boolean;
+  feesNotes: string | null;
+}
+
 function initRow(tier: FactoryTier, existing?: ExistingCalc): TierRow {
   return {
     tier_label: tier.tier_label,
@@ -77,17 +88,6 @@ function calcEstimate(row: TierRow): number | null {
   });
 }
 
-interface FeesData {
-  moldCostNew: number | null;
-  moldCostAdjust: number | null;
-  embossingLines: { component: string; cost_rmb: string; notes: string }[] | null;
-  wilfredEmbossingCost: number | null;
-  wilfredMoldCostNew: number | null;
-  wilfredMoldCostAdjust: number | null;
-  feesApproved: boolean;
-  feesNotes: string | null;
-}
-
 export default function WilfredCalcForm({
   locale,
   quoteId,
@@ -105,8 +105,8 @@ export default function WilfredCalcForm({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [approving, setApproving] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Set<string>>(new Set());
+  const [approving, setApproving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState("");
 
   // Fees state
@@ -122,35 +122,6 @@ export default function WilfredCalcForm({
     String(fees?.wilfredMoldCostAdjust ?? fees?.moldCostAdjust ?? "")
   );
   const [feeNotes, setFeeNotes] = useState(fees?.feesNotes ?? "");
-  const [feesApproved, setFeesApproved] = useState(fees?.feesApproved ?? false);
-  const [feesEditing, setFeesEditing] = useState(false);
-  const [feesSaving, setFeesSaving] = useState(false);
-  const feesLocked = feesApproved && !feesEditing;
-
-  const handleFeesApprove = async () => {
-    setFeesSaving(true);
-    try {
-      const res = await fetch("/api/factory-sheets", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: costSheetId,
-          wilfred_embossing_cost: parseFloat(feeEmbossing) || null,
-          wilfred_mold_cost_new: parseFloat(feeMoldNew) || null,
-          wilfred_mold_cost_adjust: parseFloat(feeMoldAdjust) || null,
-          wilfred_fees_approved: true,
-          wilfred_fees_notes: feeNotes || null,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to save fees");
-      setFeesApproved(true);
-      setFeesEditing(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save fees");
-    } finally {
-      setFeesSaving(false);
-    }
-  };
 
   const [rows, setRows] = useState<TierRow[]>(() =>
     factoryTiers.map((tier) => {
@@ -158,6 +129,14 @@ export default function WilfredCalcForm({
       return initRow(tier, existing);
     })
   );
+
+  // Determine if everything is already approved
+  const allSaved = rows.every((r) => r.existingId);
+  const allTiersApproved = rows.every((r) => r.approved);
+  const feesApproved = fees?.feesApproved ?? false;
+  const allApproved = allTiersApproved && feesApproved && !isEditing;
+
+  const isLocked = allApproved && !isEditing;
 
   const updateRow = (index: number, field: keyof TierRow, value: string) => {
     setRows(rows.map((r, i) => i === index ? { ...r, [field]: value } : r));
@@ -189,7 +168,6 @@ export default function WilfredCalcForm({
         throw new Error(data.error ?? "Failed to save");
       }
       const saved = await res.json() as ExistingCalc[];
-      // Update rows with returned IDs
       setRows(rows.map((r) => {
         const s = saved.find((c) => c.tier_label === r.tier_label);
         return s ? { ...r, existingId: s.id, approved: s.approved } : r;
@@ -201,35 +179,54 @@ export default function WilfredCalcForm({
     }
   };
 
-  const handleApprove = async (rowIndex: number) => {
-    const row = rows[rowIndex];
-    if (!row.existingId) return;
-    setApproving(row.existingId);
+  const handleApproveAll = async () => {
+    setApproving(true);
+    setError("");
     try {
-      const res = await fetch("/api/wilfred-calc", {
+      // Save/approve all tiers
+      for (const row of rows) {
+        if (!row.existingId) continue;
+        const res = await fetch("/api/wilfred-calc", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: row.existingId,
+            approved: true,
+            wilfred_notes: row.wilfred_notes || null,
+            margin_rate: (parseFloat(row.margin_rate) || 20) / 100,
+            overhead_multiplier: parseFloat(row.overhead_multiplier) || 1.0,
+            total_subtotal: parseFloat(row.total_subtotal) || 0,
+            labor_cost: parseFloat(row.labor_cost) || 0,
+            accessories_cost: parseFloat(row.accessories_cost) || 0,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to approve tier " + row.tier_label);
+      }
+
+      // Save fees
+      const feeRes = await fetch("/api/factory-sheets", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: row.existingId,
-          approved: true,
-          wilfred_notes: row.wilfred_notes || null,
-          margin_rate: (parseFloat(row.margin_rate) || 20) / 100,
-          overhead_multiplier: parseFloat(row.overhead_multiplier) || 1.0,
-          total_subtotal: parseFloat(row.total_subtotal) || 0,
-          labor_cost: parseFloat(row.labor_cost) || 0,
-          accessories_cost: parseFloat(row.accessories_cost) || 0,
+          id: costSheetId,
+          wilfred_embossing_cost: parseFloat(feeEmbossing) || null,
+          wilfred_mold_cost_new: parseFloat(feeMoldNew) || null,
+          wilfred_mold_cost_adjust: parseFloat(feeMoldAdjust) || null,
+          wilfred_fees_approved: true,
+          wilfred_fees_notes: feeNotes || null,
         }),
       });
-      if (!res.ok) throw new Error("Failed to approve");
-      setRows(rows.map((r, i) => i === rowIndex ? { ...r, approved: true } : r));
+      if (!feeRes.ok) throw new Error("Failed to save fees");
+
+      // Update local state
+      setRows(rows.map((r) => ({ ...r, approved: true })));
+      setIsEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setApproving(null);
+      setApproving(false);
     }
   };
-
-  const allApproved = rows.every((r) => r.approved) && editing.size === 0 && feesApproved && !feesEditing;
 
   return (
     <div className="space-y-4">
@@ -238,206 +235,129 @@ export default function WilfredCalcForm({
         <strong>Formula:</strong> (总成本合计 + 人工 + 配件 + 人工×overhead) × (1 + margin%)
       </div>
 
-      {/* Fees Card */}
-      <Card className={feesApproved && !feesEditing ? "border-green-300" : feesEditing ? "border-amber-300" : ""}>
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Fees (Embossing, Mold Costs)</CardTitle>
+      {/* Status bar */}
+      {allApproved && (
+        <div className="flex items-center justify-between rounded-md bg-green-50 border border-green-200 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-green-700">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="font-medium">All approved</span>
+          </div>
+          <Button
+            type="button" size="sm" variant="ghost"
+            className="gap-1.5 text-muted-foreground"
+            onClick={() => setIsEditing(true)}
+          >
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
+        </div>
+      )}
+
+      {isEditing && (
+        <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-700 flex items-center gap-2">
+          <Pencil className="h-3.5 w-3.5" /> Editing — make changes and click "Save & Approve All" when done.
+        </div>
+      )}
+
+      {/* Fees section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Fees</CardTitle>
             {fees?.embossingLines && fees.embossingLines.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Factory embossing: {fees.embossingLines.map((ln) => `${ln.component} ¥${ln.cost_rmb || 0}`).join(", ")}
-              </p>
+              <span className="text-xs text-muted-foreground">
+                Factory: {fees.embossingLines.map((ln) => `${ln.component} ¥${ln.cost_rmb || 0}`).join(", ")}
+              </span>
             )}
           </div>
-          {feesApproved && !feesEditing ? (
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-green-500 text-green-700 gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Approved
-              </Badge>
-              <Button type="button" size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit" onClick={() => setFeesEditing(true)}>
-                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-              </Button>
-            </div>
-          ) : feesEditing ? (
-            <Badge variant="outline" className="border-amber-400 text-amber-700 gap-1">
-              <Pencil className="h-3.5 w-3.5" /> Editing
-            </Badge>
-          ) : null}
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-4 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs">Embossing Cost (RMB)</Label>
               <Input
-                type="number" step="0.01"
-                value={feeEmbossing}
+                type="number" step="0.01" value={feeEmbossing}
                 onChange={(e) => setFeeEmbossing(e.target.value)}
-                disabled={feesLocked}
-                className="font-mono"
-                placeholder="0.00"
+                disabled={isLocked} className="font-mono" placeholder="0.00"
               />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">New Mold Cost (RMB)</Label>
               <Input
-                type="number" step="0.01"
-                value={feeMoldNew}
+                type="number" step="0.01" value={feeMoldNew}
                 onChange={(e) => setFeeMoldNew(e.target.value)}
-                disabled={feesLocked}
-                className="font-mono"
-                placeholder="0.00"
+                disabled={isLocked} className="font-mono" placeholder="0.00"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Mold Adjustment Cost (RMB)</Label>
+              <Label className="text-xs">Mold Adjustment (RMB)</Label>
               <Input
-                type="number" step="0.01"
-                value={feeMoldAdjust}
+                type="number" step="0.01" value={feeMoldAdjust}
                 onChange={(e) => setFeeMoldAdjust(e.target.value)}
-                disabled={feesLocked}
-                className="font-mono"
-                placeholder="0.00"
+                disabled={isLocked} className="font-mono" placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Notes</Label>
+              <Input
+                value={feeNotes} onChange={(e) => setFeeNotes(e.target.value)}
+                disabled={isLocked} placeholder="Optional"
               />
             </div>
           </div>
-          <div className="space-y-1.5 mb-4">
-            <Label className="text-xs">Notes</Label>
-            <Input
-              value={feeNotes}
-              onChange={(e) => setFeeNotes(e.target.value)}
-              disabled={feesLocked}
-              placeholder="Optional notes on fees"
-            />
-          </div>
-          {!feesLocked && (
-            <div className="flex justify-end">
-              <Button
-                type="button" size="sm" variant="outline"
-                className="border-green-500 text-green-700 hover:bg-green-50"
-                onClick={handleFeesApprove}
-                disabled={feesSaving}
-              >
-                {feesSaving ? "Saving..." : feesEditing ? "Save & Re-approve Fees" : "Approve Fees"}
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
 
+      {/* Tier cards */}
       {rows.map((row, i) => {
         const estimate = calcEstimate(row);
-        const isApproved = row.approved;
-        const isEditing = editing.has(row.tier_label);
-        const isLocked = isApproved && !isEditing;
         return (
-          <Card key={row.tier_label} className={isApproved && !isEditing ? "border-green-300" : isEditing ? "border-amber-300" : ""}>
+          <Card key={row.tier_label}>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div>
-                  <CardTitle className="text-base">{row.quantity.toLocaleString()} pcs</CardTitle>
+              <CardTitle className="text-base">{row.quantity.toLocaleString()} pcs</CardTitle>
+              {estimate !== null && (
+                <div className="text-right">
+                  <p className="text-xs text-gray-400">Estimated unit cost</p>
+                  <p className="text-lg font-bold text-gray-800">{formatRMB(estimate)}</p>
                 </div>
-              </div>
-              {isApproved && !isEditing ? (
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="border-green-500 text-green-700 gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Approved
-                  </Badge>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0"
-                    title="Edit"
-                    onClick={() => setEditing((prev) => new Set(prev).add(row.tier_label))}
-                  >
-                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                </div>
-              ) : isEditing ? (
-                <Badge variant="outline" className="border-amber-400 text-amber-700 gap-1">
-                  <Pencil className="h-3.5 w-3.5" />
-                  Editing
-                </Badge>
-              ) : (
-                estimate !== null && (
-                  <div className="text-right">
-                    <p className="text-xs text-gray-400">Estimated unit cost</p>
-                    <p className="text-lg font-bold text-gray-800">{formatRMB(estimate)}</p>
-                  </div>
-                )
               )}
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs">总成本合计 (RMB/pc)</Label>
-                  <Input
-                    type="number"
-                    step="0.0001"
-                    value={row.total_subtotal}
+                  <Input type="number" step="0.0001" value={row.total_subtotal}
                     onChange={(e) => updateRow(i, "total_subtotal", e.target.value)}
-                    disabled={isLocked}
-                    className="font-mono"
-                  />
+                    disabled={isLocked} className="font-mono" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">人工 Labor (RMB/pc)</Label>
-                  <Input
-                    type="number"
-                    step="0.0001"
-                    value={row.labor_cost}
+                  <Input type="number" step="0.0001" value={row.labor_cost}
                     onChange={(e) => updateRow(i, "labor_cost", e.target.value)}
-                    disabled={isLocked}
-                    className="font-mono"
-                  />
+                    disabled={isLocked} className="font-mono" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">配件 Accessories (RMB/pc)</Label>
-                  <Input
-                    type="number"
-                    step="0.0001"
-                    value={row.accessories_cost}
+                  <Input type="number" step="0.0001" value={row.accessories_cost}
                     onChange={(e) => updateRow(i, "accessories_cost", e.target.value)}
-                    disabled={isLocked}
-                    className="font-mono"
-                  />
+                    disabled={isLocked} className="font-mono" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Overhead Multiplier (×labor)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={row.overhead_multiplier}
+                  <Input type="number" step="0.1" value={row.overhead_multiplier}
                     onChange={(e) => updateRow(i, "overhead_multiplier", e.target.value)}
-                    disabled={isLocked}
-                    className="font-mono"
-                    placeholder="1.0"
-                  />
+                    disabled={isLocked} className="font-mono" placeholder="1.0" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Margin %</Label>
-                  <Input
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="100"
-                    value={row.margin_rate}
+                  <Input type="number" step="1" min="0" max="100" value={row.margin_rate}
                     onChange={(e) => updateRow(i, "margin_rate", e.target.value)}
-                    disabled={isLocked}
-                    className="font-mono"
-                    placeholder="20"
-                  />
+                    disabled={isLocked} className="font-mono" placeholder="20" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Notes</Label>
-                  <Input
-                    value={row.wilfred_notes}
+                  <Input value={row.wilfred_notes}
                     onChange={(e) => updateRow(i, "wilfred_notes", e.target.value)}
-                    disabled={isLocked}
-                    placeholder="optional"
-                  />
+                    disabled={isLocked} placeholder="optional" />
                 </div>
               </div>
 
@@ -455,24 +375,6 @@ export default function WilfredCalcForm({
                   <span className="font-bold text-gray-800">→ {formatRMB(estimate)} / pc</span>
                 </div>
               )}
-
-              {(!isApproved || isEditing) && row.existingId && (
-                <div className="flex justify-end mt-4">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="border-green-500 text-green-700 hover:bg-green-50"
-                    onClick={() => {
-                      handleApprove(i);
-                      setEditing((prev) => { const next = new Set(prev); next.delete(row.tier_label); return next; });
-                    }}
-                    disabled={approving === row.existingId}
-                  >
-                    {approving === row.existingId ? "Approving..." : isEditing ? "Save & Re-approve" : "Approve Tier"}
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
         );
@@ -484,9 +386,9 @@ export default function WilfredCalcForm({
         </div>
       )}
 
-      {allApproved ? (
+      {allApproved && !isEditing ? (
         <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 text-center">
-          All tiers approved — status updated to Pending Natsuki.
+          All approved — status updated to Pending DDP.
           <div className="mt-3">
             <Button onClick={() => router.push(`/${locale}/quotes/${quoteId}`)}>
               Back to Quote
@@ -498,9 +400,17 @@ export default function WilfredCalcForm({
           <Button type="button" variant="outline" onClick={() => router.push(`/${locale}/quotes/${quoteId}`)}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSave} disabled={loading}>
-            {loading ? "Saving..." : "Save Calculations"}
-          </Button>
+          {!allSaved ? (
+            <Button type="button" onClick={handleSave} disabled={loading}>
+              {loading ? "Saving..." : "Save Calculations"}
+            </Button>
+          ) : (
+            <Button type="button" onClick={handleApproveAll} disabled={approving}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {approving ? "Approving..." : isEditing ? "Save & Approve All" : "Approve All"}
+            </Button>
+          )}
         </div>
       )}
     </div>
