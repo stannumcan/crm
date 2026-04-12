@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Pencil } from "lucide-react";
 import { calculateWilfredCost, formatRMB } from "@/lib/calculations";
 
 interface FactoryTier {
@@ -93,6 +93,7 @@ export default function WilfredCalcForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [approving, setApproving] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
 
   const [rows, setRows] = useState<TierRow[]>(() =>
@@ -172,7 +173,7 @@ export default function WilfredCalcForm({
     }
   };
 
-  const allApproved = rows.every((r) => r.approved);
+  const allApproved = rows.every((r) => r.approved) && editing.size === 0;
 
   return (
     <div className="space-y-4">
@@ -184,18 +185,37 @@ export default function WilfredCalcForm({
       {rows.map((row, i) => {
         const estimate = calcEstimate(row);
         const isApproved = row.approved;
+        const isEditing = editing.has(row.tier_label);
+        const isLocked = isApproved && !isEditing;
         return (
-          <Card key={row.tier_label} className={isApproved ? "border-green-300" : ""}>
+          <Card key={row.tier_label} className={isApproved && !isEditing ? "border-green-300" : isEditing ? "border-amber-300" : ""}>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
                 <div>
                   <CardTitle className="text-base">{row.quantity.toLocaleString()} pcs</CardTitle>
                 </div>
               </div>
-              {isApproved ? (
-                <Badge variant="outline" className="border-green-500 text-green-700 gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Approved
+              {isApproved && !isEditing ? (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="border-green-500 text-green-700 gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Approved
+                  </Badge>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    title="Edit"
+                    onClick={() => setEditing((prev) => new Set(prev).add(row.tier_label))}
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </div>
+              ) : isEditing ? (
+                <Badge variant="outline" className="border-amber-400 text-amber-700 gap-1">
+                  <Pencil className="h-3.5 w-3.5" />
+                  Editing
                 </Badge>
               ) : (
                 estimate !== null && (
@@ -215,7 +235,7 @@ export default function WilfredCalcForm({
                     step="0.0001"
                     value={row.total_subtotal}
                     onChange={(e) => updateRow(i, "total_subtotal", e.target.value)}
-                    disabled={isApproved}
+                    disabled={isLocked}
                     className="font-mono"
                   />
                 </div>
@@ -226,7 +246,7 @@ export default function WilfredCalcForm({
                     step="0.0001"
                     value={row.labor_cost}
                     onChange={(e) => updateRow(i, "labor_cost", e.target.value)}
-                    disabled={isApproved}
+                    disabled={isLocked}
                     className="font-mono"
                   />
                 </div>
@@ -237,7 +257,7 @@ export default function WilfredCalcForm({
                     step="0.0001"
                     value={row.accessories_cost}
                     onChange={(e) => updateRow(i, "accessories_cost", e.target.value)}
-                    disabled={isApproved}
+                    disabled={isLocked}
                     className="font-mono"
                   />
                 </div>
@@ -248,7 +268,7 @@ export default function WilfredCalcForm({
                     step="0.1"
                     value={row.overhead_multiplier}
                     onChange={(e) => updateRow(i, "overhead_multiplier", e.target.value)}
-                    disabled={isApproved}
+                    disabled={isLocked}
                     className="font-mono"
                     placeholder="1.0"
                   />
@@ -262,7 +282,7 @@ export default function WilfredCalcForm({
                     max="100"
                     value={row.margin_rate}
                     onChange={(e) => updateRow(i, "margin_rate", e.target.value)}
-                    disabled={isApproved}
+                    disabled={isLocked}
                     className="font-mono"
                     placeholder="20"
                   />
@@ -272,7 +292,7 @@ export default function WilfredCalcForm({
                   <Input
                     value={row.wilfred_notes}
                     onChange={(e) => updateRow(i, "wilfred_notes", e.target.value)}
-                    disabled={isApproved}
+                    disabled={isLocked}
                     placeholder="optional"
                   />
                 </div>
@@ -293,17 +313,20 @@ export default function WilfredCalcForm({
                 </div>
               )}
 
-              {!isApproved && row.existingId && (
+              {(!isApproved || isEditing) && row.existingId && (
                 <div className="flex justify-end mt-4">
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
                     className="border-green-500 text-green-700 hover:bg-green-50"
-                    onClick={() => handleApprove(i)}
+                    onClick={() => {
+                      handleApprove(i);
+                      setEditing((prev) => { const next = new Set(prev); next.delete(row.tier_label); return next; });
+                    }}
                     disabled={approving === row.existingId}
                   >
-                    {approving === row.existingId ? "Approving..." : "Approve Tier"}
+                    {approving === row.existingId ? "Approving..." : isEditing ? "Save & Re-approve" : "Approve Tier"}
                   </Button>
                 </div>
               )}
