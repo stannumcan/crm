@@ -17,8 +17,10 @@ interface PrintingLine {
   spec: string;
 }
 
-const SURFACE_OPTIONS = ["外面", "内面"];
-const PART_PRESETS = ["蓋", "身", "底", "蓋・身", "蓋・身・底"];
+const SURFACE_OPTIONS_JA = ["外面", "内面"];
+const SURFACE_OPTIONS_EN = ["Exterior", "Interior"];
+const PART_PRESETS_JA = ["蓋", "身", "底", "蓋・身", "蓋・身・底"];
+const PART_PRESETS_EN = ["Lid", "Body", "Bottom", "Lid & Body", "Lid, Body & Bottom"];
 
 interface Tier {
   tier_label: string;
@@ -130,6 +132,12 @@ export default function FactorySheetForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const isJa = locale === "ja" || locale === "zh";
+  const SURFACE_OPTIONS = isJa ? SURFACE_OPTIONS_JA : SURFACE_OPTIONS_EN;
+  const PART_PRESETS = isJa ? PART_PRESETS_JA : PART_PRESETS_EN;
+  const defaultSurface = isJa ? "外面" : "Exterior";
+  const defaultPart = isJa ? "蓋" : "Lid";
+
   // Attachments: existing (already saved) + newly uploaded
   const [existingAttachments, setExistingAttachments] = useState<UploadedFile[]>(() => {
     const saved = existingSheet?.attachments;
@@ -153,14 +161,14 @@ export default function FactorySheetForm({
     if (Array.isArray(saved) && saved.length > 0) return saved as PrintingLine[];
     // Use defaults from quote request
     if (defaultPrintingLines?.length) return defaultPrintingLines;
-    return [{ surface: "外面", part: "蓋", spec: "" }];
+    return [{ surface: defaultSurface, part: defaultPart, spec: "" }];
   });
   const updatePrintingLine = (idx: number, field: keyof PrintingLine, val: string) =>
     setPrintingLines((prev) => prev.map((ln, i) => i === idx ? { ...ln, [field]: val } : ln));
   const removePrintingLine = (idx: number) =>
     setPrintingLines((prev) => prev.filter((_, i) => i !== idx));
   const addPrintingLine = () =>
-    setPrintingLines((prev) => [...prev, { surface: "外面", part: "", spec: "" }]);
+    setPrintingLines((prev) => [...prev, { surface: defaultSurface, part: "", spec: "" }]);
 
   const [embossmentFlag, setEmbossmentFlag] = useState(
     existingSheet?.embossment != null ? Boolean(existingSheet.embossment) : (defaultEmbossment ?? false)
@@ -329,7 +337,7 @@ export default function FactorySheetForm({
       {/* Printing Requirements */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-base">印刷方法 Printing</CardTitle>
+          <CardTitle className="text-base">{isJa ? "印刷方法 Printing" : "Printing Requirements"}</CardTitle>
           <Button type="button" variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={addPrintingLine}>
             <Plus className="h-3 w-3" /> Add Line
           </Button>
@@ -362,18 +370,18 @@ export default function FactorySheetForm({
                       }
                     }}
                   >
-                    <option value="">— Select —</option>
+                    <option value="">{isJa ? "— 選択 —" : "— Select —"}</option>
                     {PART_PRESETS.map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
-                    <option value="__custom__">＋ Custom...</option>
+                    <option value="__custom__">{isJa ? "＋ カスタム..." : "+ Custom..."}</option>
                   </select>
                 ) : (
                   <Input
                     className="h-8 text-xs w-36 shrink-0"
                     value={ln.part}
                     onChange={(e) => updatePrintingLine(i, "part", e.target.value)}
-                    placeholder="Custom part"
+                    placeholder={isJa ? "カスタム部位" : "Custom part"}
                     onBlur={(e) => {
                       if (!e.target.value.trim()) updatePrintingLine(i, "part", "");
                     }}
@@ -383,7 +391,7 @@ export default function FactorySheetForm({
                 {/* Spec */}
                 <Input
                   className="flex-1 h-8 text-xs"
-                  placeholder="Spec e.g. 4C+0C, CMYK, gold lacquer..."
+                  placeholder={isJa ? "仕様 e.g. 4C+0C, CMYK..." : "Spec e.g. 4C+0C, CMYK, gold lacquer..."}
                   value={ln.spec}
                   onChange={(e) => updatePrintingLine(i, "spec", e.target.value)}
                 />

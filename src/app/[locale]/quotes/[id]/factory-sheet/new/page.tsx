@@ -38,11 +38,17 @@ export default async function NewFactorySheetPage({
   const tinThickness = molds[0]?.thickness ?? undefined;
 
   // Build default printing lines from quote request fields
+  const isJa = locale === "ja" || locale === "zh";
+  const ext = isJa ? "外面" : "Exterior";
+  const int = isJa ? "内面" : "Interior";
+  const lid = isJa ? "蓋" : "Lid";
+  const body = isJa ? "身" : "Body";
+  const bottom = isJa ? "底" : "Bottom";
   const defaultPrintingLines: { surface: string; part: string; spec: string }[] = [];
-  if (quote.printing_lid) defaultPrintingLines.push({ surface: "外面", part: "蓋", spec: quote.printing_lid });
-  if (quote.printing_body) defaultPrintingLines.push({ surface: "外面", part: "身", spec: quote.printing_body });
-  if (quote.printing_bottom) defaultPrintingLines.push({ surface: "外面", part: "底", spec: quote.printing_bottom });
-  if (quote.printing_inner) defaultPrintingLines.push({ surface: "内面", part: "", spec: quote.printing_inner });
+  if (quote.printing_lid) defaultPrintingLines.push({ surface: ext, part: lid, spec: quote.printing_lid });
+  if (quote.printing_body) defaultPrintingLines.push({ surface: ext, part: body, spec: quote.printing_body });
+  if (quote.printing_bottom) defaultPrintingLines.push({ surface: ext, part: bottom, spec: quote.printing_bottom });
+  if (quote.printing_inner) defaultPrintingLines.push({ surface: int, part: "", spec: quote.printing_inner });
 
   return (
     <div className="p-6 max-w-5xl">
