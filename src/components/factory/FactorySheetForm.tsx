@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Paperclip, X } from "lucide-react";
 import { FileUpload, UploadedFile } from "@/components/ui/file-upload";
+import MoldSelect from "@/components/ui/mold-select";
 
 interface Tier {
   tier_label: string;
@@ -94,6 +95,14 @@ export default function FactorySheetForm({
   moldNumber,
   productDimensions,
   tinThickness,
+  printingLid: defaultPrintingLid,
+  printingBody: defaultPrintingBody,
+  printingBottom: defaultPrintingBottom,
+  printingInner: defaultPrintingInner,
+  printingNotes: defaultPrintingNotes,
+  embossment: defaultEmbossment,
+  embossmentComponents: defaultEmbossmentComponents,
+  embossmentNotes: defaultEmbossmentNotes,
   returnTo,
 }: {
   locale: string;
@@ -104,6 +113,15 @@ export default function FactorySheetForm({
   moldNumber: string;
   productDimensions: string;
   tinThickness?: string;
+  // Pre-filled from quote request
+  printingLid?: string;
+  printingBody?: string;
+  printingBottom?: string;
+  printingInner?: string;
+  printingNotes?: string;
+  embossment?: boolean;
+  embossmentComponents?: string;
+  embossmentNotes?: string;
   returnTo?: string;
 }) {
   const router = useRouter();
@@ -126,6 +144,18 @@ export default function FactorySheetForm({
   const [steelThickness, setSteelThickness] = useState(
     existingSheet?.steel_thickness != null ? String(existingSheet.steel_thickness) : (tinThickness ?? "")
   );
+
+  // Printing & Embossing
+  const [printingLid, setPrintingLid] = useState(String(existingSheet?.printing_lid ?? defaultPrintingLid ?? ""));
+  const [printingBody, setPrintingBody] = useState(String(existingSheet?.printing_body ?? defaultPrintingBody ?? ""));
+  const [printingBottom, setPrintingBottom] = useState(String(existingSheet?.printing_bottom ?? defaultPrintingBottom ?? ""));
+  const [printingInner, setPrintingInner] = useState(String(existingSheet?.printing_inner ?? defaultPrintingInner ?? ""));
+  const [printingNotesVal, setPrintingNotesVal] = useState(String(existingSheet?.printing_notes ?? defaultPrintingNotes ?? ""));
+  const [embossmentFlag, setEmbossmentFlag] = useState(
+    existingSheet?.embossment != null ? Boolean(existingSheet.embossment) : (defaultEmbossment ?? false)
+  );
+  const [embossmentComp, setEmbossmentComp] = useState(String(existingSheet?.embossment_components ?? defaultEmbossmentComponents ?? ""));
+  const [embossmentNotesVal, setEmbossmentNotesVal] = useState(String(existingSheet?.embossment_notes ?? defaultEmbossmentNotes ?? ""));
 
   // Mold Costs
   const [moldCostNew, setMoldCostNew] = useState(String(existingSheet?.mold_cost_new ?? ""));
@@ -197,6 +227,14 @@ export default function FactorySheetForm({
       mold_number: moldNum || null,
       product_dimensions: productDims || null,
       steel_thickness: parseFloat(steelThickness) || null,
+      printing_lid: printingLid || null,
+      printing_body: printingBody || null,
+      printing_bottom: printingBottom || null,
+      printing_inner: printingInner || null,
+      printing_notes: printingNotesVal || null,
+      embossment: embossmentFlag,
+      embossment_components: embossmentComp || null,
+      embossment_notes: embossmentNotesVal || null,
       mold_cost_new: parseFloat(moldCostNew) || null,
       mold_cost_modify: parseFloat(moldCostAdjust) || null,
       mold_lead_time_days: parseInt(moldLeadTime) || null,
@@ -255,7 +293,13 @@ export default function FactorySheetForm({
             </div>
             <div className="space-y-2">
               <Label>Mold Number</Label>
-              <Input value={moldNum} onChange={(e) => setMoldNum(e.target.value)} placeholder="ML-1004B" />
+              <MoldSelect
+                value={moldNum}
+                onChange={(num, dims) => {
+                  setMoldNum(num);
+                  if (dims && !productDims) setProductDims(dims);
+                }}
+              />
             </div>
             <div className="space-y-2">
               <Label>Product Dimensions</Label>
@@ -273,6 +317,67 @@ export default function FactorySheetForm({
             </div>
           </div>
         </CardContent>
+      </Card>
+
+      {/* Printing Requirements */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Printing Requirements (印刷)</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Lid (盖)</Label>
+              <Input value={printingLid} onChange={(e) => setPrintingLid(e.target.value)} placeholder="e.g. 4C+0C, CMYK" />
+            </div>
+            <div className="space-y-2">
+              <Label>Body (身)</Label>
+              <Input value={printingBody} onChange={(e) => setPrintingBody(e.target.value)} placeholder="e.g. 4C+2C" />
+            </div>
+            <div className="space-y-2">
+              <Label>Bottom (底)</Label>
+              <Input value={printingBottom} onChange={(e) => setPrintingBottom(e.target.value)} placeholder="e.g. 1C+0C" />
+            </div>
+            <div className="space-y-2">
+              <Label>Inner (内)</Label>
+              <Input value={printingInner} onChange={(e) => setPrintingInner(e.target.value)} placeholder="e.g. gold lacquer" />
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            <Label>Printing Notes</Label>
+            <Input value={printingNotesVal} onChange={(e) => setPrintingNotesVal(e.target.value)} placeholder="Additional printing notes..." />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Embossment */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <CardTitle className="text-base">Embossment (起鼓)</CardTitle>
+          <button
+            type="button"
+            onClick={() => setEmbossmentFlag(!embossmentFlag)}
+            className="relative w-10 h-5 rounded-full transition-colors"
+            style={{ background: embossmentFlag ? "var(--primary)" : "oklch(0.85 0 0)" }}
+          >
+            <div
+              className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform"
+              style={{ left: embossmentFlag ? "calc(100% - 18px)" : "2px" }}
+            />
+          </button>
+        </CardHeader>
+        {embossmentFlag && (
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Components</Label>
+                <Input value={embossmentComp} onChange={(e) => setEmbossmentComp(e.target.value)} placeholder="e.g. Lid top, body band" />
+              </div>
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Input value={embossmentNotesVal} onChange={(e) => setEmbossmentNotesVal(e.target.value)} placeholder="Embossment details..." />
+              </div>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       {/* Mold Costs */}

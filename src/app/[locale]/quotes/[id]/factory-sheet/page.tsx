@@ -15,12 +15,17 @@ export default async function FactorySheetListPage({
 
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: quote } = await (supabase as any)
+  const db = supabase as any;
+
+  const { data: quote } = await db
     .from("quotations")
     .select(`
-      id, status, mold_number,
+      id, status, mold_number, molds,
+      printing_lid, printing_body, printing_bottom, printing_inner, printing_notes,
+      embossment, embossment_components, embossment_notes,
       work_orders(wo_number, company_name, project_name),
-      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, created_at)
+      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, created_at),
+      quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order)
     `)
     .eq("id", id)
     .single();
@@ -28,10 +33,55 @@ export default async function FactorySheetListPage({
   if (!quote) notFound();
 
   const wo = quote.work_orders as { wo_number: string; company_name: string; project_name: string } | null;
-  const sheets = (Array.isArray(quote.factory_cost_sheets)
+  let sheets = (Array.isArray(quote.factory_cost_sheets)
     ? quote.factory_cost_sheets
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; created_at: string }[];
+
+  // ── Auto-create one sheet per mold if none exist ────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const molds = (quote.molds as any[]) ?? [];
+  if (sheets.length === 0 && molds.length > 0) {
+    const tiers = (quote.quotation_quantity_tiers ?? []) as { tier_label: string; quantity_type: string; quantity: number | null; sort_order: number }[];
+
+    const sheetsToInsert = molds.map((m: { value?: string; size?: string; thickness?: string | null }) => ({
+      quotation_id: id,
+      mold_number: m.value ?? null,
+      product_dimensions: m.size ?? null,
+      steel_thickness: m.thickness ? parseFloat(m.thickness) : null,
+      sheet_date: new Date().toISOString().split("T")[0],
+      // Copy printing from quote
+      printing_lid: quote.printing_lid ?? null,
+      printing_body: quote.printing_body ?? null,
+      printing_bottom: quote.printing_bottom ?? null,
+      printing_inner: quote.printing_inner ?? null,
+      printing_notes: quote.printing_notes ?? null,
+      // Copy embossment from quote
+      embossment: quote.embossment ?? false,
+      embossment_components: quote.embossment_components ?? null,
+      embossment_notes: quote.embossment_notes ?? null,
+    }));
+
+    const { data: created } = await db
+      .from("factory_cost_sheets")
+      .insert(sheetsToInsert)
+      .select("id, mold_number, sheet_date, product_dimensions, created_at");
+
+    if (created) {
+      sheets = Array.isArray(created) ? created : [created];
+
+      // Create tier cost rows for each sheet
+      const tierRows = sheets.flatMap((sheet: { id: string }) =>
+        tiers.map((t) => ({
+          cost_sheet_id: sheet.id,
+          tier_label: t.tier_label,
+          quantity: t.quantity,
+        }))
+      );
+      if (tierRows.length > 0) {
+        await db.from("factory_cost_tiers").insert(tierRows);
+      }
+    }
+  }
 
   const sorted = [...sheets].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 

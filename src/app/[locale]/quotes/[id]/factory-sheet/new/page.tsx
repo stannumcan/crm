@@ -20,6 +20,8 @@ export default async function NewFactorySheetPage({
     .from("quotations")
     .select(`
       id, mold_number, size_dimensions, molds,
+      printing_lid, printing_body, printing_bottom, printing_inner, printing_notes,
+      embossment, embossment_components, embossment_notes,
       work_orders(wo_number, company_name, project_name),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order)
     `)
@@ -61,6 +63,14 @@ export default async function NewFactorySheetPage({
         moldNumber={quote.mold_number ?? ""}
         productDimensions={quote.size_dimensions ?? ""}
         tinThickness={tinThickness}
+        printingLid={quote.printing_lid ?? undefined}
+        printingBody={quote.printing_body ?? undefined}
+        printingBottom={quote.printing_bottom ?? undefined}
+        printingInner={quote.printing_inner ?? undefined}
+        printingNotes={quote.printing_notes ?? undefined}
+        embossment={quote.embossment ?? undefined}
+        embossmentComponents={quote.embossment_components ?? undefined}
+        embossmentNotes={quote.embossment_notes ?? undefined}
         returnTo={`/${locale}/quotes/${id}/factory-sheet`}
       />
     </div>
