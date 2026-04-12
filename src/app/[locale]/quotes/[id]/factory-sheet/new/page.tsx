@@ -37,6 +37,13 @@ export default async function NewFactorySheetPage({
   const molds = (quote.molds as any[]) ?? [];
   const tinThickness = molds[0]?.thickness ?? undefined;
 
+  // Build default printing lines from quote request fields
+  const defaultPrintingLines: { surface: string; part: string; spec: string }[] = [];
+  if (quote.printing_lid) defaultPrintingLines.push({ surface: "外面", part: "蓋", spec: quote.printing_lid });
+  if (quote.printing_body) defaultPrintingLines.push({ surface: "外面", part: "身", spec: quote.printing_body });
+  if (quote.printing_bottom) defaultPrintingLines.push({ surface: "外面", part: "底", spec: quote.printing_bottom });
+  if (quote.printing_inner) defaultPrintingLines.push({ surface: "内面", part: "", spec: quote.printing_inner });
+
   return (
     <div className="p-6 max-w-5xl">
       <div className="flex items-center gap-3 mb-6">
@@ -63,11 +70,7 @@ export default async function NewFactorySheetPage({
         moldNumber={quote.mold_number ?? ""}
         productDimensions={quote.size_dimensions ?? ""}
         tinThickness={tinThickness}
-        printingLid={quote.printing_lid ?? undefined}
-        printingBody={quote.printing_body ?? undefined}
-        printingBottom={quote.printing_bottom ?? undefined}
-        printingInner={quote.printing_inner ?? undefined}
-        printingNotes={quote.printing_notes ?? undefined}
+        defaultPrintingLines={defaultPrintingLines.length > 0 ? defaultPrintingLines : undefined}
         embossment={quote.embossment ?? undefined}
         embossmentComponents={quote.embossment_components ?? undefined}
         embossmentNotes={quote.embossment_notes ?? undefined}

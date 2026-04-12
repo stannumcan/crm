@@ -11,6 +11,15 @@ import { Plus, Trash2, Paperclip, X } from "lucide-react";
 import { FileUpload, UploadedFile } from "@/components/ui/file-upload";
 import MoldSelect from "@/components/ui/mold-select";
 
+interface PrintingLine {
+  surface: string; // 外面 | 内面
+  part: string;    // 蓋 | 身 | 底 | 蓋・身 | 蓋・身・底 | custom
+  spec: string;
+}
+
+const SURFACE_OPTIONS = ["外面", "内面"];
+const PART_PRESETS = ["蓋", "身", "底", "蓋・身", "蓋・身・底"];
+
 interface Tier {
   tier_label: string;
   quantity_type: string;
@@ -95,11 +104,7 @@ export default function FactorySheetForm({
   moldNumber,
   productDimensions,
   tinThickness,
-  printingLid: defaultPrintingLid,
-  printingBody: defaultPrintingBody,
-  printingBottom: defaultPrintingBottom,
-  printingInner: defaultPrintingInner,
-  printingNotes: defaultPrintingNotes,
+  defaultPrintingLines,
   embossment: defaultEmbossment,
   embossmentComponents: defaultEmbossmentComponents,
   embossmentNotes: defaultEmbossmentNotes,
@@ -114,11 +119,7 @@ export default function FactorySheetForm({
   productDimensions: string;
   tinThickness?: string;
   // Pre-filled from quote request
-  printingLid?: string;
-  printingBody?: string;
-  printingBottom?: string;
-  printingInner?: string;
-  printingNotes?: string;
+  defaultPrintingLines?: PrintingLine[];
   embossment?: boolean;
   embossmentComponents?: string;
   embossmentNotes?: string;
@@ -145,12 +146,22 @@ export default function FactorySheetForm({
     existingSheet?.steel_thickness != null ? String(existingSheet.steel_thickness) : (tinThickness ?? "")
   );
 
-  // Printing & Embossing
-  const [printingLid, setPrintingLid] = useState(String(existingSheet?.printing_lid ?? defaultPrintingLid ?? ""));
-  const [printingBody, setPrintingBody] = useState(String(existingSheet?.printing_body ?? defaultPrintingBody ?? ""));
-  const [printingBottom, setPrintingBottom] = useState(String(existingSheet?.printing_bottom ?? defaultPrintingBottom ?? ""));
-  const [printingInner, setPrintingInner] = useState(String(existingSheet?.printing_inner ?? defaultPrintingInner ?? ""));
-  const [printingNotesVal, setPrintingNotesVal] = useState(String(existingSheet?.printing_notes ?? defaultPrintingNotes ?? ""));
+  // Printing lines
+  const [printingLines, setPrintingLines] = useState<PrintingLine[]>(() => {
+    // Restore from existing sheet
+    const saved = existingSheet?.printing_lines;
+    if (Array.isArray(saved) && saved.length > 0) return saved as PrintingLine[];
+    // Use defaults from quote request
+    if (defaultPrintingLines?.length) return defaultPrintingLines;
+    return [{ surface: "外面", part: "蓋", spec: "" }];
+  });
+  const updatePrintingLine = (idx: number, field: keyof PrintingLine, val: string) =>
+    setPrintingLines((prev) => prev.map((ln, i) => i === idx ? { ...ln, [field]: val } : ln));
+  const removePrintingLine = (idx: number) =>
+    setPrintingLines((prev) => prev.filter((_, i) => i !== idx));
+  const addPrintingLine = () =>
+    setPrintingLines((prev) => [...prev, { surface: "外面", part: "", spec: "" }]);
+
   const [embossmentFlag, setEmbossmentFlag] = useState(
     existingSheet?.embossment != null ? Boolean(existingSheet.embossment) : (defaultEmbossment ?? false)
   );
@@ -227,11 +238,7 @@ export default function FactorySheetForm({
       mold_number: moldNum || null,
       product_dimensions: productDims || null,
       steel_thickness: parseFloat(steelThickness) || null,
-      printing_lid: printingLid || null,
-      printing_body: printingBody || null,
-      printing_bottom: printingBottom || null,
-      printing_inner: printingInner || null,
-      printing_notes: printingNotesVal || null,
+      printing_lines: printingLines.filter((ln) => ln.spec || ln.part),
       embossment: embossmentFlag,
       embossment_components: embossmentComp || null,
       embossment_notes: embossmentNotesVal || null,
@@ -321,29 +328,77 @@ export default function FactorySheetForm({
 
       {/* Printing Requirements */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Printing Requirements (印刷)</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <CardTitle className="text-base">印刷方法 Printing</CardTitle>
+          <Button type="button" variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={addPrintingLine}>
+            <Plus className="h-3 w-3" /> Add Line
+          </Button>
+        </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Lid (盖)</Label>
-              <Input value={printingLid} onChange={(e) => setPrintingLid(e.target.value)} placeholder="e.g. 4C+0C, CMYK" />
-            </div>
-            <div className="space-y-2">
-              <Label>Body (身)</Label>
-              <Input value={printingBody} onChange={(e) => setPrintingBody(e.target.value)} placeholder="e.g. 4C+2C" />
-            </div>
-            <div className="space-y-2">
-              <Label>Bottom (底)</Label>
-              <Input value={printingBottom} onChange={(e) => setPrintingBottom(e.target.value)} placeholder="e.g. 1C+0C" />
-            </div>
-            <div className="space-y-2">
-              <Label>Inner (内)</Label>
-              <Input value={printingInner} onChange={(e) => setPrintingInner(e.target.value)} placeholder="e.g. gold lacquer" />
-            </div>
-          </div>
-          <div className="mt-4 space-y-2">
-            <Label>Printing Notes</Label>
-            <Input value={printingNotesVal} onChange={(e) => setPrintingNotesVal(e.target.value)} placeholder="Additional printing notes..." />
+          <div className="space-y-2">
+            {printingLines.map((ln, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                {/* Surface: 外面 / 内面 */}
+                <select
+                  className="flex h-8 rounded-md border border-input bg-background px-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring w-20 shrink-0"
+                  value={ln.surface}
+                  onChange={(e) => updatePrintingLine(i, "surface", e.target.value)}
+                >
+                  {SURFACE_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+
+                {/* Part: preset or custom */}
+                {PART_PRESETS.includes(ln.part) || ln.part === "" ? (
+                  <select
+                    className="flex h-8 rounded-md border border-input bg-background px-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring w-36 shrink-0"
+                    value={ln.part}
+                    onChange={(e) => {
+                      if (e.target.value === "__custom__") {
+                        updatePrintingLine(i, "part", "");
+                      } else {
+                        updatePrintingLine(i, "part", e.target.value);
+                      }
+                    }}
+                  >
+                    <option value="">— Select —</option>
+                    {PART_PRESETS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                    <option value="__custom__">＋ Custom...</option>
+                  </select>
+                ) : (
+                  <Input
+                    className="h-8 text-xs w-36 shrink-0"
+                    value={ln.part}
+                    onChange={(e) => updatePrintingLine(i, "part", e.target.value)}
+                    placeholder="Custom part"
+                    onBlur={(e) => {
+                      if (!e.target.value.trim()) updatePrintingLine(i, "part", "");
+                    }}
+                  />
+                )}
+
+                {/* Spec */}
+                <Input
+                  className="flex-1 h-8 text-xs"
+                  placeholder="Spec e.g. 4C+0C, CMYK, gold lacquer..."
+                  value={ln.spec}
+                  onChange={(e) => updatePrintingLine(i, "spec", e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 shrink-0"
+                  onClick={() => removePrintingLine(i)}
+                  disabled={printingLines.length <= 1}
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-gray-400" />
+                </Button>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

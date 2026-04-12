@@ -49,12 +49,13 @@ export default async function FactorySheetListPage({
       product_dimensions: m.size ?? null,
       steel_thickness: m.thickness ? parseFloat(m.thickness) : null,
       sheet_date: new Date().toISOString().split("T")[0],
-      // Copy printing from quote
-      printing_lid: quote.printing_lid ?? null,
-      printing_body: quote.printing_body ?? null,
-      printing_bottom: quote.printing_bottom ?? null,
-      printing_inner: quote.printing_inner ?? null,
-      printing_notes: quote.printing_notes ?? null,
+      // Build printing lines from quote fields
+      printing_lines: [
+        ...(quote.printing_lid ? [{ surface: "外面", part: "蓋", spec: quote.printing_lid }] : []),
+        ...(quote.printing_body ? [{ surface: "外面", part: "身", spec: quote.printing_body }] : []),
+        ...(quote.printing_bottom ? [{ surface: "外面", part: "底", spec: quote.printing_bottom }] : []),
+        ...(quote.printing_inner ? [{ surface: "内面", part: "", spec: quote.printing_inner }] : []),
+      ],
       // Copy embossment from quote
       embossment: quote.embossment ?? false,
       embossment_components: quote.embossment_components ?? null,
