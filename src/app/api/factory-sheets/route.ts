@@ -61,6 +61,17 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
+  // Update quotation status and notify
+  if (data?.quotation_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("quotations")
+      .update({ status: "pending_wilfred" })
+      .eq("id", data.quotation_id);
+
+    await notifyWorkflowStep(data.quotation_id, "pending_wilfred");
+  }
+
   return NextResponse.json(data);
 }
 
