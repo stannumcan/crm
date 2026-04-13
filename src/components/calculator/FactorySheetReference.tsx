@@ -163,16 +163,15 @@ export default function FactorySheetReference({ data }: { data: FactorySheetRefD
         <Section title="Attachments">
           <div className="text-xs space-y-1">
             {attachments.map((att, i) => (
-              <a
+              <button
                 key={i}
-                href={att.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-muted/60 transition-colors text-blue-700 hover:text-blue-900"
+                type="button"
+                onClick={() => window.open(att.url, `attachment-${i}`, "width=900,height=700,scrollbars=yes,resizable=yes")}
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-muted/60 transition-colors text-blue-700 hover:text-blue-900 w-full text-left"
               >
                 <Paperclip className="h-3 w-3 shrink-0" />
-                <span className="truncate">{att.name}</span>
-              </a>
+                <span className="truncate text-xs">{att.name}</span>
+              </button>
             ))}
           </div>
         </Section>
