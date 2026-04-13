@@ -42,7 +42,7 @@ export default async function CustomerQuotePage({
       natsuki_ddp_calculations!quotation_id(
         id, tier_label, quantity, unit_price_jpy, total_revenue_jpy,
         selected_margin, shipping_cost_jpy, total_cost_jpy, manufacturing_cost_jpy,
-        fx_rate_rmb_to_jpy, cost_sheet_id, version, is_current, based_on_ddp_version
+        fx_rate_rmb_to_jpy, cost_sheet_id, version, is_current
       ),
       customer_quotes(*)
     `)
