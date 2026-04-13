@@ -11,13 +11,27 @@ interface QuoteEmailData {
   sections?: { label: string; rows: { label: string; value: string }[] }[];
   ctaUrl: string;
   ctaLabel: string;
+  /** Show a red PRICING CHANGED banner at the top */
+  pricingChanged?: boolean;
 }
 
 export function buildQuoteEmail(data: QuoteEmailData): string {
   const {
     stepLabel, taskDescription, woNumber, companyName, projectName,
-    quoteVersion, sections = [], ctaUrl, ctaLabel,
+    quoteVersion, sections = [], ctaUrl, ctaLabel, pricingChanged,
   } = data;
+
+  const pricingBannerHtml = pricingChanged ? `
+          <tr>
+            <td style="padding:0;">
+              <div style="background:#dc2626;color:white;text-align:center;padding:14px 20px;font-size:18px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;">
+                ⚠ PRICING CHANGED
+              </div>
+              <div style="background:#fef2f2;border-bottom:2px solid #dc2626;text-align:center;padding:8px 20px;font-size:12px;color:#991b1b;">
+                Factory pricing has been updated. All downstream calculations require re-approval.
+              </div>
+            </td>
+          </tr>` : "";
 
   const sectionHtml = sections.map((s) => `
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
@@ -58,6 +72,7 @@ export function buildQuoteEmail(data: QuoteEmailData): string {
               </table>
             </td>
           </tr>
+          ${pricingBannerHtml}
           <!-- Step banner -->
           <tr>
             <td style="padding:20px 28px 12px;">

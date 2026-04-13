@@ -46,6 +46,8 @@ export async function notifyWorkflowStep(quotationId: string, newStatus: string)
     // Download attachments to include in email
     const emailAttachments = await downloadAttachments(q.attachments);
 
+    const isPricingChanged = q.pricing_changed === true;
+
     const html = buildQuoteEmail({
       stepLabel: step.label,
       taskDescription: step.task_description,
@@ -56,9 +58,12 @@ export async function notifyWorkflowStep(quotationId: string, newStatus: string)
       sections,
       ctaUrl: `${APP_URL}/en/quotes/${quotationId}/request`,
       ctaLabel: "Open in CRM",
+      pricingChanged: isPricingChanged,
     });
 
-    const subject = `[${woNumber}] ${step.label} — ${companyName}`;
+    const subject = isPricingChanged
+      ? `⚠ PRICING CHANGED - [${woNumber}] ${step.label} — ${companyName}`
+      : `[${woNumber}] ${step.label} — ${companyName}`;
 
     const resend = getResend();
 
@@ -165,7 +170,7 @@ function buildSections(quote: any, tiers: any[]) {
 
 // ── Factory sheet–specific notification ──────────────────────────────────────
 
-export async function notifyFactorySheet(sheetId: string, quotationId: string) {
+export async function notifyFactorySheet(sheetId: string, quotationId: string, pricingChanged = false) {
   try {
     const supabase = createAdminClient();
 
@@ -205,7 +210,9 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string) {
     const s = sheet as any;
     const moldNumber = s.mold_number ?? "—";
 
-    const subject = `Pricing Request - ${companyName} - ${projectName} - ${woNumber} - ${moldNumber}`;
+    const subject = pricingChanged
+      ? `⚠ PRICING CHANGED - ${companyName} - ${projectName} - ${woNumber} - ${moldNumber}`
+      : `Pricing Request - ${companyName} - ${projectName} - ${woNumber} - ${moldNumber}`;
 
     // Build sections from factory sheet data
     const sections = buildFactorySheetSections(s);
@@ -220,6 +227,7 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string) {
       sections,
       ctaUrl: `${APP_URL}/en/quotes/${quotationId}/factory-sheet/${sheetId}`,
       ctaLabel: "Open Factory Sheet",
+      pricingChanged,
     });
 
     // Look up mold image from the molds table if not on the sheet

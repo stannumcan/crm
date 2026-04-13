@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
 
   await logChange(supabase, "customer_quote", data.id, 1, "created", null, data);
 
-  await db.from("quotations").update({ status: "sent" }).eq("id", body.quotation_id);
+  // Clear pricing_changed flag — the chain is complete
+  await db.from("quotations").update({ status: "sent", pricing_changed: false }).eq("id", body.quotation_id);
   await notifyWorkflowStep(body.quotation_id, "sent");
 
   return NextResponse.json(data, { status: 201 });

@@ -107,15 +107,78 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  await logChange(supabase, "factory_cost_sheet", newSheet.id, newVersion, "edited", null, newSheet);
+  // Detect price changes by comparing old vs new tier costs
+  let pricingChanged = false;
+  if (tiers?.length) {
+    const { data: oldTiers } = await db
+      .from("factory_cost_tiers")
+      .select("tier_label, total_subtotal, labor_cost, accessories_cost")
+      .eq("cost_sheet_id", id);
+
+    for (const newTier of tiers) {
+      const oldTier = (oldTiers ?? []).find((o: { tier_label: string }) => o.tier_label === newTier.tier_label);
+      if (!oldTier) { pricingChanged = true; break; }
+      if (Number(oldTier.total_subtotal) !== Number(newTier.total_subtotal)
+        || Number(oldTier.labor_cost) !== Number(newTier.labor_cost)
+        || Number(oldTier.accessories_cost) !== Number(newTier.accessories_cost)) {
+        pricingChanged = true;
+        break;
+      }
+    }
+  }
+
+  // Also check mold cost changes
+  if (!pricingChanged) {
+    if (Number(current.mold_cost_new) !== Number(newSheet.mold_cost_new)
+      || Number(current.mold_cost_modify) !== Number(newSheet.mold_cost_modify)) {
+      pricingChanged = true;
+    }
+  }
+
+  // Mark sheet as pricing_changed
+  if (pricingChanged) {
+    await db.from("factory_cost_sheets").update({ pricing_changed: true }).eq("id", newSheet.id);
+  }
+
+  await logChange(supabase, "factory_cost_sheet", newSheet.id, newVersion,
+    pricingChanged ? "edited" : "edited", null, { ...newSheet, pricing_changed: pricingChanged });
+
+  // Cascade invalidation: if pricing changed, revoke downstream approvals
+  if (pricingChanged) {
+    // Revoke wilfred calc approvals for the OLD sheet ID
+    await db.from("wilfred_calculations")
+      .update({ approved: false, approved_at: null })
+      .eq("cost_sheet_id", id)
+      .eq("is_current", true);
+
+    // Revoke wilfred fees approval
+    await db.from("factory_cost_sheets")
+      .update({ wilfred_fees_approved: false })
+      .eq("id", newSheet.id);
+
+    // Supersede DDP calcs (they need to be recalculated)
+    await db.from("natsuki_ddp_calculations")
+      .update({ is_current: false, superseded_at: new Date().toISOString() })
+      .eq("cost_sheet_id", id)
+      .eq("is_current", true);
+
+    // Supersede customer quotes
+    await db.from("customer_quotes")
+      .update({ is_current: false, superseded_at: new Date().toISOString() })
+      .eq("cost_sheet_id", id)
+      .eq("is_current", true);
+  }
 
   // Update quotation status and notify
   if (newSheet.quotation_id) {
-    await db.from("quotations").update({ status: "pending_wilfred" }).eq("id", newSheet.quotation_id);
-    await notifyFactorySheet(newSheet.id, newSheet.quotation_id);
+    await db.from("quotations").update({
+      status: "pending_wilfred",
+      pricing_changed: pricingChanged ? true : undefined,
+    }).eq("id", newSheet.quotation_id);
+    await notifyFactorySheet(newSheet.id, newSheet.quotation_id, pricingChanged);
   }
 
-  return NextResponse.json(newSheet);
+  return NextResponse.json({ ...newSheet, pricing_changed: pricingChanged });
 }
 
 export async function DELETE(request: NextRequest) {
