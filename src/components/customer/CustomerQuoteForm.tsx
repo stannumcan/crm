@@ -31,11 +31,37 @@ interface PrintingLine {
   spec: string;
 }
 
-const SURFACE_OPTIONS_JA = ["外面", "内面"];
-const SURFACE_OPTIONS_EN = ["Outside", "Inside"];
-const PART_PRESETS_JA = ["蓋", "身", "底", "蓋・身", "蓋・身・底"];
-const PART_PRESETS_EN = ["Lid", "Body", "Bottom", "Lid & Body", "Lid, Body & Bottom"];
-const ALL_KNOWN_PARTS = [...PART_PRESETS_JA, ...PART_PRESETS_EN];
+// Canonical keys for storage
+const SURFACE_KEYS = ["outside", "inside"] as const;
+const PART_KEYS = ["lid", "body", "bottom", "lid_body", "lid_body_bottom"] as const;
+
+const SURFACE_LABELS: Record<string, Record<string, string>> = {
+  outside: { en: "Outside", ja: "外面" },
+  inside:  { en: "Inside",  ja: "内面" },
+};
+const PART_LABELS: Record<string, Record<string, string>> = {
+  lid:              { en: "Lid",                  ja: "蓋" },
+  body:             { en: "Body",                 ja: "身" },
+  bottom:           { en: "Bottom",               ja: "底" },
+  lid_body:         { en: "Lid & Body",           ja: "蓋・身" },
+  lid_body_bottom:  { en: "Lid, Body & Bottom",   ja: "蓋・身・底" },
+};
+
+const SURFACE_TO_KEY: Record<string, string> = {};
+for (const [key, labels] of Object.entries(SURFACE_LABELS)) {
+  SURFACE_TO_KEY[key] = key;
+  for (const v of Object.values(labels)) SURFACE_TO_KEY[v] = key;
+}
+const PART_TO_KEY: Record<string, string> = {};
+for (const [key, labels] of Object.entries(PART_LABELS)) {
+  PART_TO_KEY[key] = key;
+  for (const v of Object.values(labels)) PART_TO_KEY[v] = key;
+}
+
+function surfaceKey(val: string): string { return SURFACE_TO_KEY[val] ?? val; }
+function partKey(val: string): string { return PART_TO_KEY[val] ?? val; }
+function surfaceLabel(key: string, lang: string): string { return SURFACE_LABELS[key]?.[lang] ?? key; }
+function partLabel(key: string, lang: string): string { return PART_LABELS[key]?.[lang] ?? key; }
 
 interface Contact {
   id: string;
@@ -79,16 +105,15 @@ function fmtJpy(n: number | string | null | undefined): string {
 function parseExistingLines(raw: unknown, fallback: PrintingLine[]): PrintingLine[] {
   if (Array.isArray(raw) && raw.length > 0) {
     return (raw as PrintingLine[]).map((r) => {
-      // New format already has surface field
-      if (r.surface) return { surface: String(r.surface), part: String(r.part ?? ""), spec: String(r.spec ?? "") };
-      // Legacy format: part was e.g. "外面（蓋）" — split it
+      if (r.surface) return { surface: surfaceKey(String(r.surface)), part: partKey(String(r.part ?? "")), spec: String(r.spec ?? "") };
+      // Legacy format: part was e.g. "外面（蓋）"
       const legacy = String(r.part ?? "");
-      const match = legacy.match(/^(外面|内面)[（(](.+?)[)）]$/);
-      if (match) return { surface: match[1], part: match[2], spec: String(r.spec ?? "") };
-      return { surface: "外面", part: legacy, spec: String(r.spec ?? "") };
+      const match = legacy.match(/^(外面|内面|Outside|Inside)[（(](.+?)[)）]$/);
+      if (match) return { surface: surfaceKey(match[1]), part: partKey(match[2]), spec: String(r.spec ?? "") };
+      return { surface: "outside", part: partKey(legacy), spec: String(r.spec ?? "") };
     });
   }
-  return fallback;
+  return fallback.map((ln) => ({ surface: surfaceKey(ln.surface), part: partKey(ln.part), spec: ln.spec }));
 }
 
 function parseExistingNotes(raw: unknown, fallback: string[]): string[] {
@@ -123,9 +148,7 @@ export default function CustomerQuoteForm({
   existingCQ,
 }: Props) {
   const router = useRouter();
-  const isJa = locale === "ja" || locale === "zh";
-  const SURFACE_OPTIONS = isJa ? SURFACE_OPTIONS_JA : SURFACE_OPTIONS_EN;
-  const PART_PRESETS = isJa ? PART_PRESETS_JA : PART_PRESETS_EN;
+  const lang = (locale === "ja" || locale === "zh") ? "ja" : "en";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [printing, setPrinting] = useState(false);
@@ -383,7 +406,7 @@ export default function CustomerQuoteForm({
   const removePrintingLine = (idx: number) =>
     setPrintingLines((prev) => prev.filter((_, i) => i !== idx));
   const addPrintingLine = () =>
-    setPrintingLines((prev) => [...prev, { surface: SURFACE_OPTIONS[0], part: "", spec: "" }]);
+    setPrintingLines((prev) => [...prev, { surface: "outside", part: "", spec: "" }]);
 
   const updateNote = (idx: number, val: string) =>
     setNotesLines((prev) => prev.map((n, i) => (i === idx ? val : n)));
@@ -695,13 +718,13 @@ export default function CustomerQuoteForm({
                       value={ln.surface}
                       onChange={(e) => updatePrintingLine(i, "surface", e.target.value)}
                     >
-                      {SURFACE_OPTIONS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
+                      {SURFACE_KEYS.map((k) => (
+                        <option key={k} value={k}>{surfaceLabel(k, lang)}</option>
                       ))}
                     </select>
 
                     {/* Col 2: part preset or custom text */}
-                    {ALL_KNOWN_PARTS.includes(ln.part) || ln.part === "" ? (
+                    {PART_TO_KEY[ln.part] !== undefined || ln.part === "" ? (
                       <select
                         className="flex h-8 rounded-md border border-input bg-background px-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring w-36"
                         value={ln.part}
@@ -713,20 +736,19 @@ export default function CustomerQuoteForm({
                           }
                         }}
                       >
-                        <option value="">{isJa ? "— 選択 —" : "— Select —"}</option>
-                        {PART_PRESETS.map((p) => (
-                          <option key={p} value={p}>{p}</option>
+                        <option value="">{lang === "ja" ? "— 選択 —" : "— Select —"}</option>
+                        {PART_KEYS.map((k) => (
+                          <option key={k} value={k}>{partLabel(k, lang)}</option>
                         ))}
-                        <option value="__custom__">{isJa ? "＋ カスタム..." : "+ Custom..."}</option>
+                        <option value="__custom__">{lang === "ja" ? "＋ カスタム..." : "+ Custom..."}</option>
                       </select>
                     ) : (
                       <Input
                         className="h-8 text-xs w-36"
                         value={ln.part}
                         onChange={(e) => updatePrintingLine(i, "part", e.target.value)}
-                        placeholder={isJa ? "カスタム部位" : "Custom part"}
+                        placeholder={lang === "ja" ? "カスタム部位" : "Custom part"}
                         onBlur={(e) => {
-                          // If user blanked it out, revert to preset dropdown
                           if (!e.target.value.trim()) updatePrintingLine(i, "part", "");
                         }}
                       />
@@ -735,7 +757,7 @@ export default function CustomerQuoteForm({
                     {/* Col 3: spec */}
                     <Input
                       className="flex-1 text-xs"
-                      placeholder={isJa ? "仕様 e.g. 白コート+特②..." : "Spec e.g. 4C+0C, CMYK..."}
+                      placeholder={lang === "ja" ? "仕様 e.g. 白コート+特②..." : "Spec e.g. 4C+0C, CMYK..."}
                       value={ln.spec}
                       onChange={(e) => updatePrintingLine(i, "spec", e.target.value)}
                     />
@@ -1165,7 +1187,7 @@ export default function CustomerQuoteForm({
                       {i === 0 ? "印刷方法" : ""}
                     </td>
                     <td style={S.cell}>
-                      {ln.surface && ln.part ? `${ln.surface}（${ln.part}）` : ln.part || ln.surface}
+                      {ln.surface && ln.part ? `${surfaceLabel(ln.surface, "ja")}（${partLabel(ln.part, "ja")}）` : partLabel(ln.part, "ja") || surfaceLabel(ln.surface, "ja")}
                     </td>
                     <td style={S.cell} colSpan={2}>
                       {ln.spec}

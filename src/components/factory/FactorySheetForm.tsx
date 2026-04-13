@@ -17,11 +17,38 @@ interface PrintingLine {
   spec: string;
 }
 
-const SURFACE_OPTIONS_JA = ["外面", "内面"];
-const SURFACE_OPTIONS_EN = ["Outside", "Inside"];
-const PART_PRESETS_JA = ["蓋", "身", "底", "蓋・身", "蓋・身・底"];
-const PART_PRESETS_EN = ["Lid", "Body", "Bottom", "Lid & Body", "Lid, Body & Bottom"];
-const ALL_KNOWN_PARTS = [...PART_PRESETS_JA, ...PART_PRESETS_EN];
+// Canonical keys used for storage — always English
+const SURFACE_KEYS = ["outside", "inside"] as const;
+const PART_KEYS = ["lid", "body", "bottom", "lid_body", "lid_body_bottom"] as const;
+
+const SURFACE_LABELS: Record<string, Record<string, string>> = {
+  outside: { en: "Outside", ja: "外面" },
+  inside:  { en: "Inside",  ja: "内面" },
+};
+const PART_LABELS: Record<string, Record<string, string>> = {
+  lid:              { en: "Lid",                  ja: "蓋" },
+  body:             { en: "Body",                 ja: "身" },
+  bottom:           { en: "Bottom",               ja: "底" },
+  lid_body:         { en: "Lid & Body",           ja: "蓋・身" },
+  lid_body_bottom:  { en: "Lid, Body & Bottom",   ja: "蓋・身・底" },
+};
+
+// Map any display value (EN or JA) back to its canonical key
+const SURFACE_TO_KEY: Record<string, string> = {};
+for (const [key, labels] of Object.entries(SURFACE_LABELS)) {
+  SURFACE_TO_KEY[key] = key;
+  for (const v of Object.values(labels)) SURFACE_TO_KEY[v] = key;
+}
+const PART_TO_KEY: Record<string, string> = {};
+for (const [key, labels] of Object.entries(PART_LABELS)) {
+  PART_TO_KEY[key] = key;
+  for (const v of Object.values(labels)) PART_TO_KEY[v] = key;
+}
+
+function surfaceKey(val: string): string { return SURFACE_TO_KEY[val] ?? val; }
+function partKey(val: string): string { return PART_TO_KEY[val] ?? val; }
+function surfaceLabel(key: string, lang: string): string { return SURFACE_LABELS[key]?.[lang] ?? key; }
+function partLabel(key: string, lang: string): string { return PART_LABELS[key]?.[lang] ?? key; }
 
 interface EmbossingLine {
   component: string;
@@ -139,11 +166,7 @@ export default function FactorySheetForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isJa = locale === "ja" || locale === "zh";
-  const SURFACE_OPTIONS = isJa ? SURFACE_OPTIONS_JA : SURFACE_OPTIONS_EN;
-  const PART_PRESETS = isJa ? PART_PRESETS_JA : PART_PRESETS_EN;
-  const defaultSurface = isJa ? "外面" : "Exterior";
-  const defaultPart = isJa ? "蓋" : "Lid";
+  const lang = (locale === "ja" || locale === "zh") ? "ja" : "en";
 
   // Attachments: existing (already saved) + newly uploaded
   const [existingAttachments, setExistingAttachments] = useState<UploadedFile[]>(() => {
@@ -169,21 +192,24 @@ export default function FactorySheetForm({
   const [newMoldImage, setNewMoldImage] = useState<UploadedFile[]>([]);
   const moldImageSessionId = useId().replace(/:/g, "");
 
-  // Printing lines
+  // Printing lines — normalize surface/part to canonical keys
+  const normalizeLine = (ln: PrintingLine): PrintingLine => ({
+    surface: surfaceKey(ln.surface),
+    part: partKey(ln.part),
+    spec: ln.spec,
+  });
   const [printingLines, setPrintingLines] = useState<PrintingLine[]>(() => {
-    // Restore from existing sheet
     const saved = existingSheet?.printing_lines;
-    if (Array.isArray(saved) && saved.length > 0) return saved as PrintingLine[];
-    // Use defaults from quote request
-    if (defaultPrintingLines?.length) return defaultPrintingLines;
-    return [{ surface: defaultSurface, part: defaultPart, spec: "" }];
+    if (Array.isArray(saved) && saved.length > 0) return (saved as PrintingLine[]).map(normalizeLine);
+    if (defaultPrintingLines?.length) return defaultPrintingLines.map(normalizeLine);
+    return [{ surface: "outside", part: "lid", spec: "" }];
   });
   const updatePrintingLine = (idx: number, field: keyof PrintingLine, val: string) =>
     setPrintingLines((prev) => prev.map((ln, i) => i === idx ? { ...ln, [field]: val } : ln));
   const removePrintingLine = (idx: number) =>
     setPrintingLines((prev) => prev.filter((_, i) => i !== idx));
   const addPrintingLine = () =>
-    setPrintingLines((prev) => [...prev, { surface: defaultSurface, part: "", spec: "" }]);
+    setPrintingLines((prev) => [...prev, { surface: "outside", part: "", spec: "" }]);
 
   // Embossing lines
   const [embossingLines, setEmbossingLines] = useState<EmbossingLine[]>(() => {
@@ -431,7 +457,7 @@ export default function FactorySheetForm({
       {/* Printing Requirements */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-base">{isJa ? "印刷方法 Printing" : "Printing Requirements"}</CardTitle>
+          <CardTitle className="text-base">{lang === "ja" ? "印刷方法 Printing" : "Printing Requirements"}</CardTitle>
           <Button type="button" variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={addPrintingLine}>
             <Plus className="h-3 w-3" /> Add Line
           </Button>
@@ -442,17 +468,17 @@ export default function FactorySheetForm({
               <div key={i} className="flex gap-2 items-center">
                 {/* Surface: 外面 / 内面 */}
                 <select
-                  className="flex h-8 rounded-md border border-input bg-background px-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring w-20 shrink-0"
+                  className="flex h-8 rounded-md border border-input bg-background px-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring w-24 shrink-0"
                   value={ln.surface}
                   onChange={(e) => updatePrintingLine(i, "surface", e.target.value)}
                 >
-                  {SURFACE_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                  {SURFACE_KEYS.map((k) => (
+                    <option key={k} value={k}>{surfaceLabel(k, lang)}</option>
                   ))}
                 </select>
 
                 {/* Part: preset or custom */}
-                {ALL_KNOWN_PARTS.includes(ln.part) || ln.part === "" ? (
+                {PART_TO_KEY[ln.part] !== undefined || ln.part === "" ? (
                   <select
                     className="flex h-8 rounded-md border border-input bg-background px-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring w-36 shrink-0"
                     value={ln.part}
@@ -464,18 +490,18 @@ export default function FactorySheetForm({
                       }
                     }}
                   >
-                    <option value="">{isJa ? "— 選択 —" : "— Select —"}</option>
-                    {PART_PRESETS.map((p) => (
-                      <option key={p} value={p}>{p}</option>
+                    <option value="">{lang === "ja" ? "— 選択 —" : "— Select —"}</option>
+                    {PART_KEYS.map((k) => (
+                      <option key={k} value={k}>{partLabel(k, lang)}</option>
                     ))}
-                    <option value="__custom__">{isJa ? "＋ カスタム..." : "+ Custom..."}</option>
+                    <option value="__custom__">{lang === "ja" ? "＋ カスタム..." : "+ Custom..."}</option>
                   </select>
                 ) : (
                   <Input
                     className="h-8 text-xs w-36 shrink-0"
                     value={ln.part}
                     onChange={(e) => updatePrintingLine(i, "part", e.target.value)}
-                    placeholder={isJa ? "カスタム部位" : "Custom part"}
+                    placeholder={lang === "ja" ? "カスタム部位" : "Custom part"}
                     onBlur={(e) => {
                       if (!e.target.value.trim()) updatePrintingLine(i, "part", "");
                     }}
@@ -485,7 +511,7 @@ export default function FactorySheetForm({
                 {/* Spec */}
                 <Input
                   className="flex-1 h-8 text-xs"
-                  placeholder={isJa ? "仕様 e.g. 4C+0C, CMYK..." : "Spec e.g. 4C+0C, CMYK, gold lacquer..."}
+                  placeholder={lang === "ja" ? "仕様 e.g. 4C+0C, CMYK..." : "Spec e.g. 4C+0C, CMYK, gold lacquer..."}
                   value={ln.spec}
                   onChange={(e) => updatePrintingLine(i, "spec", e.target.value)}
                 />
