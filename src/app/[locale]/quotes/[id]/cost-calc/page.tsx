@@ -22,7 +22,7 @@ export default async function CostCalcPage({
   const { data: quote } = await db
     .from("quotations")
     .select(`
-      id, status,
+      id, status, molds,
       work_orders(wo_number, company_name, project_name),
       factory_cost_sheets(
         id,
@@ -95,6 +95,9 @@ export default async function CostCalcPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sheetEntries: any[] = [];
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const quoteMolds = (quote.molds as any[]) ?? [];
+
   for (const sheet of sheets) {
     const wilfredCalcs = sheet.wilfred_calculations ?? [];
     const wilfredVersion = wilfredCalcs[0]?.version;
@@ -113,6 +116,7 @@ export default async function CostCalcPage({
     sheetEntries.push({
       id: sheet.id,
       moldNumber: sheet.mold_number ?? null,
+      variantLabel: quoteMolds.find((m: { value?: string }) => m.value === sheet.mold_number)?.variant_label ?? null,
       steelThickness: sheet.steel_thickness ?? null,
       version: sheet.version ?? 1,
       wilfredVersion,

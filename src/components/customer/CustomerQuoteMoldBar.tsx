@@ -7,6 +7,7 @@ import VersionHistory from "@/components/ui/version-history";
 interface MoldTab {
   sheetId: string;
   moldNumber: string | null;
+  variantLabel?: string | null;
   cqVersion?: number;
   hasSaved: boolean;
 }
@@ -36,6 +37,7 @@ export default function CustomerQuoteMoldBar({ tabs, activeSheetId }: { tabs: Mo
               <span className="font-mono text-sm font-semibold" style={{ color: isActive ? "var(--primary)" : "var(--foreground)" }}>
                 {t.moldNumber ?? "Mold"}
               </span>
+              {t.variantLabel && <span className="text-[10px] text-muted-foreground">{t.variantLabel}</span>}
               {t.cqVersion && (
                 <span className="text-[10px] text-muted-foreground font-mono">v{t.cqVersion}</span>
               )}

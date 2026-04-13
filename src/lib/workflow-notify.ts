@@ -131,40 +131,51 @@ function buildSections(quote: any, tiers: any[]) {
   if (quote.design_count) details.push({ label: "Design Count", value: String(quote.design_count) });
   sections.push({ label: "Quote Details", rows: details });
 
-  // ── Molds ─────────────────────────────────────────────────────
-  const molds = quote.molds as { value: string; type: string; size: string; thickness: string | null; design_count?: number }[] | null;
+  // ── Line Items (molds with per-item printing/embossing) ─────
+  const molds = quote.molds as { value: string; type: string; size: string; thickness: string | null; design_count?: number; variant_label?: string; printing_lines?: { surface: string; part: string; spec: string }[]; embossing_lines?: { component: string; notes?: string }[] }[] | null;
   if (molds?.length) {
     const moldRows: { label: string; value: string }[] = [];
     molds.forEach((m, i) => {
       const parts: string[] = [];
       parts.push(m.value || "—");
+      if (m.variant_label) parts.push(`(${m.variant_label})`);
       if (m.size) parts.push(m.size);
       if (m.thickness) parts.push(`${m.thickness}mm`);
       parts.push(`(${m.type})`);
       if (m.design_count && m.design_count > 1) parts.push(`× ${m.design_count} designs`);
-      moldRows.push({ label: `Mold ${i + 1}`, value: parts.join("  ·  ") });
+      moldRows.push({ label: `Line ${i + 1}`, value: parts.join("  ·  ") });
+      // Per-item printing
+      if (m.printing_lines?.length) {
+        m.printing_lines.forEach((ln) => {
+          if (ln.spec) moldRows.push({ label: `  Printing`, value: `${ln.surface}/${ln.part}: ${ln.spec}` });
+        });
+      }
+      // Per-item embossing
+      if (m.embossing_lines?.length) {
+        m.embossing_lines.forEach((ln) => {
+          if (ln.component) moldRows.push({ label: `  Embossing`, value: `${ln.component}${ln.notes ? ` — ${ln.notes}` : ""}` });
+        });
+      }
     });
-    sections.push({ label: "Molds", rows: moldRows });
+    sections.push({ label: "Line Items", rows: moldRows });
   } else if (quote.mold_number) {
-    // Fallback to legacy single-mold fields
     const moldRows: { label: string; value: string }[] = [];
     moldRows.push({ label: "Mold #", value: quote.mold_number });
-    if (quote.mold_type) moldRows.push({ label: "Type", value: quote.mold_type });
-    if (quote.size_dimensions) moldRows.push({ label: "Size", value: quote.size_dimensions });
     sections.push({ label: "Mold Information", rows: moldRows });
   }
 
-  // ── Printing ──────────────────────────────────────────────────
-  const printing: { label: string; value: string }[] = [];
-  if (quote.printing_lid) printing.push({ label: "Lid", value: quote.printing_lid });
-  if (quote.printing_body) printing.push({ label: "Body", value: quote.printing_body });
-  if (quote.printing_bottom) printing.push({ label: "Bottom", value: quote.printing_bottom });
-  if (quote.printing_inner) printing.push({ label: "Inner", value: quote.printing_inner });
-  if (quote.printing_notes) printing.push({ label: "Notes", value: quote.printing_notes });
-  if (printing.length > 0) sections.push({ label: "Printing", rows: printing });
+  // ── Legacy printing (for old quotes without per-item printing) ──
+  if (!molds?.some((m) => m.printing_lines?.length)) {
+    const printing: { label: string; value: string }[] = [];
+    if (quote.printing_lid) printing.push({ label: "Lid", value: quote.printing_lid });
+    if (quote.printing_body) printing.push({ label: "Body", value: quote.printing_body });
+    if (quote.printing_bottom) printing.push({ label: "Bottom", value: quote.printing_bottom });
+    if (quote.printing_inner) printing.push({ label: "Inner", value: quote.printing_inner });
+    if (printing.length > 0) sections.push({ label: "Printing", rows: printing });
+  }
 
-  // ── Embossment ────────────────────────────────────────────────
-  if (quote.embossment) {
+  // ── Legacy embossment ─────────────────────────────────────────
+  if (!molds?.some((m) => m.embossing_lines?.length) && quote.embossment) {
     const emboss: { label: string; value: string }[] = [];
     emboss.push({ label: "Embossment", value: "Yes" });
     if (quote.embossment_components) emboss.push({ label: "Components", value: quote.embossment_components });

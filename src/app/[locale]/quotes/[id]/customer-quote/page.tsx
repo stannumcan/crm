@@ -155,9 +155,13 @@ export default async function CustomerQuotePage({
     const wilfredCalcs = (Array.isArray(sheet.wilfred_calculations) ? sheet.wilfred_calculations : [])
       .filter((c: { is_current?: boolean; approved: boolean }) => c.is_current !== false && c.approved);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const variantLabel = ((quote.molds as any[]) ?? []).find((m: { value?: string }) => m.value === moldNumber)?.variant_label ?? null;
+
     moldTabs.push({
       sheetId: sheet.id,
       moldNumber,
+      variantLabel,
       defaultQuoteNumber,
       hasSaved: !!existingCQ,
       cqVersion: existingCQ?.version ?? undefined,
@@ -241,9 +245,10 @@ export default async function CustomerQuotePage({
 
       {/* Mould card bar */}
       <CustomerQuoteMoldBar
-        tabs={moldTabs.map((t: { sheetId: string; moldNumber: string | null; hasSaved: boolean; cqVersion?: number }) => ({
+        tabs={moldTabs.map((t: { sheetId: string; moldNumber: string | null; variantLabel?: string | null; hasSaved: boolean; cqVersion?: number }) => ({
           sheetId: t.sheetId,
           moldNumber: t.moldNumber,
+          variantLabel: t.variantLabel,
           hasSaved: t.hasSaved,
           cqVersion: t.cqVersion,
         }))}

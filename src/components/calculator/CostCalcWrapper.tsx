@@ -20,6 +20,7 @@ interface FeesData {
 interface SheetEntry {
   id: string;
   moldNumber: string | null;
+  variantLabel?: string | null;
   steelThickness: number | null;
   version: number;
   wilfredVersion?: number;
@@ -66,6 +67,7 @@ export default function CostCalcWrapper({
                   <span className="font-mono text-sm font-semibold" style={{ color: isActive ? "var(--primary)" : "var(--foreground)" }}>
                     {s.moldNumber ?? "Mold"}
                   </span>
+                  {s.variantLabel && <span className="text-[10px] text-muted-foreground">{s.variantLabel}</span>}
                   {s.wilfredVersion && (
                     <span className="text-[10px] text-muted-foreground font-mono">v{s.wilfredVersion}</span>
                   )}

@@ -37,7 +37,7 @@ export default async function DDPCalcPage({
   const { data: quote, error: queryError } = await (supabase as any)
     .from("quotations")
     .select(`
-      id, status, mold_number, size_dimensions,
+      id, status, mold_number, size_dimensions, molds,
       work_orders(wo_number, company_name, project_name),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order),
       factory_cost_sheets(
@@ -84,6 +84,7 @@ export default async function DDPCalcPage({
   type SheetForDDP = {
     id: string;
     moldNumber: string | null;
+    variantLabel?: string | null;
     quoteInfo: {
       companyName: string; projectName: string; woNumber: string; canSize: string;
       moldNumber: string; tinThickness: number | null; moldCostNew: number | null; moldCostModify: number | null; moldLeadTime: number | null;
@@ -98,6 +99,8 @@ export default async function DDPCalcPage({
   };
 
   // Build per-sheet data — only include sheets with at least one approved wilfred calc
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const quoteMolds = (quote.molds as any[]) ?? [];
   const typedSheets: SheetForDDP[] = [];
   for (const sheet of sheets) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,9 +127,12 @@ export default async function DDPCalcPage({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const containerLines = packagingLines.filter((l: any) => ["20GP", "40GP", "40HQ"].includes(l.type));
 
+    const variantLabel = quoteMolds.find((m: { value?: string }) => m.value === sheet.mold_number)?.variant_label ?? null;
+
     typedSheets.push({
       id: sheet.id,
       moldNumber: sheet.mold_number ?? null,
+      variantLabel,
       quoteInfo: {
         companyName: wo?.company_name ?? "",
         projectName: wo?.project_name ?? "",

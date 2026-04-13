@@ -46,23 +46,27 @@ export default async function FactorySheetListPage({
   if (sheets.length === 0 && molds.length > 0) {
     const tiers = (quote.quotation_quantity_tiers ?? []) as { tier_label: string; quantity_type: string; quantity: number | null; sort_order: number }[];
 
-    const sheetsToInsert = molds.map((m: { value?: string; size?: string; thickness?: string | null }) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sheetsToInsert = molds.map((m: any) => ({
       quotation_id: id,
       mold_number: m.value ?? null,
       product_dimensions: m.size ?? null,
       steel_thickness: m.thickness ? parseFloat(m.thickness) : null,
       sheet_date: new Date().toISOString().split("T")[0],
-      // Build printing lines from quote fields
-      printing_lines: [
-        ...(quote.printing_lid ? [{ surface: "外面", part: "蓋", spec: quote.printing_lid }] : []),
-        ...(quote.printing_body ? [{ surface: "外面", part: "身", spec: quote.printing_body }] : []),
-        ...(quote.printing_bottom ? [{ surface: "外面", part: "底", spec: quote.printing_bottom }] : []),
-        ...(quote.printing_inner ? [{ surface: "内面", part: "", spec: quote.printing_inner }] : []),
-      ],
-      // Build embossing lines from quote
-      embossing_lines: quote.embossment
-        ? [{ component: quote.embossment_components ?? "", cost_rmb: "", notes: quote.embossment_notes ?? "" }]
-        : [],
+      // Use per-item printing/embossing if available, fall back to quote-level fields
+      printing_lines: Array.isArray(m.printing_lines) && m.printing_lines.length > 0
+        ? m.printing_lines
+        : [
+            ...(quote.printing_lid ? [{ surface: "outside", part: "lid", spec: quote.printing_lid }] : []),
+            ...(quote.printing_body ? [{ surface: "outside", part: "body", spec: quote.printing_body }] : []),
+            ...(quote.printing_bottom ? [{ surface: "outside", part: "bottom", spec: quote.printing_bottom }] : []),
+            ...(quote.printing_inner ? [{ surface: "inside", part: "", spec: quote.printing_inner }] : []),
+          ],
+      embossing_lines: Array.isArray(m.embossing_lines) && m.embossing_lines.length > 0
+        ? m.embossing_lines.map((e: { component: string; notes?: string }) => ({ component: e.component, cost_rmb: "", notes: e.notes ?? "" }))
+        : quote.embossment
+          ? [{ component: quote.embossment_components ?? "", cost_rmb: "", notes: quote.embossment_notes ?? "" }]
+          : [],
     }));
 
     const { data: created } = await db
@@ -122,6 +126,10 @@ export default async function FactorySheetListPage({
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-mono font-medium text-gray-900">{sheet.mold_number ?? "No mold number"}</p>
+                    {(() => {
+                      const lineItem = molds.find((m: { value?: string }) => m.value === sheet.mold_number);
+                      return lineItem?.variant_label ? <Badge variant="secondary" className="text-[10px]">{lineItem.variant_label}</Badge> : null;
+                    })()}
                     <Badge variant="outline" className="text-[10px] text-muted-foreground">v{sheet.version ?? 1}</Badge>
                   </div>
                   <p className="text-xs text-gray-500">

@@ -9,18 +9,27 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, AlertCircle, Paperclip } from "lucide-react";
+import { Plus, Trash2, AlertCircle, Paperclip, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { Modal } from "@/components/ui/modal";
 import { FileUpload, type UploadedFile } from "@/components/ui/file-upload";
 
-interface MoldEntry {
+// ── Types ──────────────────────────────────────────────────────────────────
+
+interface PrintingLine { surface: string; part: string; spec: string }
+interface EmbossingLine { component: string; notes: string }
+
+interface LineItem {
   id: string;
   type: "existing" | "new";
-  value: string;       // mold number or new mold description
-  size: string;        // e.g. 200×200×40mm BH
-  thickness: string;   // tin thickness in mm, e.g. 0.25
-  design_count: string; // number of designs for this mold
+  mold_number: string;
+  size: string;
+  thickness: string;
+  design_count: string;
+  variant_label: string;
+  printing_lines: PrintingLine[];
+  embossing_lines: EmbossingLine[];
+  expanded: boolean;
 }
 
 interface MoldRecord {
@@ -40,47 +49,74 @@ interface QuantityTier {
   tier_notes: string;
 }
 
-interface WOOption {
-  id: string;
-  wo_number: string;
-  project_name: string;
+interface WOOption { id: string; wo_number: string; project_name: string }
+
+// ── Printing constants ─────────────────────────────────────────────────────
+
+const SURFACE_KEYS = ["outside", "inside"] as const;
+const PART_KEYS = ["lid", "body", "bottom", "lid_body", "lid_body_bottom"] as const;
+const SURFACE_LABELS: Record<string, Record<string, string>> = {
+  outside: { en: "Outside", ja: "外面" }, inside: { en: "Inside", ja: "内面" },
+};
+const PART_LABELS: Record<string, Record<string, string>> = {
+  lid: { en: "Lid", ja: "蓋" }, body: { en: "Body", ja: "身" }, bottom: { en: "Bottom", ja: "底" },
+  lid_body: { en: "Lid & Body", ja: "蓋・身" }, lid_body_bottom: { en: "Lid, Body & Bottom", ja: "蓋・身・底" },
+};
+const PART_TO_KEY: Record<string, string> = {};
+for (const [key, labels] of Object.entries(PART_LABELS)) {
+  PART_TO_KEY[key] = key;
+  for (const v of Object.values(labels)) PART_TO_KEY[v] = key;
 }
 
-// Quick-create workorder modal
-function QuickWOForm({
-  companyId,
-  companyName,
-  onCreated,
-  onCancel,
-}: {
-  companyId: string;
-  companyName: string;
-  onCreated: (wo: WOOption) => void;
-  onCancel: () => void;
+function surfaceLabel(key: string, lang: string) { return SURFACE_LABELS[key]?.[lang] ?? key; }
+function partLabel(key: string, lang: string) { return PART_LABELS[key]?.[lang] ?? key; }
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function makeLineItem(partial?: Partial<LineItem>): LineItem {
+  return {
+    id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+    type: "existing",
+    mold_number: "",
+    size: "",
+    thickness: "",
+    design_count: "1",
+    variant_label: "",
+    printing_lines: [{ surface: "outside", part: "", spec: "" }],
+    embossing_lines: [],
+    expanded: true,
+    ...partial,
+  };
+}
+
+function duplicateLineItem(item: LineItem): LineItem {
+  return {
+    ...item,
+    id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+    variant_label: item.variant_label ? `${item.variant_label} (copy)` : "copy",
+    expanded: true,
+  };
+}
+
+// ── Quick-create modals ────────────────────────────────────────────────────
+
+function QuickWOForm({ companyId, companyName, onCreated, onCancel }: {
+  companyId: string; companyName: string; onCreated: (wo: WOOption) => void; onCancel: () => void;
 }) {
   const [projectName, setProjectName] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
-
   const handleSave = async () => {
     if (!projectName.trim()) { setErr("Project name is required"); return; }
-    setSaving(true);
-    setErr("");
+    setSaving(true); setErr("");
     try {
-      const res = await fetch("/api/workorders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company_name: companyName, company_id: companyId, project_name: projectName.trim() }),
-      });
+      const res = await fetch("/api/workorders", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company_name: companyName, company_id: companyId, project_name: projectName.trim() }) });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
       const wo = await res.json();
       onCreated({ id: wo.id, wo_number: wo.wo_number, project_name: wo.project_name });
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Unknown error");
-      setSaving(false);
-    }
+    } catch (e) { setErr(e instanceof Error ? e.message : "Unknown error"); setSaving(false); }
   };
-
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">Creating a workorder for <strong>{companyName}</strong>.</p>
@@ -97,17 +133,8 @@ function QuickWOForm({
   );
 }
 
-const TIER_LABELS = ["A", "B", "C", "D", "E", "F"];
-
-// Quick-create company modal (same as WOForm)
-function QuickCompanyForm({
-  initialName,
-  onCreated,
-  onCancel,
-}: {
-  initialName: string;
-  onCreated: (company: { id: string; name: string; name_ja: string | null }) => void;
-  onCancel: () => void;
+function QuickCompanyForm({ initialName, onCreated, onCancel }: {
+  initialName: string; onCreated: (company: { id: string; name: string; name_ja: string | null }) => void; onCancel: () => void;
 }) {
   const [name, setName] = useState(initialName);
   const [nameJa, setNameJa] = useState("");
@@ -115,25 +142,16 @@ function QuickCompanyForm({
   const [country, setCountry] = useState("JP");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
-
   const handleSave = async () => {
     if (!name.trim()) { setErr("Name is required"); return; }
-    setSaving(true);
-    setErr("");
+    setSaving(true); setErr("");
     try {
-      const res = await fetch("/api/companies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), name_ja: nameJa || null, name_zh: nameZh || null, country }),
-      });
+      const res = await fetch("/api/companies", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), name_ja: nameJa || null, name_zh: nameZh || null, country }) });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
       onCreated(await res.json());
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Unknown error");
-      setSaving(false);
-    }
+    } catch (e) { setErr(e instanceof Error ? e.message : "Unknown error"); setSaving(false); }
   };
-
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500">Fill in basic details — you can complete the full profile later.</p>
@@ -142,14 +160,8 @@ function QuickCompanyForm({
         <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label>Japanese Name</Label>
-          <Input value={nameJa} onChange={(e) => setNameJa(e.target.value)} placeholder="e.g. ユニバーサル・スタジオ" />
-        </div>
-        <div className="space-y-2">
-          <Label>Chinese Name</Label>
-          <Input value={nameZh} onChange={(e) => setNameZh(e.target.value)} />
-        </div>
+        <div className="space-y-2"><Label>Japanese Name</Label><Input value={nameJa} onChange={(e) => setNameJa(e.target.value)} placeholder="e.g. ユニバーサル・スタジオ" /></div>
+        <div className="space-y-2"><Label>Chinese Name</Label><Input value={nameZh} onChange={(e) => setNameZh(e.target.value)} /></div>
       </div>
       <div className="space-y-2">
         <Label>Country</Label>
@@ -172,28 +184,28 @@ function QuickCompanyForm({
   );
 }
 
+// ── Main Form ──────────────────────────────────────────────────────────────
+
+const TIER_LABELS = ["A", "B", "C", "D", "E", "F"];
+
 export default function QuoteRequestForm({
   locale,
-  prefilledWoId,
-  prefilledWoNumber,
-  prefilledCompanyId,
-  prefilledCompanyName,
+  prefilledWoId, prefilledWoNumber, prefilledCompanyId, prefilledCompanyName,
 }: {
   locale: string;
-  prefilledWoId?: string;
-  prefilledWoNumber?: string;
-  prefilledCompanyId?: string;
-  prefilledCompanyName?: string;
+  prefilledWoId?: string; prefilledWoNumber?: string;
+  prefilledCompanyId?: string; prefilledCompanyName?: string;
 }) {
   const t = useTranslations("quotes");
   const tw = useTranslations("workorders");
   const tc = useTranslations("common");
   const router = useRouter();
+  const lang = (locale === "ja" || locale === "zh") ? "ja" : "en";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // ── Company selector ─────────────────────────────────────────────
+  // ── Company selector
   const [companyOptions, setCompanyOptions] = useState<ComboboxOption[]>([]);
   const [companySearchLoading, setCompanySearchLoading] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState(prefilledCompanyId ?? "");
@@ -201,7 +213,7 @@ export default function QuoteRequestForm({
   const [newCompanyModal, setNewCompanyModal] = useState(false);
   const [newCompanyInitialName, setNewCompanyInitialName] = useState("");
 
-  // ── Workorder selector ───────────────────────────────────────────
+  // ── Workorder selector
   const [woOptions, setWoOptions] = useState<WOOption[]>([]);
   const [woComboOptions, setWoComboOptions] = useState<ComboboxOption[]>([]);
   const [woLoading, setWoLoading] = useState(false);
@@ -209,18 +221,14 @@ export default function QuoteRequestForm({
   const [selectedWoNumber, setSelectedWoNumber] = useState(prefilledWoNumber ?? "");
   const [newWoModal, setNewWoModal] = useState(false);
 
-  // ── Request info ─────────────────────────────────────────────────
+  // ── Request info
   const [urgency, setUrgency] = useState(false);
   const [shippingInfoRequired, setShippingInfoRequired] = useState(false);
 
-  // ── Product spec ─────────────────────────────────────────────────
-  const [molds, setMolds] = useState<MoldEntry[]>([
-    { id: "1", type: "existing", value: "", size: "", thickness: "", design_count: "1" },
-  ]);
-  const [printingNotes, setPrintingNotes] = useState("");
-  const [embossmentNotes, setEmbossmentNotes] = useState("");
+  // ── Line items (replaces old molds + shared printing/embossing)
+  const [lineItems, setLineItems] = useState<LineItem[]>([makeLineItem()]);
 
-  // ── Quantity tiers ────────────────────────────────────────────────
+  // ── Quantity tiers
   const [tiers, setTiers] = useState<QuantityTier[]>([
     { id: "1", tier_label: "A", quantity_type: "units", quantity: "", tier_notes: "" },
     { id: "2", tier_label: "B", quantity_type: "units", quantity: "", tier_notes: "" },
@@ -230,23 +238,19 @@ export default function QuoteRequestForm({
   const [attachments, setAttachments] = useState<UploadedFile[]>([]);
   const [sessionId] = useState(() => crypto.randomUUID());
 
-  // ── Company fetch ─────────────────────────────────────────────────
+  // ── Company/WO fetchers
   const fetchCompanies = async (q: string) => {
     setCompanySearchLoading(true);
     try {
       const res = await fetch(`/api/companies?q=${encodeURIComponent(q)}`);
       const data = await res.json() as { id: string; name: string; name_ja: string | null; city: string | null; prefecture: string | null }[];
       setCompanyOptions(data.map((c) => ({
-        value: c.id,
-        label: c.name,
+        value: c.id, label: c.name,
         sublabel: [c.name_ja, c.city, c.prefecture].filter(Boolean).join(" · ") || undefined,
       })));
-    } catch { /* ignore */ } finally {
-      setCompanySearchLoading(false);
-    }
+    } catch {} finally { setCompanySearchLoading(false); }
   };
 
-  // ── Workorder fetch (when company changes) ────────────────────────
   const fetchWorkorders = async (companyId: string, keepSelection = false) => {
     setWoLoading(true);
     if (!keepSelection) { setSelectedWoId(""); setSelectedWoNumber(""); }
@@ -254,26 +258,16 @@ export default function QuoteRequestForm({
       const res = await fetch(`/api/workorders?company_id=${companyId}`);
       const data = await res.json() as WOOption[];
       setWoOptions(data);
-      setWoComboOptions(data.map((w) => ({
-        value: w.id,
-        label: w.wo_number,
-        sublabel: w.project_name,
-      })));
-    } catch { /* ignore */ } finally {
-      setWoLoading(false);
-    }
+      setWoComboOptions(data.map((w) => ({ value: w.id, label: w.wo_number, sublabel: w.project_name })));
+    } catch {} finally { setWoLoading(false); }
   };
 
   useEffect(() => {
     fetchCompanies("");
-    // Pre-fill company option label so combobox displays it
     if (prefilledCompanyId && prefilledCompanyName) {
       setCompanyOptions([{ value: prefilledCompanyId, label: prefilledCompanyName }]);
     }
-    // Pre-fill WO options so the combobox shows the pre-selected WO
-    if (prefilledCompanyId) {
-      fetchWorkorders(prefilledCompanyId, true);
-    }
+    if (prefilledCompanyId) fetchWorkorders(prefilledCompanyId, true);
     if (prefilledWoId && prefilledWoNumber) {
       setWoComboOptions([{ value: prefilledWoId, label: prefilledWoNumber, sublabel: "" }]);
     }
@@ -281,60 +275,68 @@ export default function QuoteRequestForm({
   }, []);
 
   const handleCompanySelect = (option: ComboboxOption) => {
-    setSelectedCompanyId(option.value);
-    setSelectedCompanyName(option.label);
+    setSelectedCompanyId(option.value); setSelectedCompanyName(option.label);
     fetchWorkorders(option.value);
   };
 
-  const handleAddNewCompany = (name: string) => {
-    setNewCompanyInitialName(name);
-    setNewCompanyModal(true);
-  };
-
-  const handleCompanyCreated = (company: { id: string; name: string; name_ja: string | null }) => {
-    setSelectedCompanyId(company.id);
-    setSelectedCompanyName(company.name);
-    setCompanyOptions((prev) => [
-      { value: company.id, label: company.name, sublabel: company.name_ja ?? undefined },
-      ...prev.filter((o) => o.value !== company.id),
-    ]);
-    setNewCompanyModal(false);
-    fetchWorkorders(company.id);
-  };
-
-  // ── Mold search ───────────────────────────────────────────────────
+  // ── Mold search
   const [moldOptions, setMoldOptions] = useState<Record<string, ComboboxOption[]>>({});
   const [moldSearchCache, setMoldSearchCache] = useState<Record<string, ComboboxOption[]>>({});
 
-  const searchMolds = async (moldId: string, q: string) => {
+  const searchMolds = async (itemId: string, q: string) => {
     const cacheKey = q.toLowerCase();
-    if (moldSearchCache[cacheKey]) {
-      setMoldOptions((prev) => ({ ...prev, [moldId]: moldSearchCache[cacheKey] }));
-      return;
-    }
+    if (moldSearchCache[cacheKey]) { setMoldOptions((prev) => ({ ...prev, [itemId]: moldSearchCache[cacheKey] })); return; }
     try {
       const res = await fetch(`/api/molds?q=${encodeURIComponent(q)}`);
       const data = await res.json() as MoldRecord[];
       const opts = data.map((m) => ({
-        value: m.mold_number,
-        label: m.mold_number,
+        value: m.mold_number, label: m.mold_number,
         sublabel: [m.variant, m.dimensions, m.feature].filter(Boolean).join(" · "),
       }));
       setMoldSearchCache((prev) => ({ ...prev, [cacheKey]: opts }));
-      setMoldOptions((prev) => ({ ...prev, [moldId]: opts }));
-    } catch { /* ignore */ }
+      setMoldOptions((prev) => ({ ...prev, [itemId]: opts }));
+    } catch {}
   };
 
-  // ── Mold handlers ──────────────────────────────────────────────────
-  const addMold = () => setMolds((prev) => [...prev, { id: Date.now().toString(), type: "existing", value: "", size: "", thickness: "", design_count: "1" }]);
-  const removeMold = (id: string) => { if (molds.length > 1) setMolds((prev) => prev.filter((m) => m.id !== id)); };
-  // Use functional updater so batched calls compose correctly (not stale-closure overwrite)
-  const updateMold = (id: string, field: keyof MoldEntry, val: string) =>
-    setMolds((prev) => prev.map((m) => m.id === id ? { ...m, [field]: val } : m));
-  const updateMoldFields = (id: string, fields: Partial<MoldEntry>) =>
-    setMolds((prev) => prev.map((m) => m.id === id ? { ...m, ...fields } : m));
+  // ── Line item handlers
+  const updateItem = (id: string, fields: Partial<LineItem>) =>
+    setLineItems((prev) => prev.map((li) => li.id === id ? { ...li, ...fields } : li));
 
-  // ── Tier handlers ───────────────────────────────────────────────────
+  const removeItem = (id: string) => {
+    if (lineItems.length > 1) setLineItems((prev) => prev.filter((li) => li.id !== id));
+  };
+
+  const updatePrintingLine = (itemId: string, idx: number, field: keyof PrintingLine, val: string) =>
+    setLineItems((prev) => prev.map((li) => li.id !== itemId ? li : {
+      ...li, printing_lines: li.printing_lines.map((ln, i) => i === idx ? { ...ln, [field]: val } : ln),
+    }));
+
+  const addPrintingLine = (itemId: string) =>
+    setLineItems((prev) => prev.map((li) => li.id !== itemId ? li : {
+      ...li, printing_lines: [...li.printing_lines, { surface: "outside", part: "", spec: "" }],
+    }));
+
+  const removePrintingLine = (itemId: string, idx: number) =>
+    setLineItems((prev) => prev.map((li) => li.id !== itemId ? li : {
+      ...li, printing_lines: li.printing_lines.filter((_, i) => i !== idx),
+    }));
+
+  const updateEmbossingLine = (itemId: string, idx: number, field: keyof EmbossingLine, val: string) =>
+    setLineItems((prev) => prev.map((li) => li.id !== itemId ? li : {
+      ...li, embossing_lines: li.embossing_lines.map((ln, i) => i === idx ? { ...ln, [field]: val } : ln),
+    }));
+
+  const addEmbossingLine = (itemId: string) =>
+    setLineItems((prev) => prev.map((li) => li.id !== itemId ? li : {
+      ...li, embossing_lines: [...li.embossing_lines, { component: "", notes: "" }],
+    }));
+
+  const removeEmbossingLine = (itemId: string, idx: number) =>
+    setLineItems((prev) => prev.map((li) => li.id !== itemId ? li : {
+      ...li, embossing_lines: li.embossing_lines.filter((_, i) => i !== idx),
+    }));
+
+  // ── Tier handlers
   const addTier = () => {
     if (tiers.length >= 6) return;
     setTiers([...tiers, { id: Date.now().toString(), tier_label: TIER_LABELS[tiers.length], quantity_type: "units", quantity: "", tier_notes: "" }]);
@@ -343,29 +345,30 @@ export default function QuoteRequestForm({
   const updateTier = (id: string, field: keyof QuantityTier, value: string) =>
     setTiers(tiers.map((t) => t.id === id ? { ...t, [field]: value } : t));
 
-  // ── Submit ──────────────────────────────────────────────────────────
+  // ── Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCompanyId) { setError("Please select a company."); return; }
     if (!selectedWoId) { setError("Please select a workorder."); return; }
-    setLoading(true);
-    setError("");
+    const validItems = lineItems.filter((li) => li.mold_number.trim());
+    if (validItems.length === 0) { setError("Add at least one line item with a mold."); return; }
+    setLoading(true); setError("");
 
     const payload = {
       wo_id: selectedWoId,
       urgency,
       shipping_info_required: shippingInfoRequired,
-      molds: molds
-        .map(({ type, value, size, thickness, design_count }) => ({
-          type,
-          value: value.trim(),
-          size: size.trim() || null,
-          thickness: thickness.trim() || null,
-          design_count: parseInt(design_count) || 1,
-        }))
-        .filter((m) => m.value),
-      printing_notes: printingNotes || null,
-      embossment_notes: embossmentNotes || null,
+      molds: validItems.map((li, idx) => ({
+        line: idx + 1,
+        type: li.type,
+        value: li.mold_number.trim(),
+        size: li.size.trim() || null,
+        thickness: li.thickness.trim() || null,
+        design_count: parseInt(li.design_count) || 1,
+        variant_label: li.variant_label.trim() || null,
+        printing_lines: li.printing_lines.filter((ln) => ln.spec || ln.part),
+        embossing_lines: li.embossing_lines.filter((ln) => ln.component),
+      })),
       internal_notes: internalNotes || null,
       attachments: attachments.length ? attachments : null,
       status: "pending_factory",
@@ -379,15 +382,8 @@ export default function QuoteRequestForm({
     };
 
     try {
-      const res = await fetch("/api/quotes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to create quote");
-      }
+      const res = await fetch("/api/quotes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to create quote"); }
       const quote = await res.json();
       router.push(`/${locale}/quotes/${quote.id}`);
     } catch (err) {
@@ -405,41 +401,26 @@ export default function QuoteRequestForm({
           <CardHeader><CardTitle className="text-base">{tw("title")} &amp; {t("customer")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>
-                {tw("company")} <span className="text-red-500">*</span>
-              </Label>
+              <Label>{t("company")} <span className="text-red-500">*</span></Label>
               <Combobox
-                options={companyOptions}
-                value={selectedCompanyId}
+                options={companyOptions} value={selectedCompanyId}
                 onSelect={handleCompanySelect}
-                onSearch={fetchCompanies}
-                onAddNew={handleAddNewCompany}
-                placeholder="Search company..."
-                loading={companySearchLoading}
+                onSearch={fetchCompanies} loading={companySearchLoading}
+                onAddNew={(name) => { setNewCompanyInitialName(name); setNewCompanyModal(true); }}
                 addNewLabel="Add new company"
+                placeholder={t("companyPlaceholder")}
               />
-              {selectedCompanyId && (
-                <p className="text-xs text-green-600">✓ {selectedCompanyName}</p>
-              )}
             </div>
-
             <div className="space-y-2">
-              <Label>
-                {tw("title")} <span className="text-red-500">*</span>
-              </Label>
+              <Label>{tw("title")} <span className="text-red-500">*</span></Label>
               <Combobox
-                options={woComboOptions}
-                value={selectedWoId}
-                onSelect={(opt) => {
-                  const wo = woOptions.find((w) => w.id === opt.value);
-                  setSelectedWoId(opt.value);
-                  setSelectedWoNumber(wo?.wo_number ?? opt.label);
-                }}
+                options={woComboOptions} value={selectedWoId}
+                onSelect={(opt) => { setSelectedWoId(opt.value); setSelectedWoNumber(opt.label); }}
+                onSearch={() => {}} loading={woLoading}
                 onAddNew={() => setNewWoModal(true)}
-                placeholder={!selectedCompanyId ? "Select a company first..." : woLoading ? "Loading workorders..." : "Select workorder..."}
-                loading={woLoading}
-                disabled={!selectedCompanyId}
                 addNewLabel="Create new workorder"
+                placeholder="Select workorder..."
+                disabled={!selectedCompanyId}
               />
               {selectedWoId && (() => {
                 const wo = woOptions.find((w) => w.id === selectedWoId);
@@ -467,144 +448,184 @@ export default function QuoteRequestForm({
           </CardContent>
         </Card>
 
-        {/* Product Spec */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">{t("productSpec")}</CardTitle></CardHeader>
-          <CardContent className="space-y-5">
+        {/* Line Items */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold">Line Items</h3>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setLineItems((prev) => [...prev, makeLineItem()])} className="gap-1 h-7 text-xs">
+                <Plus className="h-3 w-3" /> Add Line Item
+              </Button>
+            </div>
+          </div>
 
-            {/* Molds table */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>{t("molds")}</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addMold} className="gap-1 h-7 text-xs">
-                  <Plus className="h-3 w-3" />
-                  {t("addMold")}
-                </Button>
-              </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-32">{t("moldType")}</th>
-                    <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("moldNumber")}</th>
-                    <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-44">{t("sizeDimensions")}</th>
-                    <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-28">板厚 Thickness (mm)</th>
-                    <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-24">{t("designCount")}</th>
-                    <th className="w-8"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {molds.map((mold) => (
-                    <tr key={mold.id} className="align-middle">
-                      <td className="px-3 py-2">
-                        <Select value={mold.type} onValueChange={(v) => v && updateMold(mold.id, "type", v)}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="existing">{t("existing")}</SelectItem>
-                            <SelectItem value="new">{t("newMold")}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="px-3 py-2">
-                        {mold.type === "existing" ? (
-                          <Combobox
-                            options={moldOptions[mold.id] ?? []}
-                            value={mold.value}
-                            onSelect={(opt) => {
-                              const allOpts = Object.values(moldOptions).flat();
-                              const found = allOpts.find((o) => o.value === opt.value);
-                              // Single functional update avoids stale-closure overwrite
-                              const parts = found?.sublabel?.split(" · ") ?? [];
-                              const dims = parts.find((p) => /\d+x\d+/.test(p));
-                              updateMoldFields(mold.id, {
-                                value: opt.value,
-                                ...(dims && !mold.size ? { size: dims } : {}),
-                              });
-                            }}
-                            onSearch={(q) => searchMolds(mold.id, q)}
-                            onAddNew={(q) => updateMoldFields(mold.id, { type: "new", value: q })}
-                            addNewLabel="New mold (not in catalog)"
-                            placeholder="ML-1004B"
-                          />
+          {lineItems.map((item, itemIdx) => (
+            <Card key={item.id} className={item.expanded ? "" : "bg-muted/20"}>
+              {/* Line item header — always visible */}
+              <CardHeader className="pb-2 cursor-pointer" onClick={() => updateItem(item.id, { expanded: !item.expanded })}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="font-mono text-xs">{itemIdx + 1}</Badge>
+                    <span className="font-mono text-sm font-semibold">{item.mold_number || "New item"}</span>
+                    {item.variant_label && <Badge variant="secondary" className="text-xs">{item.variant_label}</Badge>}
+                    {item.printing_lines.length > 0 && item.printing_lines.some((ln) => ln.spec) && (
+                      <span className="text-xs text-muted-foreground">
+                        {item.printing_lines.filter((ln) => ln.spec).length} printing
+                      </span>
+                    )}
+                    {item.embossing_lines.length > 0 && (
+                      <span className="text-xs text-muted-foreground">{item.embossing_lines.length} embossing</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0"
+                      title="Duplicate"
+                      onClick={(e) => { e.stopPropagation(); setLineItems((prev) => [...prev, duplicateLineItem(item)]); }}
+                    >
+                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0"
+                      onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
+                      disabled={lineItems.length <= 1}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-gray-400" />
+                    </Button>
+                    {item.expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                </div>
+              </CardHeader>
+
+              {/* Expanded content */}
+              {item.expanded && (
+                <CardContent className="space-y-4 pt-0">
+                  {/* Mold selection row */}
+                  <div className="grid grid-cols-6 gap-3">
+                    <div className="col-span-1 space-y-1">
+                      <Label className="text-xs">{t("moldType")}</Label>
+                      <Select value={item.type} onValueChange={(v) => v && updateItem(item.id, { type: v as "existing" | "new" })}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="existing">{t("existing")}</SelectItem>
+                          <SelectItem value="new">{t("newMold")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-xs">{t("moldNumber")}</Label>
+                      {item.type === "existing" ? (
+                        <Combobox
+                          options={moldOptions[item.id] ?? []} value={item.mold_number}
+                          onSelect={(opt) => {
+                            const allOpts = Object.values(moldOptions).flat();
+                            const found = allOpts.find((o) => o.value === opt.value);
+                            const parts = found?.sublabel?.split(" · ") ?? [];
+                            const dims = parts.find((p) => /\d+x\d+/.test(p));
+                            updateItem(item.id, { mold_number: opt.value, ...(dims && !item.size ? { size: dims } : {}) });
+                          }}
+                          onSearch={(q) => searchMolds(item.id, q)}
+                          onAddNew={(q) => updateItem(item.id, { type: "new", mold_number: q })}
+                          addNewLabel="New mold (not in catalog)"
+                          placeholder="ML-1004B"
+                        />
+                      ) : (
+                        <Input className="h-8 text-sm" value={item.mold_number}
+                          onChange={(e) => updateItem(item.id, { mold_number: e.target.value })}
+                          placeholder={t("newMoldPlaceholder")} />
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t("sizeDimensions")}</Label>
+                      <Input className="h-8 text-sm" value={item.size}
+                        onChange={(e) => updateItem(item.id, { size: e.target.value })} placeholder="200×200×40mm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Thickness (mm)</Label>
+                      <Input className="h-8 text-sm" value={item.thickness}
+                        onChange={(e) => updateItem(item.id, { thickness: e.target.value })} placeholder="0.25" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Variant Label</Label>
+                      <Input className="h-8 text-sm" value={item.variant_label}
+                        onChange={(e) => updateItem(item.id, { variant_label: e.target.value })} placeholder="e.g. Gloss" />
+                    </div>
+                  </div>
+
+                  {/* Printing */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">Printing</Label>
+                      <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] gap-1"
+                        onClick={() => addPrintingLine(item.id)}>
+                        <Plus className="h-2.5 w-2.5" /> Add
+                      </Button>
+                    </div>
+                    {item.printing_lines.map((ln, i) => (
+                      <div key={i} className="flex gap-2 items-center">
+                        <select className="flex h-7 rounded-md border border-input bg-background px-2 text-xs w-24 shrink-0"
+                          value={ln.surface} onChange={(e) => updatePrintingLine(item.id, i, "surface", e.target.value)}>
+                          {SURFACE_KEYS.map((k) => <option key={k} value={k}>{surfaceLabel(k, lang)}</option>)}
+                        </select>
+                        {PART_TO_KEY[ln.part] !== undefined || ln.part === "" ? (
+                          <select className="flex h-7 rounded-md border border-input bg-background px-2 text-xs w-32 shrink-0"
+                            value={ln.part} onChange={(e) => updatePrintingLine(item.id, i, "part", e.target.value === "__custom__" ? "" : e.target.value)}>
+                            <option value="">— Select —</option>
+                            {PART_KEYS.map((k) => <option key={k} value={k}>{partLabel(k, lang)}</option>)}
+                            <option value="__custom__">+ Custom...</option>
+                          </select>
                         ) : (
-                          <Input
-                            className="h-8 text-sm"
-                            value={mold.value}
-                            onChange={(e) => updateMold(mold.id, "value", e.target.value)}
-                            placeholder={t("newMoldPlaceholder")}
-                          />
+                          <Input className="h-7 text-xs w-32 shrink-0" value={ln.part}
+                            onChange={(e) => updatePrintingLine(item.id, i, "part", e.target.value)}
+                            placeholder="Custom part"
+                            onBlur={(e) => { if (!e.target.value.trim()) updatePrintingLine(item.id, i, "part", ""); }} />
                         )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <Input
-                          className="h-8 text-sm"
-                          value={mold.size}
-                          onChange={(e) => updateMold(mold.id, "size", e.target.value)}
-                          placeholder="200×200×40mm"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <Input
-                          className="h-8 text-sm"
-                          value={mold.thickness}
-                          onChange={(e) => updateMold(mold.id, "thickness", e.target.value)}
-                          placeholder="0.25"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <Input
-                          type="number"
-                          min="1"
-                          max="20"
-                          className="h-8 text-sm"
-                          value={mold.design_count}
-                          onChange={(e) => updateMold(mold.id, "design_count", e.target.value)}
-                          placeholder="1"
-                        />
-                      </td>
-                      <td className="pr-2 py-2">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => removeMold(mold.id)} disabled={molds.length <= 1} className="h-7 w-7 p-0">
-                          <Trash2 className="h-3.5 w-3.5 text-gray-400" />
+                        <Input className="flex-1 h-7 text-xs" placeholder="Spec e.g. 4C+1PMS Coat Gloss"
+                          value={ln.spec} onChange={(e) => updatePrintingLine(item.id, i, "spec", e.target.value)} />
+                        <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0"
+                          onClick={() => removePrintingLine(item.id, i)} disabled={item.printing_lines.length <= 1}>
+                          <Trash2 className="h-3 w-3 text-gray-400" />
                         </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                    ))}
+                  </div>
 
-            {/* Printing */}
-            <div className="space-y-2">
-              <Label>{t("printing")}</Label>
-              <textarea
-                className="w-full min-h-[72px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={printingNotes}
-                onChange={(e) => setPrintingNotes(e.target.value)}
-                placeholder="e.g. White base coat + CMYK + gloss varnish. Lid: matte finish."
-              />
-            </div>
-
-            {/* Embossment */}
-            <div className="space-y-2">
-              <Label>
-                {t("embossment")}
-                <span className="text-gray-400 text-xs font-normal ml-2">{t("embossmentHint")}</span>
-              </Label>
-              <Input
-                value={embossmentNotes}
-                onChange={(e) => setEmbossmentNotes(e.target.value)}
-                placeholder={t("embossmentComponentsPlaceholder")}
-              />
-            </div>
-          </CardContent>
-        </Card>
+                  {/* Embossing */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">Embossing</Label>
+                      <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] gap-1"
+                        onClick={() => addEmbossingLine(item.id)}>
+                        <Plus className="h-2.5 w-2.5" /> Add
+                      </Button>
+                    </div>
+                    {item.embossing_lines.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">No embossing</p>
+                    ) : (
+                      item.embossing_lines.map((ln, i) => (
+                        <div key={i} className="flex gap-2 items-center">
+                          <Input className="flex-1 h-7 text-xs" placeholder="Component e.g. Lid top"
+                            value={ln.component} onChange={(e) => updateEmbossingLine(item.id, i, "component", e.target.value)} />
+                          <Input className="flex-1 h-7 text-xs" placeholder="Notes"
+                            value={ln.notes} onChange={(e) => updateEmbossingLine(item.id, i, "notes", e.target.value)} />
+                          <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => removeEmbossingLine(item.id, i)}>
+                            <Trash2 className="h-3 w-3 text-gray-400" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          ))}
+        </div>
 
         {/* Quantity Tiers */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base">{t("quantityTiers")}</CardTitle>
             <Button type="button" variant="outline" size="sm" onClick={addTier} disabled={tiers.length >= 6} className="gap-1 h-7 text-xs">
-              <Plus className="h-3 w-3" />
-              {t("addTier")}
+              <Plus className="h-3 w-3" /> {t("addTier")}
             </Button>
           </CardHeader>
           <CardContent className="p-0">
@@ -622,9 +643,7 @@ export default function QuoteRequestForm({
                 {tiers.map((tier) => (
                   <tr key={tier.id} className="align-middle">
                     <td className="px-4 py-2">
-                      <span className="flex items-center justify-center h-7 w-7 rounded bg-gray-100 text-xs font-bold text-gray-600">
-                        {tier.tier_label}
-                      </span>
+                      <span className="flex items-center justify-center h-7 w-7 rounded bg-gray-100 text-xs font-bold text-gray-600">{tier.tier_label}</span>
                     </td>
                     <td className="px-3 py-2">
                       <Select value={tier.quantity_type} onValueChange={(v) => v && updateTier(tier.id, "quantity_type", v)}>
@@ -664,8 +683,7 @@ export default function QuoteRequestForm({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Paperclip className="h-4 w-4 text-gray-400" />
-              Attachments
+              <Paperclip className="h-4 w-4 text-gray-400" /> Attachments
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -683,16 +701,13 @@ export default function QuoteRequestForm({
             </div>
             <textarea
               className="w-full min-h-[90px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={internalNotes}
-              onChange={(e) => setInternalNotes(e.target.value)}
+              value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)}
               placeholder={t("internalNotesPlaceholder")}
             />
           </CardContent>
         </Card>
 
-        {error && (
-          <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
-        )}
+        {error && <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
 
         <div className="flex gap-3 justify-end">
           <Button type="button" variant="outline" onClick={() => router.back()}>{tc("cancel")}</Button>
@@ -701,26 +716,19 @@ export default function QuoteRequestForm({
       </form>
 
       <Modal open={newCompanyModal} onClose={() => setNewCompanyModal(false)} title="Add New Company">
-        <QuickCompanyForm
-          initialName={newCompanyInitialName}
-          onCreated={handleCompanyCreated}
-          onCancel={() => setNewCompanyModal(false)}
-        />
+        <QuickCompanyForm initialName={newCompanyInitialName} onCreated={(company) => {
+          setSelectedCompanyId(company.id); setSelectedCompanyName(company.name);
+          setCompanyOptions((prev) => [{ value: company.id, label: company.name, sublabel: company.name_ja ?? undefined }, ...prev.filter((o) => o.value !== company.id)]);
+          setNewCompanyModal(false); fetchWorkorders(company.id);
+        }} onCancel={() => setNewCompanyModal(false)} />
       </Modal>
 
       <Modal open={newWoModal} onClose={() => setNewWoModal(false)} title="New Workorder">
-        <QuickWOForm
-          companyId={selectedCompanyId}
-          companyName={selectedCompanyName}
-          onCreated={(wo) => {
-            setWoOptions((prev) => [wo, ...prev]);
-            setWoComboOptions((prev) => [{ value: wo.id, label: wo.wo_number, sublabel: wo.project_name }, ...prev]);
-            setSelectedWoId(wo.id);
-            setSelectedWoNumber(wo.wo_number);
-            setNewWoModal(false);
-          }}
-          onCancel={() => setNewWoModal(false)}
-        />
+        <QuickWOForm companyId={selectedCompanyId} companyName={selectedCompanyName} onCreated={(wo) => {
+          setWoOptions((prev) => [wo, ...prev]);
+          setWoComboOptions((prev) => [{ value: wo.id, label: wo.wo_number, sublabel: wo.project_name }, ...prev]);
+          setSelectedWoId(wo.id); setSelectedWoNumber(wo.wo_number); setNewWoModal(false);
+        }} onCancel={() => setNewWoModal(false)} />
       </Modal>
     </>
   );
