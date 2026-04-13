@@ -183,6 +183,8 @@ export default function WilfredCalcForm({
         const s = saved.find((c) => c.tier_label === r.tier_label);
         return s ? { ...r, existingId: s.id, approved: s.approved } : r;
       }));
+      // Refresh server data so tab switches show up-to-date state
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -232,6 +234,8 @@ export default function WilfredCalcForm({
       // Update local state
       setRows(rows.map((r) => ({ ...r, approved: true })));
       setIsEditing(false);
+      // Refresh server data so tab switches show up-to-date state
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
