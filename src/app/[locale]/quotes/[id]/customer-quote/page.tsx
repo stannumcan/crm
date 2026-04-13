@@ -170,9 +170,6 @@ export default async function CustomerQuotePage({
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeTab = moldTabs.find((t: any) => t.sheetId === activeMoldParam) ?? moldTabs[0];
-
   if (moldTabs.length === 0) {
     return (
       <div className="p-6 max-w-3xl">
@@ -193,6 +190,9 @@ export default async function CustomerQuotePage({
       </div>
     );
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activeTab = moldTabs.find((t: any) => t.sheetId === activeMoldParam) ?? moldTabs[0];
 
   return (
     <div className="p-6 max-w-5xl">
