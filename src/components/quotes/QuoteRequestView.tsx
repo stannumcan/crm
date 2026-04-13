@@ -219,20 +219,59 @@ export default function QuoteRequestView({
         )}
       </div>
 
-      {/* Molds */}
+      {/* Line Items */}
       {molds.length > 0 && (
-        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Molds</h2>
-          <div className="space-y-3">
-            {molds.map((mold, i) => (
-              <div key={i} className="grid grid-cols-4 gap-4 text-sm border-t border-border/60 pt-3 first:border-t-0 first:pt-0">
-                <Field label="Mold" value={mold.value || "—"} />
-                <Field label="Size" value={mold.size || "—"} />
-                <Field label="Tin Thickness" value={mold.thickness ? `${mold.thickness}mm` : "—"} />
-                <Field label="Designs" value={String(mold.design_count || 1)} />
+        <div className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Line Items</h2>
+          {molds.map((mold, i) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const m = mold as any;
+            const printingLines = (m.printing_lines ?? []) as { surface: string; part: string; spec: string }[];
+            const embossingLines = (m.embossing_lines ?? []) as { component: string; notes?: string }[];
+            return (
+              <div key={i} className="bg-card border border-border rounded-lg p-4 space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline" className="font-mono text-xs">{i + 1}</Badge>
+                  <span className="font-mono font-semibold text-sm">{mold.value || "—"}</span>
+                  {m.variant_label && <Badge variant="secondary" className="text-[10px]">{m.variant_label}</Badge>}
+                </div>
+                <div className="grid grid-cols-4 gap-4 text-sm">
+                  <Field label="Size" value={mold.size || "—"} />
+                  <Field label="Tin Thickness" value={mold.thickness ? `${mold.thickness}mm` : "—"} />
+                  <Field label="Designs" value={String(mold.design_count || 1)} />
+                  <Field label="Type" value={mold.type} />
+                </div>
+                {printingLines.length > 0 && printingLines.some((ln) => ln.spec) && (
+                  <div>
+                    <span className="text-xs text-muted-foreground">Printing</span>
+                    <div className="mt-0.5 space-y-0.5">
+                      {printingLines.filter((ln) => ln.spec).map((ln, j) => (
+                        <p key={j} className="text-sm">
+                          <span className="text-muted-foreground">{ln.surface}/{ln.part}: </span>
+                          {ln.spec}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {embossingLines.length > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground">Embossing</span>
+                    <div className="mt-0.5 space-y-0.5">
+                      {embossingLines.map((ln, j) => (
+                        <p key={j} className="text-sm">
+                          {ln.component}{ln.notes ? ` — ${ln.notes}` : ""}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {m.notes && (
+                  <p className="text-sm text-amber-700">{m.notes}</p>
+                )}
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       )}
 
@@ -258,45 +297,11 @@ export default function QuoteRequestView({
         </div>
       )}
 
-      {/* Printing */}
-      <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Printing</h2>
-        {editing ? (
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Lid", val: printingLid, set: setPrintingLid },
-              { label: "Body", val: printingBody, set: setPrintingBody },
-              { label: "Bottom", val: printingBottom, set: setPrintingBottom },
-              { label: "Inner", val: printingInner, set: setPrintingInner },
-            ].map(({ label, val, set }) => (
-              <div key={label} className="space-y-1">
-                <Label className="text-xs">{label}</Label>
-                <Input value={val} onChange={e => set(e.target.value)} placeholder={`${label} printing`} />
-              </div>
-            ))}
-            <div className="col-span-2 space-y-1">
-              <Label className="text-xs">Printing Notes</Label>
-              <textarea
-                value={printingNotes}
-                onChange={e => setPrintingNotes(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-y"
-                placeholder="Additional printing notes"
-              />
-            </div>
-            <div className="col-span-2 space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="checkbox" checked={embossment} onChange={e => setEmbossment(e.target.checked)} className="rounded" />
-                Embossment
-              </label>
-              {embossment && (
-                <div className="space-y-1">
-                  <Label className="text-xs">Embossment Notes</Label>
-                  <Input value={embossmentNotes} onChange={e => setEmbossmentNotes(e.target.value)} placeholder="Components / details" />
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
+      {/* Legacy Printing (for old quotes without per-item specs) */}
+      {(quote.printing_lid || quote.printing_body || quote.printing_bottom || quote.printing_inner || quote.embossment) &&
+       !(molds.length > 0 && molds.some((m: any) => Array.isArray((m as any).printing_lines) && (m as any).printing_lines.length > 0)) && (
+        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Printing (Legacy)</h2>
           <div className="space-y-3">
             <div className="grid grid-cols-4 gap-4">
               <Field label="Lid" value={quote.printing_lid} />
@@ -311,12 +316,9 @@ export default function QuoteRequestView({
                 Embossment{quote.embossment_notes ? `: ${quote.embossment_notes}` : ""}
               </div>
             )}
-            {!quote.printing_lid && !quote.printing_body && !quote.printing_bottom && !quote.printing_inner && !quote.printing_notes && !quote.embossment && (
-              <p className="text-sm text-muted-foreground italic">No printing specified</p>
-            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Internal Notes */}
       <div className="bg-card border border-amber-200 rounded-lg p-4 space-y-3">
