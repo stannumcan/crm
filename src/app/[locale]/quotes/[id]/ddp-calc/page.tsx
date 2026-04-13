@@ -41,9 +41,11 @@ export default async function DDPCalcPage({
       work_orders(wo_number, company_name, project_name),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order),
       factory_cost_sheets(
-        id, mold_number, mold_cost_new, mold_cost_modify, mold_lead_time_days,
-        steel_thickness, packaging_lines,
-        wilfred_calculations(tier_label, quantity, estimated_cost_rmb, approved)
+        id, mold_number, product_dimensions, mold_cost_new, mold_cost_modify, mold_lead_time_days,
+        steel_thickness, packaging_lines, printing_lines, embossing_lines,
+        mold_image_url, attachments, version, is_current,
+        wilfred_calculations(tier_label, quantity, total_subtotal, labor_cost, accessories_cost, overhead_multiplier, margin_rate, estimated_cost_rmb, approved, is_current, version),
+        wilfred_embossing_cost, wilfred_mold_cost_new, wilfred_mold_cost_adjust
       ),
       natsuki_ddp_calculations!quotation_id(*)
     `)
@@ -155,6 +157,54 @@ export default async function DDPCalcPage({
     });
   }
 
+  // Build sidebar data for each sheet
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  for (const ts of typedSheets) {
+    const sheet = sheets.find((s: { id: string }) => s.id === ts.id);
+    if (!sheet) continue;
+
+    // Look up mold image
+    let moldImageUrl = sheet.mold_image_url ?? null;
+    if (!moldImageUrl && sheet.mold_number) {
+      const { data: moldRow } = await db.from("molds").select("image_url").eq("mold_number", sheet.mold_number).maybeSingle();
+      moldImageUrl = moldRow?.image_url ?? null;
+    }
+
+    // Get current wilfred calcs with full data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const currentWilfredCalcs = (Array.isArray(sheet.wilfred_calculations) ? sheet.wilfred_calculations : [])
+      .filter((c: { is_current?: boolean; approved: boolean }) => c.is_current !== false && c.approved);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (ts as any).sidebarData = {
+      moldNumber: sheet.mold_number ?? null,
+      productDimensions: sheet.product_dimensions ?? null,
+      steelThickness: sheet.steel_thickness ?? null,
+      sheetVersion: sheet.version ?? 1,
+      moldImageUrl,
+      printingLines: Array.isArray(sheet.printing_lines) ? sheet.printing_lines : null,
+      embossingLines: Array.isArray(sheet.embossing_lines) ? sheet.embossing_lines : null,
+      packagingLines: Array.isArray(sheet.packaging_lines) ? sheet.packaging_lines : null,
+      attachments: Array.isArray(sheet.attachments) ? sheet.attachments : null,
+      moldCostNew: sheet.wilfred_mold_cost_new ?? sheet.mold_cost_new ?? null,
+      moldCostModify: sheet.wilfred_mold_cost_adjust ?? sheet.mold_cost_modify ?? null,
+      moldLeadTimeDays: sheet.mold_lead_time_days ?? null,
+      embossingCost: sheet.wilfred_embossing_cost ?? null,
+      wilfredVersion: currentWilfredCalcs[0]?.version ?? null,
+      wilfredTiers: currentWilfredCalcs.map((c: { tier_label: string; quantity: number; total_subtotal: number; labor_cost: number; accessories_cost: number; overhead_multiplier: number; margin_rate: number; estimated_cost_rmb: number }) => ({
+        tier_label: c.tier_label,
+        quantity: c.quantity,
+        total_subtotal: c.total_subtotal,
+        labor_cost: c.labor_cost,
+        accessories_cost: c.accessories_cost,
+        overhead_multiplier: c.overhead_multiplier,
+        margin_rate: c.margin_rate,
+        estimated_cost_rmb: c.estimated_cost_rmb,
+      })),
+    };
+  }
+
   if (typedSheets.length === 0) {
     return (
       <div className="p-6 max-w-3xl">
@@ -178,7 +228,7 @@ export default async function DDPCalcPage({
   }
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-6 max-w-7xl">
       <div className="flex items-center gap-3 mb-6">
         <Link href={`/${locale}/quotes/${id}`}>
           <Button variant="ghost" size="sm" className="gap-2">
@@ -203,6 +253,8 @@ export default async function DDPCalcPage({
           ddpVersion: (s.existingDDP[0] as { version?: number } | undefined)?.version,
           basedOnSheetVersion: (s.existingDDP[0] as { based_on_sheet_version?: number } | undefined)?.based_on_sheet_version,
           basedOnWilfredVersion: (s.existingDDP[0] as { based_on_wilfred_version?: number } | undefined)?.based_on_wilfred_version,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          sidebarData: (s as any).sidebarData,
         }))}
         shippingRates={shippingRates}
       />

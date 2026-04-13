@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 import DDPCalcForm from "@/components/calculator/DDPCalcForm";
 import StaleCheck from "@/components/ui/stale-check";
+import DDPSidebarReference, { type DDPSidebarData } from "@/components/calculator/DDPSidebarReference";
 
 interface SheetData {
   id: string;
@@ -27,6 +28,7 @@ interface SheetData {
   hasSaved: boolean;
   basedOnSheetVersion?: number;
   basedOnWilfredVersion?: number;
+  sidebarData?: DDPSidebarData;
 }
 
 interface DDPSettings {
@@ -84,7 +86,20 @@ export default function DDPCalcWrapper({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex gap-6">
+      {/* Sticky sidebar */}
+      {active?.sidebarData && (
+        <aside className="hidden lg:block w-64 shrink-0">
+          <div className="sticky top-6 max-h-[calc(100vh-48px)] overflow-y-auto rounded-lg border p-4"
+            style={{ borderColor: "oklch(0.88 0.04 230)", background: "oklch(0.98 0.005 230)" }}
+          >
+            <DDPSidebarReference data={active.sidebarData} />
+          </div>
+        </aside>
+      )}
+
+      {/* Main content */}
+      <div className="flex-1 min-w-0 space-y-4">
       {/* Mould card grid */}
       <div className="flex flex-wrap gap-2">
         {initialSheets.map((s) => {
@@ -185,6 +200,7 @@ export default function DDPCalcWrapper({
           )}
         </Button>
       </div>
+      </div>{/* end flex-1 main content */}
     </div>
   );
 }
