@@ -1,6 +1,6 @@
 "use client";
 
-import { Factory, Calculator, Paperclip } from "lucide-react";
+import { Factory, Calculator } from "lucide-react";
 
 interface PrintingLine { surface: string; part: string; spec: string }
 interface EmbossingLine { component: string; cost_rmb: string; notes: string }
@@ -100,20 +100,6 @@ export default function DDPSidebarReference({ data }: { data: DDPSidebarData }) 
         </Section>
       )}
 
-      {/* Embossing */}
-      {embossingLines && embossingLines.length > 0 && (
-        <Section title="Embossing">
-          <div className="text-xs space-y-0.5">
-            {embossingLines.map((ln, i) => (
-              <div key={i}>
-                {ln.component || "Embossing"}
-                {ln.cost_rmb && <span className="text-muted-foreground"> · ¥{ln.cost_rmb}</span>}
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
-
       {/* Packaging */}
       {packagingLines && packagingLines.length > 0 && (
         <Section title="Packaging">
@@ -162,34 +148,12 @@ export default function DDPSidebarReference({ data }: { data: DDPSidebarData }) 
                   <span className="text-foreground font-mono font-semibold">{fmtRmbUnit(t.estimated_cost_rmb)}</span>
                   <span className="text-muted-foreground"> /pc</span>
                 </div>
-                <div className="flex gap-3 mt-0.5 text-[10px] text-muted-foreground">
-                  <span>Margin: {t.margin_rate != null ? `${(Number(t.margin_rate) * 100).toFixed(0)}%` : "—"}</span>
-                  <span>OH: {t.overhead_multiplier ?? "—"}×</span>
-                </div>
               </div>
             ))}
           </div>
         </Section>
       )}
 
-      {/* Attachments */}
-      {attachments && attachments.length > 0 && (
-        <Section title="Attachments">
-          <div className="text-xs space-y-1">
-            {attachments.map((att, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => window.open(att.url, `attachment-${i}`, "width=900,height=700,scrollbars=yes,resizable=yes")}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-muted/60 transition-colors text-blue-700 hover:text-blue-900 w-full text-left"
-              >
-                <Paperclip className="h-3 w-3 shrink-0" />
-                <span className="truncate text-xs">{att.name}</span>
-              </button>
-            ))}
-          </div>
-        </Section>
-      )}
     </div>
   );
 }
