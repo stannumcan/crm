@@ -29,18 +29,18 @@ export default async function CustomerQuotePage({
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order),
       factory_cost_sheets(
         id, mold_number, mold_cost_new, mold_cost_modify, mold_lead_time_days,
-        steel_type, steel_thickness, product_dimensions,
+        steel_type, steel_thickness, product_dimensions, version, is_current,
         outer_carton_qty, outer_carton_config,
         printing_lines, embossing_lines, mold_image_url,
-        wilfred_calculations(tier_label, quantity, estimated_cost_rmb, approved),
+        wilfred_calculations(tier_label, quantity, estimated_cost_rmb, approved, is_current),
         wilfred_embossing_cost, wilfred_mold_cost_new, wilfred_mold_cost_adjust
       ),
       natsuki_ddp_calculations!quotation_id(
         id, tier_label, quantity, unit_price_jpy, total_revenue_jpy,
         selected_margin, shipping_cost_jpy, total_cost_jpy, manufacturing_cost_jpy,
-        fx_rate_rmb_to_jpy, cost_sheet_id
+        fx_rate_rmb_to_jpy, cost_sheet_id, version, is_current, based_on_ddp_version
       ),
-      customer_quotes(*)
+      customer_quotes(*, is_current, version, cost_sheet_id, based_on_ddp_version)
     `)
     .eq("id", id)
     .single();
