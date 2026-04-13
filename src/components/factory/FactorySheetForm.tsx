@@ -34,12 +34,16 @@ const PART_LABELS: Record<string, Record<string, string>> = {
 };
 
 // Map any display value (EN or JA) back to its canonical key
-const SURFACE_TO_KEY: Record<string, string> = {};
+const SURFACE_TO_KEY: Record<string, string> = {
+  "Exterior": "outside", "Interior": "inside",
+};
 for (const [key, labels] of Object.entries(SURFACE_LABELS)) {
   SURFACE_TO_KEY[key] = key;
   for (const v of Object.values(labels)) SURFACE_TO_KEY[v] = key;
 }
-const PART_TO_KEY: Record<string, string> = {};
+const PART_TO_KEY: Record<string, string> = {
+  "Lid & Body": "lid_body", "Lid, Body & Bottom": "lid_body_bottom",
+};
 for (const [key, labels] of Object.entries(PART_LABELS)) {
   PART_TO_KEY[key] = key;
   for (const v of Object.values(labels)) PART_TO_KEY[v] = key;
