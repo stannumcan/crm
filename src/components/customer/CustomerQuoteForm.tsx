@@ -45,6 +45,7 @@ interface Contact {
 interface Props {
   locale: string;
   quoteId: string;
+  costSheetId?: string;
   woNumber: string;
   companyName: string;
   companyId: string | null;
@@ -96,6 +97,7 @@ function parseExistingNotes(raw: unknown, fallback: string[]): string[] {
 export default function CustomerQuoteForm({
   locale,
   quoteId,
+  costSheetId,
   woNumber,
   companyName,
   companyId,
@@ -401,6 +403,7 @@ export default function CustomerQuoteForm({
     try {
       const payload = {
         quotation_id: quoteId,
+        cost_sheet_id: costSheetId ?? null,
         ddp_calculation_id: ddpCalcs[0]?.id ?? null,
         winhoop_quote_number: quoteNumber,
         customer_name: customerName,
