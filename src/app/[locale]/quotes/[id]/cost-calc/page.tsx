@@ -27,6 +27,8 @@ export default async function CostCalcPage({
         id,
         mold_number,
         steel_thickness,
+        version,
+        is_current,
         mold_cost_new,
         mold_cost_modify,
         embossing_lines,
@@ -50,6 +52,8 @@ export default async function CostCalcPage({
     id: string;
     mold_number: string | null;
     steel_thickness: number | null;
+    version: number;
+    is_current: boolean;
     mold_cost_new: number | null;
     mold_cost_modify: number | null;
     embossing_lines: { component: string; cost_rmb: string; notes: string }[] | null;
@@ -81,11 +85,19 @@ export default async function CostCalcPage({
     }[];
   };
 
-  const sheets: Sheet[] = Array.isArray(quote.factory_cost_sheets)
+  const sheets: Sheet[] = (Array.isArray(quote.factory_cost_sheets)
     ? quote.factory_cost_sheets
     : quote.factory_cost_sheets
     ? [quote.factory_cost_sheets]
-    : [];
+    : []).filter((s: Sheet) => s.is_current !== false);
+
+  // Filter wilfred calcs to current version only
+  for (const sheet of sheets) {
+    if (Array.isArray(sheet.wilfred_calculations)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sheet.wilfred_calculations = sheet.wilfred_calculations.filter((wc: any) => wc.is_current !== false);
+    }
+  }
 
   if (sheets.length === 0) {
     return (

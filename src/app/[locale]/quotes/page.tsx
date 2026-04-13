@@ -92,28 +92,32 @@ export default async function QuotesPage({
   } else if (activeTab === "factory-sheet") {
     const { data } = await db
       .from("factory_cost_sheets")
-      .select("id, mold_number, steel_thickness, sheet_date, created_at, quotation_id, quotations(id, work_orders(wo_number, company_name, project_name))")
+      .select("id, mold_number, steel_thickness, sheet_date, version, created_at, quotation_id, quotations(id, work_orders(wo_number, company_name, project_name))")
+      .eq("is_current", true)
       .order("created_at", { ascending: false })
       .limit(500);
     rows = data ?? [];
   } else if (activeTab === "wilfred-calc") {
     const { data } = await db
       .from("wilfred_calculations")
-      .select("id, quantity, estimated_cost_rmb, margin_rate, approved, created_at, cost_sheet_id, factory_cost_sheets(id, mold_number, quotation_id, quotations(id, work_orders(wo_number, company_name, project_name)))")
+      .select("id, quantity, estimated_cost_rmb, margin_rate, approved, version, created_at, cost_sheet_id, factory_cost_sheets(id, mold_number, quotation_id, quotations(id, work_orders(wo_number, company_name, project_name)))")
+      .eq("is_current", true)
       .order("created_at", { ascending: false })
       .limit(500);
     rows = data ?? [];
   } else if (activeTab === "ddp-calc") {
     const { data } = await db
       .from("natsuki_ddp_calculations")
-      .select("id, tier_label, quantity, unit_price_jpy, total_revenue_jpy, created_at, quotation_id, quotations(id, work_orders(wo_number, company_name, project_name))")
+      .select("id, tier_label, quantity, unit_price_jpy, total_revenue_jpy, version, created_at, quotation_id, quotations(id, work_orders(wo_number, company_name, project_name))")
+      .eq("is_current", true)
       .order("created_at", { ascending: false })
       .limit(500);
     rows = data ?? [];
   } else if (activeTab === "customer-quote") {
     const { data } = await db
       .from("customer_quotes")
-      .select("id, winhoop_quote_number, customer_name, date_sent, created_at, quotation_id, quotations(id, work_orders(wo_number, company_name, project_name))")
+      .select("id, winhoop_quote_number, customer_name, date_sent, version, created_at, quotation_id, quotations(id, work_orders(wo_number, company_name, project_name))")
+      .eq("is_current", true)
       .order("created_at", { ascending: false })
       .limit(500);
     rows = data ?? [];

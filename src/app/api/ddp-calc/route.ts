@@ -2,25 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { calculateDDP, type DDPInputs } from "@/lib/calculations";
 import { notifyWorkflowStep } from "@/lib/workflow-notify";
+import { getNextVersion, supersedeCurrent, logChange } from "@/lib/versioning";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
   const { quotation_id, annie_quotation_id, cost_sheet_id, tiers } = body;
 
-  // Delete existing records for this sheet before re-inserting
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const deleteQuery = (supabase as any)
-    .from("natsuki_ddp_calculations")
-    .delete()
-    .eq("quotation_id", quotation_id);
-  if (cost_sheet_id) {
-    await deleteQuery.eq("cost_sheet_id", cost_sheet_id);
-  } else {
-    await deleteQuery.is("cost_sheet_id", null);
+  const db = supabase as any;
+
+  // Get upstream versions
+  const { data: sheetRow } = await db
+    .from("factory_cost_sheets")
+    .select("version")
+    .eq("id", cost_sheet_id)
+    .single();
+  const basedOnSheetVersion = sheetRow?.version ?? 1;
+
+  const { data: wilfredRow } = await db
+    .from("wilfred_calculations")
+    .select("version")
+    .eq("cost_sheet_id", cost_sheet_id)
+    .eq("is_current", true)
+    .limit(1)
+    .single();
+  const basedOnWilfredVersion = wilfredRow?.version ?? 1;
+
+  // Get next version for this cost_sheet
+  const filters: Record<string, string> = { quotation_id };
+  if (cost_sheet_id) filters.cost_sheet_id = cost_sheet_id;
+  const newVersion = await getNextVersion(supabase, "natsuki_ddp_calculations", filters);
+
+  // Supersede old rows (instead of deleting)
+  if (newVersion > 1) {
+    await supersedeCurrent(supabase, "natsuki_ddp_calculations", filters);
   }
 
-  const records = tiers.map((t: DDPInputs & { tier_label: string; lclRatePerCbm?: number; lclBaseFee?: number; fcl20gpCost?: number; fcl40gpCost?: number; fcl40hqCost?: number }) => {
+  const records = tiers.map((t: DDPInputs & { tier_label: string }) => {
     const result = calculateDDP(t);
     return {
       quotation_id,
@@ -43,16 +62,23 @@ export async function POST(request: NextRequest) {
       selected_margin: t.selectedMargin,
       unit_price_jpy: result.unitPriceJpy,
       total_revenue_jpy: result.totalRevenueJpy,
+      version: newVersion,
+      is_current: true,
+      based_on_sheet_version: basedOnSheetVersion,
+      based_on_wilfred_version: basedOnWilfredVersion,
     };
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from("natsuki_ddp_calculations")
     .insert(records)
     .select();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  for (const row of data ?? []) {
+    await logChange(supabase, "natsuki_ddp_calculation", row.id, newVersion, newVersion === 1 ? "created" : "edited", null, row);
+  }
 
   return NextResponse.json(data, { status: 201 });
 }

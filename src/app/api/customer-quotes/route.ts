@@ -1,27 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { notifyWorkflowStep } from "@/lib/workflow-notify";
+import { getNextVersion, supersedeCurrent, logChange } from "@/lib/versioning";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const db = supabase as any;
+
+  // Get upstream versions
+  let basedOnDdpVersion = 1;
+  let basedOnSheetVersion = 1;
+  if (body.cost_sheet_id) {
+    const { data: ddpRow } = await db
+      .from("natsuki_ddp_calculations")
+      .select("version")
+      .eq("cost_sheet_id", body.cost_sheet_id)
+      .eq("is_current", true)
+      .limit(1)
+      .single();
+    basedOnDdpVersion = ddpRow?.version ?? 1;
+
+    const { data: sheetRow } = await db
+      .from("factory_cost_sheets")
+      .select("version")
+      .eq("id", body.cost_sheet_id)
+      .single();
+    basedOnSheetVersion = sheetRow?.version ?? 1;
+  }
+
+  const { data, error } = await db
     .from("customer_quotes")
-    .insert(body)
+    .insert({
+      ...body,
+      version: 1,
+      is_current: true,
+      based_on_ddp_version: basedOnDdpVersion,
+      based_on_sheet_version: basedOnSheetVersion,
+    })
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Update quotation status to sent (customer quote generated)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
-    .from("quotations")
-    .update({ status: "sent" })
-    .eq("id", body.quotation_id);
+  await logChange(supabase, "customer_quote", data.id, 1, "created", null, data);
 
+  await db.from("quotations").update({ status: "sent" }).eq("id", body.quotation_id);
   await notifyWorkflowStep(body.quotation_id, "sent");
 
   return NextResponse.json(data, { status: 201 });
@@ -33,15 +59,43 @@ export async function PATCH(request: NextRequest) {
   const { id, ...rest } = body;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const db = supabase as any;
+
+  // Fetch current version
+  const { data: current } = await db
     .from("customer_quotes")
-    .update(rest)
+    .select("*")
     .eq("id", id)
+    .single();
+
+  if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const newVersion = current.version + 1;
+
+  // Supersede old version(s) for this cost_sheet + quotation
+  const filters: Record<string, string> = { quotation_id: current.quotation_id };
+  if (current.cost_sheet_id) filters.cost_sheet_id = current.cost_sheet_id;
+  await supersedeCurrent(supabase, "customer_quotes", filters);
+
+  // Insert new version
+  const { id: _oldId, created_at: _ca, superseded_at: _sa, ...currentFields } = current;
+  const { data: newCQ, error } = await db
+    .from("customer_quotes")
+    .insert({
+      ...currentFields,
+      ...rest,
+      version: newVersion,
+      is_current: true,
+      superseded_at: null,
+    })
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+
+  await logChange(supabase, "customer_quote", newCQ.id, newVersion, "edited", null, newCQ);
+
+  return NextResponse.json(newCQ);
 }
 
 export async function DELETE(request: NextRequest) {

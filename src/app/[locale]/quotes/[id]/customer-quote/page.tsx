@@ -76,11 +76,14 @@ export default async function CustomerQuotePage({
     .map((a) => ({ name: a.file_name, url: a.file_url }));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sheets = (Array.isArray(quote.factory_cost_sheets) ? quote.factory_cost_sheets : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as any[];
+  const sheets = ((Array.isArray(quote.factory_cost_sheets) ? quote.factory_cost_sheets : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as any[])
+    .filter((s: { is_current?: boolean }) => s.is_current !== false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const allDDPCalcs = (quote.natsuki_ddp_calculations ?? []) as any[];
+  const allDDPCalcs = ((quote.natsuki_ddp_calculations ?? []) as any[])
+    .filter((d: { is_current?: boolean }) => d.is_current !== false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const allCQs = (Array.isArray(quote.customer_quotes) ? quote.customer_quotes : quote.customer_quotes ? [quote.customer_quotes] : []) as any[];
+  const allCQs = ((Array.isArray(quote.customer_quotes) ? quote.customer_quotes : quote.customer_quotes ? [quote.customer_quotes] : []) as any[])
+    .filter((cq: { is_current?: boolean }) => cq.is_current !== false);
 
   // Build per-mould data
   // Count existing customer quotes for this WO to generate sequential numbers

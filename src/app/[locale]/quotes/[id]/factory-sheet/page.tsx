@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, FileText, Pencil } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 
@@ -24,7 +25,7 @@ export default async function FactorySheetListPage({
       printing_lid, printing_body, printing_bottom, printing_inner, printing_notes,
       embossment, embossment_components, embossment_notes,
       work_orders(wo_number, company_name, project_name),
-      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, created_at),
+      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, version, is_current, created_at),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order)
     `)
     .eq("id", id)
@@ -33,9 +34,10 @@ export default async function FactorySheetListPage({
   if (!quote) notFound();
 
   const wo = quote.work_orders as { wo_number: string; company_name: string; project_name: string } | null;
-  let sheets = (Array.isArray(quote.factory_cost_sheets)
+  let sheets = ((Array.isArray(quote.factory_cost_sheets)
     ? quote.factory_cost_sheets
-    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; created_at: string }[];
+    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; version: number; is_current: boolean; created_at: string }[])
+    .filter((s) => s.is_current !== false);
 
   // ── Auto-create one sheet per mold if none exist ────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -117,7 +119,10 @@ export default async function FactorySheetListPage({
                   {i + 1}
                 </span>
                 <div>
-                  <p className="font-mono font-medium text-gray-900">{sheet.mold_number ?? "No mold number"}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-mono font-medium text-gray-900">{sheet.mold_number ?? "No mold number"}</p>
+                    <Badge variant="outline" className="text-[10px] text-muted-foreground">v{sheet.version ?? 1}</Badge>
+                  </div>
                   <p className="text-xs text-gray-500">
                     {sheet.product_dimensions && <span>{sheet.product_dimensions} · </span>}
                     {sheet.sheet_date ? new Date(sheet.sheet_date).toLocaleDateString() : "No date"}

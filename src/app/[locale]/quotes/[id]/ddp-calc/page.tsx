@@ -69,11 +69,14 @@ export default async function DDPCalcPage({
     .sort((a, b) => a.sort_order - b.sort_order);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sheets = (Array.isArray(quote.factory_cost_sheets)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sheets = ((Array.isArray(quote.factory_cost_sheets)
     ? quote.factory_cost_sheets
-    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as any[];
+    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as any[])
+    .filter((s: { is_current?: boolean }) => s.is_current !== false);
 
-  const existingDDPAll = (quote.natsuki_ddp_calculations as Record<string, unknown>[]) ?? [];
+  const existingDDPAll = ((quote.natsuki_ddp_calculations ?? []) as Record<string, unknown>[])
+    .filter((d) => d.is_current !== false);
 
   type SheetForDDP = {
     id: string;
@@ -95,8 +98,8 @@ export default async function DDPCalcPage({
   const typedSheets: SheetForDDP[] = [];
   for (const sheet of sheets) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const wilfredCalcs: { tier_label: string; quantity: number; estimated_cost_rmb: number | null; approved: boolean }[] =
-      Array.isArray(sheet.wilfred_calculations) ? sheet.wilfred_calculations : [];
+    const wilfredCalcs: { tier_label: string; quantity: number; estimated_cost_rmb: number | null; approved: boolean; is_current?: boolean }[] =
+      (Array.isArray(sheet.wilfred_calculations) ? sheet.wilfred_calculations : []).filter((c: { is_current?: boolean }) => c.is_current !== false);
 
     const approvedCalcs = wilfredCalcs
       .filter((c) => c.approved)

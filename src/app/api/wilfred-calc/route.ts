@@ -2,23 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { calculateWilfredCost } from "@/lib/calculations";
 import { notifyWorkflowStep } from "@/lib/workflow-notify";
+import { getNextVersion, supersedeCurrent, logChange } from "@/lib/versioning";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
-  const {
-    cost_sheet_id,
-    tiers, // array of { tier_label, quantity, total_subtotal, labor_cost, accessories_cost, overhead_multiplier, margin_rate }
-  } = body;
+  const { cost_sheet_id, tiers } = body;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+
+  // Get the factory sheet's current version
+  const { data: sheet } = await db
+    .from("factory_cost_sheets")
+    .select("version")
+    .eq("id", cost_sheet_id)
+    .single();
+
+  const basedOnSheetVersion = sheet?.version ?? 1;
+
+  // Find next version for this cost_sheet_id
+  const newVersion = await getNextVersion(supabase, "wilfred_calculations", { cost_sheet_id });
+
+  // Supersede old rows (instead of deleting)
+  if (newVersion > 1) {
+    await supersedeCurrent(supabase, "wilfred_calculations", { cost_sheet_id });
+  }
 
   const records = tiers.map((t: {
-    tier_label: string;
-    quantity: number;
-    total_subtotal: number;
-    labor_cost: number;
-    accessories_cost: number;
-    overhead_multiplier?: number;
-    margin_rate?: number;
+    tier_label: string; quantity: number; total_subtotal: number;
+    labor_cost: number; accessories_cost: number;
+    overhead_multiplier?: number; margin_rate?: number; wilfred_notes?: string;
   }) => ({
     cost_sheet_id,
     tier_label: t.tier_label,
@@ -36,22 +50,23 @@ export async function POST(request: NextRequest) {
       marginRate: t.margin_rate ?? 0.2,
     }),
     approved: false,
+    version: newVersion,
+    is_current: true,
+    based_on_sheet_version: basedOnSheetVersion,
   }));
 
-  // Delete existing rows for this sheet then re-insert
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
-    .from("wilfred_calculations")
-    .delete()
-    .eq("cost_sheet_id", cost_sheet_id);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from("wilfred_calculations")
     .insert(records)
     .select();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Log each row
+  for (const row of data ?? []) {
+    await logChange(supabase, "wilfred_calculation", row.id, newVersion, newVersion === 1 ? "created" : "edited", null, row);
+  }
+
   return NextResponse.json(data, { status: 201 });
 }
 
@@ -61,6 +76,9 @@ export async function PATCH(request: NextRequest) {
   const { id, approved, wilfred_notes, margin_rate, overhead_multiplier,
           total_subtotal, labor_cost, accessories_cost } = body;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+
   const estimated_cost_rmb = calculateWilfredCost({
     totalSubtotal: total_subtotal,
     laborCost: labor_cost,
@@ -69,8 +87,7 @@ export async function PATCH(request: NextRequest) {
     marginRate: margin_rate ?? 0.2,
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from("wilfred_calculations")
     .update({
       approved,
@@ -78,6 +95,9 @@ export async function PATCH(request: NextRequest) {
       wilfred_notes,
       margin_rate,
       overhead_multiplier,
+      total_subtotal,
+      labor_cost,
+      accessories_cost,
       estimated_cost_rmb,
     })
     .eq("id", id)
@@ -86,31 +106,27 @@ export async function PATCH(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // If all tiers approved, update quotation status
   if (approved) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: calc } = await (supabase as any)
-      .from("wilfred_calculations")
-      .select("cost_sheet_id")
-      .eq("id", id)
-      .single();
+    await logChange(supabase, "wilfred_calculation", id, data.version ?? 1, "approved", null, data);
 
-    if (calc) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: sheet } = await (supabase as any)
+    // If all current tiers for this sheet are approved, advance status
+    const { data: allCalcs } = await db
+      .from("wilfred_calculations")
+      .select("approved")
+      .eq("cost_sheet_id", data.cost_sheet_id)
+      .eq("is_current", true);
+
+    const allApproved = allCalcs?.every((c: { approved: boolean }) => c.approved);
+    if (allApproved) {
+      const { data: sheetRow } = await db
         .from("factory_cost_sheets")
         .select("quotation_id")
-        .eq("id", calc.cost_sheet_id)
+        .eq("id", data.cost_sheet_id)
         .single();
 
-      if (sheet) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
-          .from("quotations")
-          .update({ status: "pending_natsuki" })
-          .eq("id", sheet.quotation_id);
-
-        await notifyWorkflowStep(sheet.quotation_id, "pending_natsuki");
+      if (sheetRow) {
+        await db.from("quotations").update({ status: "pending_natsuki" }).eq("id", sheetRow.quotation_id);
+        await notifyWorkflowStep(sheetRow.quotation_id, "pending_natsuki");
       }
     }
   }
