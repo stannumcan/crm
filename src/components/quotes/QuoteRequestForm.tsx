@@ -498,6 +498,25 @@ export default function QuoteRequestForm({
               {/* Expanded content */}
               {item.expanded && (
                 <CardContent className="space-y-4 pt-0">
+                  {/* Copy specs from another line item */}
+                  {lineItems.filter((li) => li.id !== item.id && (li.printing_lines.some((ln) => ln.spec) || li.embossing_lines.length > 0)).length > 0 && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">Copy specs from:</span>
+                      {lineItems.filter((li) => li.id !== item.id && (li.printing_lines.some((ln) => ln.spec) || li.embossing_lines.length > 0)).map((source, si) => (
+                        <Button key={source.id} type="button" variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2"
+                          onClick={() => updateItem(item.id, {
+                            printing_lines: source.printing_lines.map((ln) => ({ ...ln })),
+                            embossing_lines: source.embossing_lines.map((ln) => ({ ...ln })),
+                          })}
+                        >
+                          <Copy className="h-2.5 w-2.5" />
+                          {source.mold_number || `Item ${lineItems.indexOf(source) + 1}`}
+                          {source.variant_label ? ` (${source.variant_label})` : ""}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Mold selection row */}
                   <div className="grid grid-cols-6 gap-3">
                     <div className="col-span-1 space-y-1">
