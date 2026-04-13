@@ -20,6 +20,7 @@ interface WorkflowStep {
   assignee_emails: string[];
   send_email: boolean;
   task_description: string | null;
+  subject_template: string | null;
 }
 
 const STEP_COLORS: Record<string, string> = {
@@ -51,6 +52,7 @@ export default function WorkflowDesigner() {
   const [editNewEmail, setEditNewEmail] = useState("");
   const [editSendEmail, setEditSendEmail] = useState(true);
   const [editTask, setEditTask] = useState("");
+  const [editSubject, setEditSubject] = useState("");
 
   const fetchSteps = useCallback(async () => {
     setLoading(true);
@@ -67,6 +69,7 @@ export default function WorkflowDesigner() {
     setEditEmails([...step.assignee_emails]);
     setEditSendEmail(step.send_email);
     setEditTask(step.task_description ?? "");
+    setEditSubject(step.subject_template ?? "");
     setEditNewEmail("");
   };
 
@@ -92,6 +95,7 @@ export default function WorkflowDesigner() {
         assignee_emails: editEmails,
         send_email: editSendEmail,
         task_description: editTask.trim() || null,
+        subject_template: editSubject.trim() || null,
       }),
     });
     setEditStep(null);
@@ -263,6 +267,19 @@ export default function WorkflowDesigner() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Subject line */}
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Email Subject Line</Label>
+            <p className="text-xs text-muted-foreground">
+              Use placeholders: {"{company}"}, {"{project}"}, {"{wo}"}, {"{mold}"}
+            </p>
+            <Input
+              value={editSubject}
+              onChange={(e) => setEditSubject(e.target.value)}
+              placeholder="e.g. Pricing Request - {company} - {project} - {wo} - {mold}"
+            />
           </div>
 
           {/* Task description */}

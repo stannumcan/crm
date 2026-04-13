@@ -17,7 +17,7 @@ export async function GET() {
 // PATCH — update a single step's assignees, send_email, task_description
 export async function PATCH(request: Request) {
   const body = await request.json();
-  const { id, assignee_emails, send_email, task_description } = body;
+  const { id, assignee_emails, send_email, task_description, subject_template } = body;
 
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
@@ -29,6 +29,7 @@ export async function PATCH(request: Request) {
       assignee_emails: assignee_emails ?? [],
       send_email: send_email ?? false,
       task_description: task_description ?? null,
+      subject_template: subject_template ?? null,
     })
     .eq("id", id)
     .select()

@@ -9,6 +9,26 @@ interface Attachment {
   content: Buffer;
 }
 
+function resolveSubject(
+  template: string | null,
+  fallback: string,
+  vars: { company: string; project: string; wo: string; mold?: string; step?: string },
+  pricingChanged = false,
+): string {
+  let subject: string;
+  if (template) {
+    subject = template
+      .replace(/\{company\}/gi, vars.company)
+      .replace(/\{project\}/gi, vars.project)
+      .replace(/\{wo\}/gi, vars.wo)
+      .replace(/\{mold\}/gi, vars.mold ?? "")
+      .replace(/\{step\}/gi, vars.step ?? "");
+  } else {
+    subject = fallback;
+  }
+  return pricingChanged ? `⚠ PRICING CHANGED - ${subject}` : subject;
+}
+
 export async function notifyWorkflowStep(quotationId: string, newStatus: string) {
   try {
     const supabase = createAdminClient();
@@ -61,9 +81,12 @@ export async function notifyWorkflowStep(quotationId: string, newStatus: string)
       pricingChanged: isPricingChanged,
     });
 
-    const subject = isPricingChanged
-      ? `⚠ PRICING CHANGED - [${woNumber}] ${step.label} — ${companyName}`
-      : `[${woNumber}] ${step.label} — ${companyName}`;
+    const subject = resolveSubject(
+      step.subject_template,
+      `[${woNumber}] ${step.label} — ${companyName}`,
+      { company: companyName, project: projectName, wo: woNumber, step: step.label },
+      isPricingChanged,
+    );
 
     const resend = getResend();
 
@@ -210,9 +233,12 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string, p
     const s = sheet as any;
     const moldNumber = s.mold_number ?? "—";
 
-    const subject = pricingChanged
-      ? `⚠ PRICING CHANGED - ${companyName} - ${projectName} - ${woNumber} - ${moldNumber}`
-      : `Pricing Request - ${companyName} - ${projectName} - ${woNumber} - ${moldNumber}`;
+    const subject = resolveSubject(
+      step.subject_template,
+      `Pricing Request - ${companyName} - ${projectName} - ${woNumber} - ${moldNumber}`,
+      { company: companyName, project: projectName, wo: woNumber, mold: moldNumber, step: step.label },
+      pricingChanged,
+    );
 
     // Build sections from factory sheet data
     const sections = buildFactorySheetSections(s);
