@@ -44,7 +44,7 @@ export default async function CustomerQuotePage({
         selected_margin, shipping_cost_jpy, total_cost_jpy, manufacturing_cost_jpy,
         fx_rate_rmb_to_jpy, cost_sheet_id, version, is_current, based_on_ddp_version
       ),
-      customer_quotes(*, is_current, version, cost_sheet_id, based_on_ddp_version)
+      customer_quotes(*)
     `)
     .eq("id", id)
     .single();
