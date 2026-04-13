@@ -5,14 +5,18 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import CustomerQuoteForm from "@/components/customer/CustomerQuoteForm";
-import CustomerQuoteWrapper from "@/components/customer/CustomerQuoteWrapper";
+import CustomerQuoteMoldBar from "@/components/customer/CustomerQuoteMoldBar";
+import StaleCheck from "@/components/ui/stale-check";
 
 export default async function CustomerQuotePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<{ mold?: string }>;
 }) {
   const { locale, id } = await params;
+  const { mold: activeMoldParam } = await searchParams;
   const tc = await getTranslations("common");
 
   const supabase = await createClient();
@@ -166,6 +170,9 @@ export default async function CustomerQuotePage({
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activeTab = moldTabs.find((t: any) => t.sheetId === activeMoldParam) ?? moldTabs[0];
+
   if (moldTabs.length === 0) {
     return (
       <div className="p-6 max-w-3xl">
@@ -205,46 +212,52 @@ export default async function CustomerQuotePage({
         </div>
       </div>
 
-      <CustomerQuoteWrapper
-        tabs={moldTabs.map((t: { sheetId: string; moldNumber: string | null; hasSaved: boolean; cqVersion?: number; basedOnDdpVersion?: number }) => ({
+      {/* Mould card bar */}
+      <CustomerQuoteMoldBar
+        tabs={moldTabs.map((t: { sheetId: string; moldNumber: string | null; hasSaved: boolean; cqVersion?: number }) => ({
           sheetId: t.sheetId,
           moldNumber: t.moldNumber,
           hasSaved: t.hasSaved,
           cqVersion: t.cqVersion,
-          basedOnDdpVersion: t.basedOnDdpVersion,
         }))}
-        forms={Object.fromEntries(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          moldTabs.map((tab: any) => [
-            tab.sheetId,
-            <CustomerQuoteForm
-              key={tab.sheetId}
-              locale={locale}
-              quoteId={id}
-              costSheetId={tab.sheetId}
-              moldNumber={tab.moldNumber ?? undefined}
-              defaultQuoteNumber={tab.defaultQuoteNumber}
-              woNumber={wo?.wo_number ?? ""}
-              companyName={wo?.company_name ?? ""}
-              companyId={wo?.company_id ?? null}
-              contacts={contacts}
-              projectName={wo?.project_name ?? ""}
-              sizeNote={tab.sizeNote}
-              ddpCalcs={tab.ddpCalcs}
-              moldType={tab.moldType}
-              moldCostNew={tab.moldCostNew}
-              moldLeadTimeDays={tab.moldLeadTimeDays}
-              defaultMaterial={tab.defaultMaterial}
-              defaultThickness={tab.defaultThickness}
-              defaultPrintingLines={tab.defaultPrintingLines}
-              defaultPacking={tab.defaultPacking}
-              fxRateFromDDP={tab.fxRateFromDDP}
-              quoteImages={quoteImages}
-              moldImageUrl={tab.moldImageUrl}
-              existingCQ={tab.existingCQ}
-            />,
-          ])
-        )}
+        activeSheetId={activeTab.sheetId}
+      />
+
+      {/* Stale warning */}
+      {activeTab.basedOnDdpVersion && (
+        <StaleCheck
+          upstreamTable="natsuki_ddp_calculations"
+          upstreamFilters={{ cost_sheet_id: activeTab.sheetId }}
+          basedOnVersion={activeTab.basedOnDdpVersion}
+          upstreamName={`DDP Calculation (${activeTab.moldNumber})`}
+        />
+      )}
+
+      {/* Active mould form */}
+      <CustomerQuoteForm
+        locale={locale}
+        quoteId={id}
+        costSheetId={activeTab.sheetId}
+        moldNumber={activeTab.moldNumber ?? undefined}
+        defaultQuoteNumber={activeTab.defaultQuoteNumber}
+        woNumber={wo?.wo_number ?? ""}
+        companyName={wo?.company_name ?? ""}
+        companyId={wo?.company_id ?? null}
+        contacts={contacts}
+        projectName={wo?.project_name ?? ""}
+        sizeNote={activeTab.sizeNote}
+        ddpCalcs={activeTab.ddpCalcs}
+        moldType={activeTab.moldType}
+        moldCostNew={activeTab.moldCostNew}
+        moldLeadTimeDays={activeTab.moldLeadTimeDays}
+        defaultMaterial={activeTab.defaultMaterial}
+        defaultThickness={activeTab.defaultThickness}
+        defaultPrintingLines={activeTab.defaultPrintingLines}
+        defaultPacking={activeTab.defaultPacking}
+        fxRateFromDDP={activeTab.fxRateFromDDP}
+        quoteImages={quoteImages}
+        moldImageUrl={activeTab.moldImageUrl}
+        existingCQ={activeTab.existingCQ}
       />
     </div>
   );
