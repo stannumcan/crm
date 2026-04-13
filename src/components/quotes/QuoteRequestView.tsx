@@ -6,10 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { Pencil, X, Check, Paperclip, AlertCircle, CheckCircle2, Ban, Plus } from "lucide-react";
+import { Pencil, X, Check, Paperclip, AlertCircle, CheckCircle2, Ban, Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+
+const SURFACE_KEYS = ["outside", "inside"] as const;
+const PART_KEYS = ["lid", "body", "bottom", "lid_body", "lid_body_bottom"] as const;
+const SURFACE_LABELS: Record<string, string> = { outside: "Outside", inside: "Inside" };
+const PART_LABELS: Record<string, string> = { lid: "Lid", body: "Body", bottom: "Bottom", lid_body: "Lid & Body", lid_body_bottom: "Lid, Body & Bottom" };
+const PART_TO_KEY: Record<string, string> = {};
+for (const [k, v] of Object.entries(PART_LABELS)) { PART_TO_KEY[k] = k; PART_TO_KEY[v] = k; }
 
 interface MoldEntry {
   id?: string;
@@ -104,6 +111,8 @@ export default function QuoteRequestView({
   const [newThickness, setNewThickness] = useState("");
   const [newVariant, setNewVariant] = useState("");
   const [newNotes, setNewNotes] = useState("");
+  const [newPrintingLines, setNewPrintingLines] = useState<{ surface: string; part: string; spec: string }[]>([{ surface: "outside", part: "", spec: "" }]);
+  const [newEmbossingLines, setNewEmbossingLines] = useState<{ component: string; notes: string }[]>([]);
   const [addingLine, setAddingLine] = useState(false);
 
   const handleCancelLine = async (idx: number) => {
@@ -137,13 +146,14 @@ export default function QuoteRequestView({
             design_count: 1,
             variant_label: newVariant.trim() || null,
             notes: newNotes.trim() || null,
-            printing_lines: [],
-            embossing_lines: [],
+            printing_lines: newPrintingLines.filter((ln) => ln.spec || ln.part),
+            embossing_lines: newEmbossingLines.filter((ln) => ln.component),
           },
         }),
       });
       setAddLineOpen(false);
       setNewMoldNumber(""); setNewSize(""); setNewThickness(""); setNewVariant(""); setNewNotes("");
+      setNewPrintingLines([{ surface: "outside", part: "", spec: "" }]); setNewEmbossingLines([]);
       router.refresh();
     } finally {
       setAddingLine(false);
@@ -472,6 +482,69 @@ export default function QuoteRequestView({
             <Label>Notes</Label>
             <Input value={newNotes} onChange={(e) => setNewNotes(e.target.value)} placeholder="Notes for this line item" />
           </div>
+
+          {/* Printing */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold">Printing</Label>
+              <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] gap-1"
+                onClick={() => setNewPrintingLines((prev) => [...prev, { surface: "outside", part: "", spec: "" }])}>
+                <Plus className="h-2.5 w-2.5" /> Add
+              </Button>
+            </div>
+            {newPrintingLines.map((ln, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <select className="flex h-7 rounded-md border border-input bg-background px-2 text-xs w-24 shrink-0"
+                  value={ln.surface} onChange={(e) => setNewPrintingLines((prev) => prev.map((l, j) => j === i ? { ...l, surface: e.target.value } : l))}>
+                  {SURFACE_KEYS.map((k) => <option key={k} value={k}>{SURFACE_LABELS[k]}</option>)}
+                </select>
+                {PART_TO_KEY[ln.part] !== undefined || ln.part === "" ? (
+                  <select className="flex h-7 rounded-md border border-input bg-background px-2 text-xs w-32 shrink-0"
+                    value={ln.part} onChange={(e) => setNewPrintingLines((prev) => prev.map((l, j) => j === i ? { ...l, part: e.target.value === "__custom__" ? "" : e.target.value } : l))}>
+                    <option value="">— Select —</option>
+                    {PART_KEYS.map((k) => <option key={k} value={k}>{PART_LABELS[k]}</option>)}
+                    <option value="__custom__">+ Custom...</option>
+                  </select>
+                ) : (
+                  <Input className="h-7 text-xs w-32 shrink-0" value={ln.part} placeholder="Custom part"
+                    onChange={(e) => setNewPrintingLines((prev) => prev.map((l, j) => j === i ? { ...l, part: e.target.value } : l))}
+                    onBlur={(e) => { if (!e.target.value.trim()) setNewPrintingLines((prev) => prev.map((l, j) => j === i ? { ...l, part: "" } : l)); }} />
+                )}
+                <Input className="flex-1 h-7 text-xs" placeholder="Spec e.g. 4C+1PMS Coat Gloss"
+                  value={ln.spec} onChange={(e) => setNewPrintingLines((prev) => prev.map((l, j) => j === i ? { ...l, spec: e.target.value } : l))} />
+                <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0"
+                  onClick={() => setNewPrintingLines((prev) => prev.filter((_, j) => j !== i))} disabled={newPrintingLines.length <= 1}>
+                  <Trash2 className="h-3 w-3 text-gray-400" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Embossing */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold">Embossing</Label>
+              <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] gap-1"
+                onClick={() => setNewEmbossingLines((prev) => [...prev, { component: "", notes: "" }])}>
+                <Plus className="h-2.5 w-2.5" /> Add
+              </Button>
+            </div>
+            {newEmbossingLines.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No embossing</p>
+            ) : newEmbossingLines.map((ln, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <Input className="flex-1 h-7 text-xs" placeholder="Component e.g. Lid top"
+                  value={ln.component} onChange={(e) => setNewEmbossingLines((prev) => prev.map((l, j) => j === i ? { ...l, component: e.target.value } : l))} />
+                <Input className="flex-1 h-7 text-xs" placeholder="Notes"
+                  value={ln.notes} onChange={(e) => setNewEmbossingLines((prev) => prev.map((l, j) => j === i ? { ...l, notes: e.target.value } : l))} />
+                <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0"
+                  onClick={() => setNewEmbossingLines((prev) => prev.filter((_, j) => j !== i))}>
+                  <Trash2 className="h-3 w-3 text-gray-400" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
           <div className="flex gap-3 justify-end pt-1">
             <Button variant="outline" onClick={() => setAddLineOpen(false)}>Cancel</Button>
             <Button onClick={handleAddLine} disabled={addingLine || !newMoldNumber.trim()}>
