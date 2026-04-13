@@ -21,6 +21,7 @@ const SURFACE_OPTIONS_JA = ["外面", "内面"];
 const SURFACE_OPTIONS_EN = ["Outside", "Inside"];
 const PART_PRESETS_JA = ["蓋", "身", "底", "蓋・身", "蓋・身・底"];
 const PART_PRESETS_EN = ["Lid", "Body", "Bottom", "Lid & Body", "Lid, Body & Bottom"];
+const ALL_KNOWN_PARTS = [...PART_PRESETS_JA, ...PART_PRESETS_EN];
 
 interface EmbossingLine {
   component: string;
@@ -451,7 +452,7 @@ export default function FactorySheetForm({
                 </select>
 
                 {/* Part: preset or custom */}
-                {PART_PRESETS.includes(ln.part) || ln.part === "" ? (
+                {ALL_KNOWN_PARTS.includes(ln.part) || ln.part === "" ? (
                   <select
                     className="flex h-8 rounded-md border border-input bg-background px-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring w-36 shrink-0"
                     value={ln.part}

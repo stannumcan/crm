@@ -31,8 +31,11 @@ interface PrintingLine {
   spec: string;
 }
 
-const SURFACE_OPTIONS = ["外面", "内面"];
-const PART_PRESETS = ["蓋", "身", "底", "蓋・身", "蓋・身・底"];
+const SURFACE_OPTIONS_JA = ["外面", "内面"];
+const SURFACE_OPTIONS_EN = ["Outside", "Inside"];
+const PART_PRESETS_JA = ["蓋", "身", "底", "蓋・身", "蓋・身・底"];
+const PART_PRESETS_EN = ["Lid", "Body", "Bottom", "Lid & Body", "Lid, Body & Bottom"];
+const ALL_KNOWN_PARTS = [...PART_PRESETS_JA, ...PART_PRESETS_EN];
 
 interface Contact {
   id: string;
@@ -120,6 +123,9 @@ export default function CustomerQuoteForm({
   existingCQ,
 }: Props) {
   const router = useRouter();
+  const isJa = locale === "ja" || locale === "zh";
+  const SURFACE_OPTIONS = isJa ? SURFACE_OPTIONS_JA : SURFACE_OPTIONS_EN;
+  const PART_PRESETS = isJa ? PART_PRESETS_JA : PART_PRESETS_EN;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [printing, setPrinting] = useState(false);
@@ -377,7 +383,7 @@ export default function CustomerQuoteForm({
   const removePrintingLine = (idx: number) =>
     setPrintingLines((prev) => prev.filter((_, i) => i !== idx));
   const addPrintingLine = () =>
-    setPrintingLines((prev) => [...prev, { surface: "外面", part: "蓋", spec: "" }]);
+    setPrintingLines((prev) => [...prev, { surface: SURFACE_OPTIONS[0], part: "", spec: "" }]);
 
   const updateNote = (idx: number, val: string) =>
     setNotesLines((prev) => prev.map((n, i) => (i === idx ? val : n)));
@@ -695,7 +701,7 @@ export default function CustomerQuoteForm({
                     </select>
 
                     {/* Col 2: part preset or custom text */}
-                    {PART_PRESETS.includes(ln.part) || ln.part === "" ? (
+                    {ALL_KNOWN_PARTS.includes(ln.part) || ln.part === "" ? (
                       <select
                         className="flex h-8 rounded-md border border-input bg-background px-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring w-36"
                         value={ln.part}
@@ -707,18 +713,18 @@ export default function CustomerQuoteForm({
                           }
                         }}
                       >
-                        <option value="">— 選択 —</option>
+                        <option value="">{isJa ? "— 選択 —" : "— Select —"}</option>
                         {PART_PRESETS.map((p) => (
                           <option key={p} value={p}>{p}</option>
                         ))}
-                        <option value="__custom__">＋ カスタム...</option>
+                        <option value="__custom__">{isJa ? "＋ カスタム..." : "+ Custom..."}</option>
                       </select>
                     ) : (
                       <Input
                         className="h-8 text-xs w-36"
                         value={ln.part}
                         onChange={(e) => updatePrintingLine(i, "part", e.target.value)}
-                        placeholder="カスタム部位"
+                        placeholder={isJa ? "カスタム部位" : "Custom part"}
                         onBlur={(e) => {
                           // If user blanked it out, revert to preset dropdown
                           if (!e.target.value.trim()) updatePrintingLine(i, "part", "");
@@ -729,7 +735,7 @@ export default function CustomerQuoteForm({
                     {/* Col 3: spec */}
                     <Input
                       className="flex-1 text-xs"
-                      placeholder="仕様 e.g. 白コート+特②..."
+                      placeholder={isJa ? "仕様 e.g. 白コート+特②..." : "Spec e.g. 4C+0C, CMYK..."}
                       value={ln.spec}
                       onChange={(e) => updatePrintingLine(i, "spec", e.target.value)}
                     />
