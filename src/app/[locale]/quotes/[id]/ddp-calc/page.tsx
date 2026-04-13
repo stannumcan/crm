@@ -200,6 +200,7 @@ export default async function DDPCalcPage({
         sheets={typedSheets.map((s) => ({
           ...s,
           hasSaved: s.existingDDP.length > 0,
+          ddpVersion: (s.existingDDP[0] as { version?: number } | undefined)?.version,
           basedOnSheetVersion: (s.existingDDP[0] as { based_on_sheet_version?: number } | undefined)?.based_on_sheet_version,
           basedOnWilfredVersion: (s.existingDDP[0] as { based_on_wilfred_version?: number } | undefined)?.based_on_wilfred_version,
         }))}

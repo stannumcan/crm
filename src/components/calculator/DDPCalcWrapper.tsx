@@ -3,16 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 import DDPCalcForm from "@/components/calculator/DDPCalcForm";
 import StaleCheck from "@/components/ui/stale-check";
-import VersionHistory from "@/components/ui/version-history";
 
 interface SheetData {
   id: string;
   moldNumber: string | null;
+  ddpVersion?: number;
   quoteInfo: {
     companyName: string; projectName: string; woNumber: string; canSize: string;
     moldNumber: string; tinThickness: number | null; moldCostNew: number | null;
@@ -52,6 +50,7 @@ export default function DDPCalcWrapper({
   shippingRates: DDPSettings;
 }) {
   const router = useRouter();
+  const [activeSheet, setActiveSheet] = useState(initialSheets[0]?.id ?? "");
   const [savedSheets, setSavedSheets] = useState<Set<string>>(() => {
     const initial = new Set<string>();
     initialSheets.forEach((s) => { if (s.hasSaved) initial.add(s.id); });
@@ -61,6 +60,7 @@ export default function DDPCalcWrapper({
   const [error, setError] = useState("");
 
   const allSaved = initialSheets.every((s) => savedSheets.has(s.id));
+  const active = initialSheets.find((s) => s.id === activeSheet) ?? initialSheets[0];
 
   const handleComplete = async () => {
     setCompleting(true);
@@ -85,77 +85,80 @@ export default function DDPCalcWrapper({
 
   return (
     <div className="space-y-4">
-      {/* Progress indicator */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {initialSheets.map((s) => (
-          <div key={s.id} className="flex items-center gap-1.5">
-            {savedSheets.has(s.id) ? (
-              <Badge variant="outline" className="text-xs text-green-700 border-green-200 bg-green-50 gap-1">
-                <CheckCircle2 className="h-3 w-3" />
-                {s.moldNumber ?? "Mold"}
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-xs gap-1">
-                {s.moldNumber ?? "Mold"}
-              </Badge>
-            )}
-          </div>
-        ))}
-        <span className="text-xs text-muted-foreground ml-1">
-          {savedSheets.size}/{initialSheets.length} saved
-        </span>
+      {/* Mould card grid */}
+      <div className="flex flex-wrap gap-2">
+        {initialSheets.map((s) => {
+          const isActive = s.id === activeSheet;
+          const isSaved = savedSheets.has(s.id);
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setActiveSheet(s.id)}
+              className="rounded-lg border px-3 py-2 text-left transition-all min-w-[130px]"
+              style={{
+                borderColor: isActive ? "var(--primary)" : isSaved ? "oklch(0.80 0.12 145)" : "var(--border)",
+                background: isActive ? "oklch(0.97 0.01 52)" : isSaved ? "oklch(0.97 0.04 145)" : "var(--card)",
+                boxShadow: isActive ? "0 0 0 1px var(--primary)" : "none",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm font-semibold" style={{ color: isActive ? "var(--primary)" : "var(--foreground)" }}>
+                  {s.moldNumber ?? "Mold"}
+                </span>
+                {s.ddpVersion && (
+                  <span className="text-[10px] text-muted-foreground font-mono">v{s.ddpVersion}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 mt-0.5">
+                {isSaved ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                    <span className="text-[10px] text-green-700">Saved</span>
+                  </>
+                ) : (
+                  <>
+                    <Circle className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground">Pending</span>
+                  </>
+                )}
+              </div>
+            </button>
+          );
+        })}
+
+        {/* Counter */}
+        <div className="flex items-center ml-1">
+          <span className="text-xs text-muted-foreground">
+            {savedSheets.size}/{initialSheets.length} saved
+          </span>
+        </div>
       </div>
 
-      {/* Stale checks + history */}
-      {initialSheets.map((s) => s.basedOnWilfredVersion ? (
+      {/* Stale warnings for active sheet */}
+      {active?.basedOnWilfredVersion && (
         <StaleCheck
-          key={`stale-${s.id}`}
           upstreamTable="wilfred_calculations"
-          upstreamFilters={{ cost_sheet_id: s.id }}
-          basedOnVersion={s.basedOnWilfredVersion}
-          upstreamName={`Wilfred Calc (${s.moldNumber})`}
+          upstreamFilters={{ cost_sheet_id: active.id }}
+          basedOnVersion={active.basedOnWilfredVersion}
+          upstreamName={`Wilfred Calc (${active.moldNumber})`}
         />
-      ) : null)}
+      )}
 
-      {/* Mold tabs */}
-      {initialSheets.length === 1 ? (
+      {/* Active mould form */}
+      {active && (
         <DDPCalcForm
+          key={active.id}
           locale={locale}
           quoteId={quoteId}
-          costSheetId={initialSheets[0].id}
-          quoteInfo={initialSheets[0].quoteInfo}
-          packagingDefaults={initialSheets[0].packagingDefaults}
-          approvedCalcs={initialSheets[0].approvedCalcs}
-          existingDDP={initialSheets[0].existingDDP}
+          costSheetId={active.id}
+          quoteInfo={active.quoteInfo}
+          packagingDefaults={active.packagingDefaults}
+          approvedCalcs={active.approvedCalcs}
+          existingDDP={active.existingDDP}
           shippingRates={shippingRates}
-          onSaved={() => markSaved(initialSheets[0].id)}
+          onSaved={() => markSaved(active.id)}
         />
-      ) : (
-        <Tabs defaultValue={initialSheets[0].id}>
-          <TabsList className="mb-4">
-            {initialSheets.map((sheet) => (
-              <TabsTrigger key={sheet.id} value={sheet.id} className="gap-1.5">
-                {savedSheets.has(sheet.id) && <CheckCircle2 className="h-3 w-3 text-green-600" />}
-                {sheet.moldNumber ?? "Mold"}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          {initialSheets.map((sheet) => (
-            <TabsContent key={sheet.id} value={sheet.id}>
-              <DDPCalcForm
-                locale={locale}
-                quoteId={quoteId}
-                costSheetId={sheet.id}
-                quoteInfo={sheet.quoteInfo}
-                packagingDefaults={sheet.packagingDefaults}
-                approvedCalcs={sheet.approvedCalcs}
-                existingDDP={sheet.existingDDP}
-                shippingRates={shippingRates}
-                onSaved={() => markSaved(sheet.id)}
-              />
-            </TabsContent>
-          ))}
-        </Tabs>
       )}
 
       {error && (
