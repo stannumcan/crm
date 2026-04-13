@@ -681,9 +681,28 @@ export default function FactorySheetForm({
 
       {/* Cost Summary per Tier */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Cost Summary per Tier (总成本合计)</CardTitle>
-          <p className="text-xs text-gray-500 mt-1">All values in RMB. Container auto-filled from quote request type.</p>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <CardTitle className="text-base">Cost Summary per Tier (总成本合计)</CardTitle>
+            <p className="text-xs text-gray-500 mt-1">All values in RMB. Container auto-filled from quote request type.</p>
+          </div>
+          <Button
+            type="button" variant="outline" size="sm" className="gap-1 h-7 text-xs shrink-0"
+            onClick={() => {
+              const nextLabel = String.fromCharCode(65 + tierCosts.length); // A, B, C, D...
+              setTierCosts((prev) => [...prev, {
+                tier_label: nextLabel,
+                quantity: "",
+                total_subtotal: "",
+                labor_cost: "",
+                accessories_cost: "",
+                container_info: "",
+                tier_notes: "",
+              }]);
+            }}
+          >
+            <Plus className="h-3 w-3" /> Add Quantity
+          </Button>
         </CardHeader>
         <CardContent>
           <table className="w-full text-sm">
@@ -696,6 +715,7 @@ export default function FactorySheetForm({
                 <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-24">Accessories</th>
                 <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-24">Container</th>
                 <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">Notes</th>
+                <th className="w-8"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -723,6 +743,14 @@ export default function FactorySheetForm({
                   </td>
                   <td className="px-3 py-2">
                     <Input className="h-8 text-sm" value={tier.tier_notes} onChange={(e) => updateTier(tier.tier_label, "tier_notes", e.target.value)} placeholder="Optional notes" />
+                  </td>
+                  <td className="pr-2 py-2">
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0"
+                      onClick={() => setTierCosts((prev) => prev.filter((t) => t.tier_label !== tier.tier_label))}
+                      disabled={tierCosts.length <= 1}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-gray-400" />
+                    </Button>
                   </td>
                 </tr>
               ))}
