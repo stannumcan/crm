@@ -76,9 +76,10 @@ export default async function DDPCalcPage({
     ? quote.factory_cost_sheets
     : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as any[])
     .filter((s: { is_current?: boolean }) => s.is_current !== false);
+  const currentSheetIds = new Set(sheets.map((s: { id: string }) => s.id));
 
   const existingDDPAll = ((quote.natsuki_ddp_calculations ?? []) as Record<string, unknown>[])
-    .filter((d) => d.is_current !== false);
+    .filter((d) => d.is_current !== false && (!d.cost_sheet_id || currentSheetIds.has(d.cost_sheet_id as string)));
 
   type SheetForDDP = {
     id: string;

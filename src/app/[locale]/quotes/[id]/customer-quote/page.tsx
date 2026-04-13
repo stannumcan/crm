@@ -78,12 +78,15 @@ export default async function CustomerQuotePage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sheets = ((Array.isArray(quote.factory_cost_sheets) ? quote.factory_cost_sheets : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as any[])
     .filter((s: { is_current?: boolean }) => s.is_current !== false);
+  const currentSheetIds = new Set(sheets.map((s: { id: string }) => s.id));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allDDPCalcs = ((quote.natsuki_ddp_calculations ?? []) as any[])
-    .filter((d: { is_current?: boolean }) => d.is_current !== false);
+    .filter((d: { is_current?: boolean; cost_sheet_id?: string }) =>
+      d.is_current !== false && (!d.cost_sheet_id || currentSheetIds.has(d.cost_sheet_id)));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allCQs = ((Array.isArray(quote.customer_quotes) ? quote.customer_quotes : quote.customer_quotes ? [quote.customer_quotes] : []) as any[])
-    .filter((cq: { is_current?: boolean }) => cq.is_current !== false);
+    .filter((cq: { is_current?: boolean; cost_sheet_id?: string }) =>
+      cq.is_current !== false && (!cq.cost_sheet_id || currentSheetIds.has(cq.cost_sheet_id)));
 
   // Build per-mould data
   // Count existing customer quotes for this WO to generate sequential numbers
