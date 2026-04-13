@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import CustomerQuoteForm from "@/components/customer/CustomerQuoteForm";
 import CustomerQuoteMoldBar from "@/components/customer/CustomerQuoteMoldBar";
+import CustomerQuoteSidebar from "@/components/customer/CustomerQuoteSidebar";
 import StaleCheck from "@/components/ui/stale-check";
 
 export default async function CustomerQuotePage({
@@ -35,7 +36,7 @@ export default async function CustomerQuotePage({
         id, mold_number, mold_cost_new, mold_cost_modify, mold_lead_time_days,
         steel_type, steel_thickness, product_dimensions, version, is_current,
         outer_carton_qty, outer_carton_config,
-        printing_lines, embossing_lines, mold_image_url,
+        printing_lines, embossing_lines, packaging_lines, mold_image_url,
         wilfred_calculations(tier_label, quantity, estimated_cost_rmb, approved, is_current),
         wilfred_embossing_cost, wilfred_mold_cost_new, wilfred_mold_cost_adjust
       ),
@@ -147,6 +148,12 @@ export default async function CustomerQuotePage({
 
     // Mold cost — use wilfred's approved values if available, fall back to factory sheet
     const moldCostNew = sheet.wilfred_mold_cost_new ?? sheet.mold_cost_new ?? null;
+    const moldCostAdjust = sheet.wilfred_mold_cost_adjust ?? sheet.mold_cost_modify ?? null;
+    const embossingCost = sheet.wilfred_embossing_cost ?? null;
+
+    // Wilfred calcs for sidebar
+    const wilfredCalcs = (Array.isArray(sheet.wilfred_calculations) ? sheet.wilfred_calculations : [])
+      .filter((c: { is_current?: boolean; approved: boolean }) => c.is_current !== false && c.approved);
 
     moldTabs.push({
       sheetId: sheet.id,
@@ -167,6 +174,25 @@ export default async function CustomerQuotePage({
       fxRateFromDDP,
       moldImageUrl,
       existingCQ,
+      sidebarData: {
+        moldNumber,
+        productDimensions: sheet.product_dimensions ?? null,
+        steelThickness: sheet.steel_thickness ?? null,
+        moldImageUrl,
+        printingLines,
+        packagingLines: Array.isArray(sheet.packaging_lines) ? sheet.packaging_lines : null,
+        wilfredTiers: wilfredCalcs.map((c: { tier_label: string; quantity: number; estimated_cost_rmb: number | null }) => ({
+          tier_label: c.tier_label, quantity: c.quantity, estimated_cost_rmb: c.estimated_cost_rmb,
+        })),
+        moldCostNew,
+        moldCostAdjust,
+        embossingCost,
+        moldLeadTimeDays: sheet.mold_lead_time_days ?? null,
+        ddpTiers: ddpCalcs.map((d: { tier_label: string; quantity: number; unit_price_jpy: number | null; total_revenue_jpy: number | null; selected_margin: number | null }) => ({
+          tier_label: d.tier_label, quantity: d.quantity, unit_price_jpy: d.unit_price_jpy,
+          total_revenue_jpy: d.total_revenue_jpy, selected_margin: d.selected_margin,
+        })),
+      },
     });
   }
 
@@ -195,7 +221,7 @@ export default async function CustomerQuotePage({
   const activeTab = moldTabs.find((t: any) => t.sheetId === activeMoldParam) ?? moldTabs[0];
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-6 max-w-7xl">
       <div className="flex items-center gap-3 mb-6">
         <Link href={`/${locale}/quotes/${id}`}>
           <Button variant="ghost" size="sm" className="gap-2">
@@ -233,32 +259,45 @@ export default async function CustomerQuotePage({
         />
       )}
 
-      {/* Active mould form */}
-      <CustomerQuoteForm
-        locale={locale}
-        quoteId={id}
-        costSheetId={activeTab.sheetId}
-        moldNumber={activeTab.moldNumber ?? undefined}
-        defaultQuoteNumber={activeTab.defaultQuoteNumber}
-        woNumber={wo?.wo_number ?? ""}
-        companyName={wo?.company_name ?? ""}
-        companyId={wo?.company_id ?? null}
-        contacts={contacts}
-        projectName={wo?.project_name ?? ""}
-        sizeNote={activeTab.sizeNote}
-        ddpCalcs={activeTab.ddpCalcs}
-        moldType={activeTab.moldType}
-        moldCostNew={activeTab.moldCostNew}
-        moldLeadTimeDays={activeTab.moldLeadTimeDays}
-        defaultMaterial={activeTab.defaultMaterial}
-        defaultThickness={activeTab.defaultThickness}
-        defaultPrintingLines={activeTab.defaultPrintingLines}
-        defaultPacking={activeTab.defaultPacking}
-        fxRateFromDDP={activeTab.fxRateFromDDP}
-        quoteImages={quoteImages}
-        moldImageUrl={activeTab.moldImageUrl}
-        existingCQ={activeTab.existingCQ}
-      />
+      <div className="flex gap-6">
+        {/* Sticky sidebar */}
+        <aside className="hidden lg:block w-64 shrink-0">
+          <div className="sticky top-6 max-h-[calc(100vh-48px)] overflow-y-auto rounded-lg border p-4"
+            style={{ borderColor: "oklch(0.88 0.04 230)", background: "oklch(0.98 0.005 230)" }}
+          >
+            <CustomerQuoteSidebar data={activeTab.sidebarData} />
+          </div>
+        </aside>
+
+        {/* Active mould form */}
+        <div className="flex-1 min-w-0">
+          <CustomerQuoteForm
+            locale={locale}
+            quoteId={id}
+            costSheetId={activeTab.sheetId}
+            moldNumber={activeTab.moldNumber ?? undefined}
+            defaultQuoteNumber={activeTab.defaultQuoteNumber}
+            woNumber={wo?.wo_number ?? ""}
+            companyName={wo?.company_name ?? ""}
+            companyId={wo?.company_id ?? null}
+            contacts={contacts}
+            projectName={wo?.project_name ?? ""}
+            sizeNote={activeTab.sizeNote}
+            ddpCalcs={activeTab.ddpCalcs}
+            moldType={activeTab.moldType}
+            moldCostNew={activeTab.moldCostNew}
+            moldLeadTimeDays={activeTab.moldLeadTimeDays}
+            defaultMaterial={activeTab.defaultMaterial}
+            defaultThickness={activeTab.defaultThickness}
+            defaultPrintingLines={activeTab.defaultPrintingLines}
+            defaultPacking={activeTab.defaultPacking}
+            fxRateFromDDP={activeTab.fxRateFromDDP}
+            quoteImages={quoteImages}
+            moldImageUrl={activeTab.moldImageUrl}
+            existingCQ={activeTab.existingCQ}
+          />
+        </div>
+      </div>
     </div>
   );
 }
