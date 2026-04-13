@@ -2,11 +2,10 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import CustomerQuoteForm from "@/components/customer/CustomerQuoteForm";
-import StaleCheck from "@/components/ui/stale-check";
+import CustomerQuoteWrapper from "@/components/customer/CustomerQuoteWrapper";
 
 export default async function CustomerQuotePage({
   params,
@@ -146,6 +145,8 @@ export default async function CustomerQuotePage({
       sheetId: sheet.id,
       moldNumber,
       defaultQuoteNumber,
+      hasSaved: !!existingCQ,
+      cqVersion: existingCQ?.version ?? undefined,
       basedOnDdpVersion: existingCQ?.based_on_ddp_version ?? null,
       sizeNote,
       ddpCalcs,
@@ -201,91 +202,49 @@ export default async function CustomerQuotePage({
         </div>
       </div>
 
-      {moldTabs.length === 1 ? (
-        <>
-        {moldTabs[0].basedOnDdpVersion && (
-          <StaleCheck
-            upstreamTable="natsuki_ddp_calculations"
-            upstreamFilters={{ cost_sheet_id: moldTabs[0].sheetId }}
-            basedOnVersion={moldTabs[0].basedOnDdpVersion}
-            upstreamName="DDP Calculation"
-          />
-        )}
-        <CustomerQuoteForm
-          locale={locale}
-          quoteId={id}
-          costSheetId={moldTabs[0].sheetId}
-          moldNumber={moldTabs[0].moldNumber ?? undefined}
-          defaultQuoteNumber={moldTabs[0].defaultQuoteNumber}
-          woNumber={wo?.wo_number ?? ""}
-          companyName={wo?.company_name ?? ""}
-          companyId={wo?.company_id ?? null}
-          contacts={contacts}
-          projectName={wo?.project_name ?? ""}
-          sizeNote={moldTabs[0].sizeNote}
-          ddpCalcs={moldTabs[0].ddpCalcs}
-          moldType={moldTabs[0].moldType}
-          moldCostNew={moldTabs[0].moldCostNew}
-          moldLeadTimeDays={moldTabs[0].moldLeadTimeDays}
-          defaultMaterial={moldTabs[0].defaultMaterial}
-          defaultThickness={moldTabs[0].defaultThickness}
-          defaultPrintingLines={moldTabs[0].defaultPrintingLines}
-          defaultPacking={moldTabs[0].defaultPacking}
-          fxRateFromDDP={moldTabs[0].fxRateFromDDP}
-          quoteImages={quoteImages}
-          moldImageUrl={moldTabs[0].moldImageUrl}
-          existingCQ={moldTabs[0].existingCQ}
-        />
-        </>
-      ) : (
-        <Tabs defaultValue={moldTabs[0].sheetId}>
-          <TabsList className="mb-4">
-            {moldTabs.map((tab: { sheetId: string; moldNumber: string | null }, i: number) => (
-              <TabsTrigger key={tab.sheetId} value={tab.sheetId}>
-                {tab.moldNumber ?? `Mold ${i + 1}`}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {moldTabs.map((tab: any) => (
-            <TabsContent key={tab.sheetId} value={tab.sheetId}>
-              {tab.basedOnDdpVersion && (
-                <StaleCheck
-                  upstreamTable="natsuki_ddp_calculations"
-                  upstreamFilters={{ cost_sheet_id: tab.sheetId }}
-                  basedOnVersion={tab.basedOnDdpVersion}
-                  upstreamName={`DDP Calculation (${tab.moldNumber})`}
-                />
-              )}
-              <CustomerQuoteForm
-                locale={locale}
-                quoteId={id}
-                costSheetId={tab.sheetId}
-                moldNumber={tab.moldNumber ?? undefined}
-                defaultQuoteNumber={tab.defaultQuoteNumber}
-                woNumber={wo?.wo_number ?? ""}
-                companyName={wo?.company_name ?? ""}
-                companyId={wo?.company_id ?? null}
-                contacts={contacts}
-                projectName={wo?.project_name ?? ""}
-                sizeNote={tab.sizeNote}
-                ddpCalcs={tab.ddpCalcs}
-                moldType={tab.moldType}
-                moldCostNew={tab.moldCostNew}
-                moldLeadTimeDays={tab.moldLeadTimeDays}
-                defaultMaterial={tab.defaultMaterial}
-                defaultThickness={tab.defaultThickness}
-                defaultPrintingLines={tab.defaultPrintingLines}
-                defaultPacking={tab.defaultPacking}
-                fxRateFromDDP={tab.fxRateFromDDP}
-                quoteImages={quoteImages}
-                moldImageUrl={tab.moldImageUrl}
-                existingCQ={tab.existingCQ}
-              />
-            </TabsContent>
-          ))}
-        </Tabs>
-      )}
+      <CustomerQuoteWrapper
+        tabs={moldTabs.map((t: { sheetId: string; moldNumber: string | null; hasSaved: boolean; cqVersion?: number; basedOnDdpVersion?: number }) => ({
+          sheetId: t.sheetId,
+          moldNumber: t.moldNumber,
+          hasSaved: t.hasSaved,
+          cqVersion: t.cqVersion,
+          basedOnDdpVersion: t.basedOnDdpVersion,
+        }))}
+      >
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {(activeSheetId: string) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const tab = moldTabs.find((t: any) => t.sheetId === activeSheetId) ?? moldTabs[0];
+          return (
+            <CustomerQuoteForm
+              key={tab.sheetId}
+              locale={locale}
+              quoteId={id}
+              costSheetId={tab.sheetId}
+              moldNumber={tab.moldNumber ?? undefined}
+              defaultQuoteNumber={tab.defaultQuoteNumber}
+              woNumber={wo?.wo_number ?? ""}
+              companyName={wo?.company_name ?? ""}
+              companyId={wo?.company_id ?? null}
+              contacts={contacts}
+              projectName={wo?.project_name ?? ""}
+              sizeNote={tab.sizeNote}
+              ddpCalcs={tab.ddpCalcs}
+              moldType={tab.moldType}
+              moldCostNew={tab.moldCostNew}
+              moldLeadTimeDays={tab.moldLeadTimeDays}
+              defaultMaterial={tab.defaultMaterial}
+              defaultThickness={tab.defaultThickness}
+              defaultPrintingLines={tab.defaultPrintingLines}
+              defaultPacking={tab.defaultPacking}
+              fxRateFromDDP={tab.fxRateFromDDP}
+              quoteImages={quoteImages}
+              moldImageUrl={tab.moldImageUrl}
+              existingCQ={tab.existingCQ}
+            />
+          );
+        }}
+      </CustomerQuoteWrapper>
     </div>
   );
 }
