@@ -7,6 +7,7 @@ import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 import DDPCalcForm from "@/components/calculator/DDPCalcForm";
 import StaleCheck from "@/components/ui/stale-check";
 import DDPSidebarReference, { type DDPSidebarData } from "@/components/calculator/DDPSidebarReference";
+import VersionHistory from "@/components/ui/version-history";
 
 interface SheetData {
   id: string;
@@ -142,11 +143,25 @@ export default function DDPCalcWrapper({
           );
         })}
 
-        {/* Counter */}
-        <div className="flex items-center ml-1">
+        {/* Counter + History */}
+        <div className="flex items-center gap-2 ml-1">
           <span className="text-xs text-muted-foreground">
             {savedSheets.size}/{initialSheets.length} saved
           </span>
+          {active && (
+            <VersionHistory
+              entityType="natsuki_ddp_calculation"
+              queryParams={{ cost_sheet_id: active.id }}
+              displayFields={[
+                { key: "quantity", label: "Qty" },
+                { key: "rmb_unit_price", label: "RMB/pc", formatHint: "currency" },
+                { key: "unit_price_jpy", label: "JPY/pc", formatHint: "currency" },
+                { key: "total_revenue_jpy", label: "Revenue", formatHint: "currency" },
+                { key: "selected_margin", label: "Margin", formatHint: "percent" },
+              ]}
+              groupByField="tier_label"
+            />
+          )}
         </div>
       </div>
 

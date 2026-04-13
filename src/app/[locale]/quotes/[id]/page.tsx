@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, CheckCircle2, Circle, Clock, ChevronRight, AlertCircle, Paperclip } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+import AuditTrail from "@/components/quotes/AuditTrail";
 
 type QuoteStatus =
   | "draft"
@@ -148,9 +149,12 @@ export default async function QuoteDetailPage({
               </>
             )}
           </div>
-          <Badge variant={STATUS_VARIANT[currentStatus]}>
-            {t(`statuses.${currentStatus}`)}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <AuditTrail quotationId={id} />
+            <Badge variant={STATUS_VARIANT[currentStatus]}>
+              {t(`statuses.${currentStatus}`)}
+            </Badge>
+          </div>
         </div>
       </div>
 

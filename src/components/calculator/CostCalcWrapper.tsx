@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, Circle } from "lucide-react";
 import WilfredCalcForm from "@/components/calculator/WilfredCalcForm";
+import VersionHistory from "@/components/ui/version-history";
 import type { FactorySheetRefData } from "@/components/calculator/FactorySheetReference";
 
 interface FeesData {
@@ -85,6 +86,25 @@ export default function CostCalcWrapper({
               </button>
             );
           })}
+
+          {/* History button for active mould */}
+          {active && (
+            <div className="flex items-center">
+              <VersionHistory
+                entityType="wilfred_calculation"
+                queryParams={{ cost_sheet_id: active.id }}
+                displayFields={[
+                  { key: "total_subtotal", label: "Total", formatHint: "currency" },
+                  { key: "labor_cost", label: "Labor", formatHint: "currency" },
+                  { key: "accessories_cost", label: "Acc", formatHint: "currency" },
+                  { key: "margin_rate", label: "Margin", formatHint: "percent" },
+                  { key: "estimated_cost_rmb", label: "Est. Cost", formatHint: "currency" },
+                  { key: "approved", label: "Approved" },
+                ]}
+                groupByField="tier_label"
+              />
+            </div>
+          )}
         </div>
       )}
 

@@ -131,7 +131,7 @@ export default async function FactorySheetListPage({
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {sheet.version > 1 && sheet.sheet_group_id && (
+                {sheet.sheet_group_id && (
                   <VersionHistory
                     entityType="factory_cost_sheet"
                     queryParams={{ group_id: sheet.sheet_group_id }}
