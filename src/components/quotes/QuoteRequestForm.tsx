@@ -27,6 +27,7 @@ interface LineItem {
   thickness: string;
   design_count: string;
   variant_label: string;
+  notes: string;
   printing_lines: PrintingLine[];
   embossing_lines: EmbossingLine[];
   expanded: boolean;
@@ -82,6 +83,7 @@ function makeLineItem(partial?: Partial<LineItem>): LineItem {
     thickness: "",
     design_count: "1",
     variant_label: "",
+    notes: "",
     printing_lines: [{ surface: "outside", part: "", spec: "" }],
     embossing_lines: [],
     expanded: true,
@@ -366,6 +368,7 @@ export default function QuoteRequestForm({
         thickness: li.thickness.trim() || null,
         design_count: parseInt(li.design_count) || 1,
         variant_label: li.variant_label.trim() || null,
+        notes: li.notes.trim() || null,
         printing_lines: li.printing_lines.filter((ln) => ln.spec || ln.part),
         embossing_lines: li.embossing_lines.filter((ln) => ln.component),
       })),
@@ -632,6 +635,13 @@ export default function QuoteRequestForm({
                         </div>
                       ))
                     )}
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Notes</Label>
+                    <Input className="h-7 text-xs" placeholder="Notes for this line item e.g. special finish, customer preference..."
+                      value={item.notes} onChange={(e) => updateItem(item.id, { notes: e.target.value })} />
                   </div>
                 </CardContent>
               )}

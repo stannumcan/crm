@@ -26,7 +26,7 @@ export default async function FactorySheetListPage({
       printing_lid, printing_body, printing_bottom, printing_inner, printing_notes,
       embossment, embossment_components, embossment_notes,
       work_orders(wo_number, company_name, project_name),
-      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, version, is_current, sheet_group_id, created_at),
+      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, printing_lines, embossing_lines, version, is_current, sheet_group_id, created_at),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order)
     `)
     .eq("id", id)
@@ -37,7 +37,7 @@ export default async function FactorySheetListPage({
   const wo = quote.work_orders as { wo_number: string; company_name: string; project_name: string } | null;
   let sheets = ((Array.isArray(quote.factory_cost_sheets)
     ? quote.factory_cost_sheets
-    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; version: number; is_current: boolean; sheet_group_id: string | null; created_at: string }[])
+    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; printing_lines: { surface: string; part: string; spec: string }[] | null; embossing_lines: { component: string }[] | null; version: number; is_current: boolean; sheet_group_id: string | null; created_at: string }[])
     .filter((s) => s.is_current !== false);
 
   // ── Auto-create one sheet per mold if none exist ────────────────
@@ -123,20 +123,40 @@ export default async function FactorySheetListPage({
                 <span className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-50 text-blue-700 text-sm font-bold border border-blue-200">
                   {i + 1}
                 </span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-mono font-medium text-gray-900">{sheet.mold_number ?? "No mold number"}</p>
-                    {(() => {
-                      const lineItem = molds.find((m: { value?: string }) => m.value === sheet.mold_number);
-                      return lineItem?.variant_label ? <Badge variant="secondary" className="text-[10px]">{lineItem.variant_label}</Badge> : null;
-                    })()}
-                    <Badge variant="outline" className="text-[10px] text-muted-foreground">v{sheet.version ?? 1}</Badge>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    {sheet.product_dimensions && <span>{sheet.product_dimensions} · </span>}
-                    {sheet.sheet_date ? new Date(sheet.sheet_date).toLocaleDateString() : "No date"}
-                  </p>
-                </div>
+                {(() => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const lineItem = molds.find((m: any) => m.value === sheet.mold_number) as any;
+                  const printingSummary = (sheet.printing_lines ?? [])
+                    .filter((ln) => ln.spec)
+                    .map((ln) => `${ln.part || ln.surface}: ${ln.spec}`)
+                    .join(", ");
+                  const embossingSummary = (sheet.embossing_lines ?? [])
+                    .filter((ln) => ln.component)
+                    .map((ln) => ln.component)
+                    .join(", ");
+                  return (
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-mono font-medium text-gray-900">{sheet.mold_number ?? "No mold number"}</p>
+                        {lineItem?.variant_label && <Badge variant="secondary" className="text-[10px]">{lineItem.variant_label}</Badge>}
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">v{sheet.version ?? 1}</Badge>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {sheet.product_dimensions && <span>{sheet.product_dimensions} · </span>}
+                        {sheet.sheet_date ? new Date(sheet.sheet_date).toLocaleDateString() : "No date"}
+                      </p>
+                      {printingSummary && (
+                        <p className="text-xs text-muted-foreground mt-0.5">Printing: {printingSummary}</p>
+                      )}
+                      {embossingSummary && (
+                        <p className="text-xs text-muted-foreground">Embossing: {embossingSummary}</p>
+                      )}
+                      {lineItem?.notes && (
+                        <p className="text-xs text-amber-700 mt-0.5">{lineItem.notes}</p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-1">
                 {sheet.sheet_group_id && (
