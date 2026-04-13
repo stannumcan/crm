@@ -54,15 +54,6 @@ export async function POST(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Update quotation status to sent
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
-    .from("quotations")
-    .update({ status: "sent" })
-    .eq("id", quotation_id);
-
-  await notifyWorkflowStep(quotation_id, "sent");
-
   return NextResponse.json(data, { status: 201 });
 }
 

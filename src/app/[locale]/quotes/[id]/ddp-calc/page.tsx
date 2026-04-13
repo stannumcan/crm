@@ -2,10 +2,9 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import DDPCalcForm from "@/components/calculator/DDPCalcForm";
+import DDPCalcWrapper from "@/components/calculator/DDPCalcWrapper";
 
 export default async function DDPCalcPage({
   params,
@@ -192,42 +191,15 @@ export default async function DDPCalcPage({
         </div>
       </div>
 
-      {typedSheets.length === 1 ? (
-        <DDPCalcForm
-          locale={locale}
-          quoteId={id}
-          costSheetId={typedSheets[0].id}
-          quoteInfo={typedSheets[0].quoteInfo}
-          packagingDefaults={typedSheets[0].packagingDefaults}
-          approvedCalcs={typedSheets[0].approvedCalcs}
-          existingDDP={typedSheets[0].existingDDP}
-          shippingRates={shippingRates}
-        />
-      ) : (
-        <Tabs defaultValue={typedSheets[0].id}>
-          <TabsList className="mb-4">
-            {typedSheets.map((sheet, i) => (
-              <TabsTrigger key={sheet.id} value={sheet.id}>
-                {sheet.moldNumber ?? `Mold ${i + 1}`}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          {typedSheets.map((sheet) => (
-            <TabsContent key={sheet.id} value={sheet.id}>
-              <DDPCalcForm
-                locale={locale}
-                quoteId={id}
-                costSheetId={sheet.id}
-                quoteInfo={sheet.quoteInfo}
-                packagingDefaults={sheet.packagingDefaults}
-                approvedCalcs={sheet.approvedCalcs}
-                existingDDP={sheet.existingDDP}
-                shippingRates={shippingRates}
-              />
-            </TabsContent>
-          ))}
-        </Tabs>
-      )}
+      <DDPCalcWrapper
+        locale={locale}
+        quoteId={id}
+        sheets={typedSheets.map((s) => ({
+          ...s,
+          hasSaved: s.existingDDP.length > 0,
+        }))}
+        shippingRates={shippingRates}
+      />
     </div>
   );
 }

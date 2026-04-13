@@ -134,6 +134,7 @@ export default function DDPCalcForm({
   approvedCalcs,
   existingDDP,
   shippingRates: defaultSettings,
+  onSaved,
 }: {
   locale: string;
   quoteId: string;
@@ -143,6 +144,7 @@ export default function DDPCalcForm({
   approvedCalcs: ApprovedCalc[];
   existingDDP: Record<string, unknown>[];
   shippingRates: DDPSettings;
+  onSaved?: () => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -279,7 +281,8 @@ export default function DDPCalcForm({
         }),
       ]);
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed to save");
-      router.push(`/${locale}/quotes/${quoteId}`);
+      setLoading(false);
+      if (onSaved) onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setLoading(false);
@@ -636,11 +639,8 @@ export default function DDPCalcForm({
       )}
 
       <div className="flex gap-3 justify-end">
-        <Button type="button" variant="outline" onClick={() => router.push(`/${locale}/quotes/${quoteId}`)}>
-          Cancel
-        </Button>
         <Button type="button" onClick={handleSubmit} disabled={loading}>
-          {loading ? "Saving..." : "Save DDP & Mark as Sent"}
+          {loading ? "Saving..." : existingDDP.length > 0 ? "Update Calculation" : "Save Calculation"}
         </Button>
       </div>
     </div>
