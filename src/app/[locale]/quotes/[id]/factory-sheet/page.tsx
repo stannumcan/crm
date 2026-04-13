@@ -138,9 +138,9 @@ export default async function FactorySheetListPage({
                     displayFields={[
                       { key: "mold_number", label: "Mold #" },
                       { key: "product_dimensions", label: "Dimensions" },
-                      { key: "steel_thickness", label: "Thickness", format: (v) => v ? `${v}mm` : "—" },
-                      { key: "mold_cost_new", label: "Mold Cost (new)", format: (v) => v ? `¥${Number(v).toLocaleString()}` : "—" },
-                      { key: "mold_cost_modify", label: "Mold Cost (adj)", format: (v) => v ? `¥${Number(v).toLocaleString()}` : "—" },
+                      { key: "steel_thickness", label: "Thickness" },
+                      { key: "mold_cost_new", label: "Mold Cost (new)" },
+                      { key: "mold_cost_modify", label: "Mold Cost (adj)" },
                     ]}
                   />
                 )}

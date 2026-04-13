@@ -31,8 +31,8 @@ interface Props {
   entityType: string;
   /** For factory sheets, pass sheet_group_id. For others, pass cost_sheet_id or quotation_id */
   queryParams: Record<string, string>;
-  /** Fields to show in the comparison table */
-  displayFields: { key: string; label: string; format?: (val: unknown) => string }[];
+  /** Fields to show in the comparison table. Format functions are NOT supported (server/client boundary). Use formatHint instead. */
+  displayFields: { key: string; label: string; formatHint?: "currency" | "percent" | "mm" }[];
   /** Fields that identify a tier row (for multi-row entities) */
   groupByField?: string;
 }
@@ -50,8 +50,11 @@ const ACTION_COLORS: Record<string, string> = {
   superseded: "text-muted-foreground",
 };
 
-function defaultFormat(val: unknown): string {
+function formatValue(val: unknown, hint?: "currency" | "percent" | "mm"): string {
   if (val === null || val === undefined) return "—";
+  if (hint === "currency") return `¥${Number(val).toLocaleString()}`;
+  if (hint === "percent") return `${(Number(val) * 100).toFixed(0)}%`;
+  if (hint === "mm") return `${val}mm`;
   if (typeof val === "number") return val.toLocaleString();
   if (typeof val === "boolean") return val ? "Yes" : "No";
   if (typeof val === "object") return JSON.stringify(val);
@@ -133,8 +136,8 @@ export default function VersionHistory({ entityType, queryParams, displayFields,
                   </thead>
                   <tbody>
                     {displayFields.map((f) => {
-                      const val1 = r1 ? (f.format ?? defaultFormat)(r1[f.key]) : "—";
-                      const val2 = r2 ? (f.format ?? defaultFormat)(r2[f.key]) : "—";
+                      const val1 = r1 ? (v: unknown) => formatValue(v, f.formatHint)(r1[f.key]) : "—";
+                      const val2 = r2 ? (v: unknown) => formatValue(v, f.formatHint)(r2[f.key]) : "—";
                       const changed = val1 !== val2;
                       return (
                         <tr key={f.key} className={changed ? "bg-amber-50" : ""}>
@@ -169,8 +172,8 @@ export default function VersionHistory({ entityType, queryParams, displayFields,
           </thead>
           <tbody>
             {displayFields.map((f) => {
-              const val1 = r1 ? (f.format ?? defaultFormat)(r1[f.key]) : "—";
-              const val2 = r2 ? (f.format ?? defaultFormat)(r2[f.key]) : "—";
+              const val1 = r1 ? (v: unknown) => formatValue(v, f.formatHint)(r1[f.key]) : "—";
+              const val2 = r2 ? (v: unknown) => formatValue(v, f.formatHint)(r2[f.key]) : "—";
               const changed = val1 !== val2;
               return (
                 <tr key={f.key} className={changed ? "bg-amber-50" : ""}>
@@ -294,7 +297,7 @@ export default function VersionHistory({ entityType, queryParams, displayFields,
                               {displayFields.map((f) => (
                                 <div key={f.key}>
                                   <span className="text-muted-foreground">{f.label}: </span>
-                                  <span className="font-mono">{(f.format ?? defaultFormat)(row[f.key])}</span>
+                                  <span className="font-mono">{(v: unknown) => formatValue(v, f.formatHint)(row[f.key])}</span>
                                 </div>
                               ))}
                             </div>
@@ -306,7 +309,7 @@ export default function VersionHistory({ entityType, queryParams, displayFields,
                                   {displayFields.map((f) => (
                                     <span key={f.key} className="mr-3">
                                       <span className="text-muted-foreground">{f.label}: </span>
-                                      <span className="font-mono">{(f.format ?? defaultFormat)(r[f.key])}</span>
+                                      <span className="font-mono">{(v: unknown) => formatValue(v, f.formatHint)(r[f.key])}</span>
                                     </span>
                                   ))}
                                 </div>

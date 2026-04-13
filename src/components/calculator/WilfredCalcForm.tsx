@@ -249,11 +249,11 @@ export default function WilfredCalcForm({
             entityType="wilfred_calculation"
             queryParams={{ cost_sheet_id: costSheetId }}
             displayFields={[
-              { key: "total_subtotal", label: "Total", format: (v) => v != null ? `¥${Number(v).toFixed(4)}` : "—" },
-              { key: "labor_cost", label: "Labor", format: (v) => v != null ? `¥${Number(v).toFixed(4)}` : "—" },
-              { key: "accessories_cost", label: "Acc", format: (v) => v != null ? `¥${Number(v).toFixed(4)}` : "—" },
-              { key: "margin_rate", label: "Margin", format: (v) => v != null ? `${(Number(v) * 100).toFixed(0)}%` : "—" },
-              { key: "estimated_cost_rmb", label: "Est. Cost", format: (v) => v != null ? `¥${Number(v).toFixed(4)}` : "—" },
+              { key: "total_subtotal", label: "Total", formatHint: "currency" },
+              { key: "labor_cost", label: "Labor", formatHint: "currency" },
+              { key: "accessories_cost", label: "Acc", formatHint: "currency" },
+              { key: "margin_rate", label: "Margin", formatHint: "percent" },
+              { key: "estimated_cost_rmb", label: "Est. Cost", formatHint: "currency" },
               { key: "approved", label: "Approved" },
             ]}
             groupByField="tier_label"
