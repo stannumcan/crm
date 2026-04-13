@@ -68,6 +68,7 @@ export default async function CostCalcPage({
     printing_lines: { surface: string; part: string; spec: string }[] | null;
     embossing_lines: { component: string; cost_rmb: string; notes: string }[] | null;
     packaging_lines: { type: string; config: string; l: number; w: number; h: number; cbm: number; tins: number }[] | null;
+    attachments: { name: string; url: string }[] | null;
     wilfred_embossing_cost: number | null;
     wilfred_mold_cost_new: number | null;
     wilfred_mold_cost_adjust: number | null;
@@ -113,7 +114,7 @@ export default async function CostCalcPage({
   // Build factory sheet reference data for each sheet
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
-  const sheetRefs: Record<string, { moldNumber: string | null; productDimensions: string | null; steelThickness: number | null; version: number; moldCostNew: number | null; moldCostModify: number | null; moldLeadTimeDays: number | null; moldImageUrl: string | null; printingLines: unknown; embossingLines: unknown; packagingLines: unknown; tierCosts: unknown[] }> = {};
+  const sheetRefs: Record<string, { moldNumber: string | null; productDimensions: string | null; steelThickness: number | null; version: number; moldCostNew: number | null; moldCostModify: number | null; moldLeadTimeDays: number | null; moldImageUrl: string | null; printingLines: unknown; embossingLines: unknown; packagingLines: unknown; tierCosts: unknown[]; attachments: { name: string; url: string }[] | null }> = {};
   for (const sheet of sheets) {
     let moldImageUrl = sheet.mold_image_url;
     if (!moldImageUrl && sheet.mold_number) {
