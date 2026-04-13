@@ -184,6 +184,7 @@ export default async function CustomerQuotePage({
         wilfredTiers: wilfredCalcs.map((c: { tier_label: string; quantity: number; estimated_cost_rmb: number | null }) => ({
           tier_label: c.tier_label, quantity: c.quantity, estimated_cost_rmb: c.estimated_cost_rmb,
         })),
+        fxRate: fxRateFromDDP,
         moldCostNew,
         moldCostAdjust,
         embossingCost,

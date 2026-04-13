@@ -36,6 +36,7 @@ export interface CustomerQuoteSidebarData {
   packagingLines: PackagingLine[] | null;
   // Cost calc
   wilfredTiers: { tier_label: string; quantity: number; estimated_cost_rmb: number | null }[];
+  fxRate: number | null;
   moldCostNew: number | null;
   moldCostAdjust: number | null;
   embossingCost: number | null;
@@ -57,7 +58,7 @@ export default function CustomerQuoteSidebar({ data }: { data: CustomerQuoteSide
   const {
     moldNumber, productDimensions, steelThickness, moldImageUrl,
     printingLines, packagingLines,
-    wilfredTiers, moldCostNew, moldCostAdjust, embossingCost, moldLeadTimeDays,
+    wilfredTiers, fxRate, moldCostNew, moldCostAdjust, embossingCost, moldLeadTimeDays,
     ddpTiers,
   } = data;
 
@@ -124,10 +125,11 @@ export default function CustomerQuoteSidebar({ data }: { data: CustomerQuoteSide
 
       <Section title="Approved Costs">
         <div className="text-xs space-y-0.5">
-          {moldCostNew != null && <div><span className="text-muted-foreground">New Mold: </span><strong>{fmtRmb(moldCostNew)}</strong></div>}
-          {moldCostAdjust != null && <div><span className="text-muted-foreground">Adjust: </span><strong>{fmtRmb(moldCostAdjust)}</strong></div>}
-          {embossingCost != null && <div><span className="text-muted-foreground">Embossing: </span><strong>{fmtRmb(embossingCost)}</strong></div>}
+          {moldCostNew != null && <div><span className="text-muted-foreground">New Mold: </span><strong>{fmtRmb(moldCostNew)}</strong>{fxRate ? <span className="text-muted-foreground"> ({fmtJpy(Number(moldCostNew) * fxRate)})</span> : null}</div>}
+          {moldCostAdjust != null && <div><span className="text-muted-foreground">Adjust: </span><strong>{fmtRmb(moldCostAdjust)}</strong>{fxRate ? <span className="text-muted-foreground"> ({fmtJpy(Number(moldCostAdjust) * fxRate)})</span> : null}</div>}
+          {embossingCost != null && <div><span className="text-muted-foreground">Embossing: </span><strong>{fmtRmb(embossingCost)}</strong>{fxRate ? <span className="text-muted-foreground"> ({fmtJpy(Number(embossingCost) * fxRate)})</span> : null}</div>}
           {moldLeadTimeDays != null && <div><span className="text-muted-foreground">Lead: </span><strong>{moldLeadTimeDays} days</strong></div>}
+          {fxRate && <div className="text-muted-foreground mt-1">FX: 1 RMB = {fxRate} JPY</div>}
         </div>
       </Section>
 
@@ -135,9 +137,16 @@ export default function CustomerQuoteSidebar({ data }: { data: CustomerQuoteSide
         <Section title="Cost per Tier (RMB)">
           <div className="text-xs space-y-1">
             {wilfredTiers.map((t) => (
-              <div key={t.tier_label} className="flex items-center justify-between rounded bg-muted/40 px-2 py-1">
-                <span>{t.quantity?.toLocaleString()} pcs</span>
-                <span className="font-mono font-semibold">{fmtRmbUnit(t.estimated_cost_rmb)}/pc</span>
+              <div key={t.tier_label} className="rounded bg-muted/40 px-2 py-1">
+                <div className="flex items-center justify-between">
+                  <span>{t.quantity?.toLocaleString()} pcs</span>
+                  <span className="font-mono font-semibold">{fmtRmbUnit(t.estimated_cost_rmb)}/pc</span>
+                </div>
+                {fxRate && t.estimated_cost_rmb != null && (
+                  <div className="text-right text-[10px] text-muted-foreground">
+                    {fmtJpy(Number(t.estimated_cost_rmb) * fxRate)}/pc JPY
+                  </div>
+                )}
               </div>
             ))}
           </div>
