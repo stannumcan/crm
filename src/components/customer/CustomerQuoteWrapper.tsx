@@ -15,10 +15,11 @@ interface MoldTab {
 
 interface Props {
   tabs: MoldTab[];
-  children: (activeSheetId: string) => React.ReactNode;
+  /** Pre-rendered forms keyed by sheetId */
+  forms: Record<string, React.ReactNode>;
 }
 
-export default function CustomerQuoteWrapper({ tabs, children }: Props) {
+export default function CustomerQuoteWrapper({ tabs, forms }: Props) {
   const [activeSheet, setActiveSheet] = useState(tabs[0]?.sheetId ?? "");
   const active = tabs.find((t) => t.sheetId === activeSheet) ?? tabs[0];
 
@@ -94,8 +95,8 @@ export default function CustomerQuoteWrapper({ tabs, children }: Props) {
         />
       )}
 
-      {/* Active mould form (rendered by parent) */}
-      {active && children(active.sheetId)}
+      {/* Active mould form */}
+      {active && forms[active.sheetId]}
     </div>
   );
 }

@@ -210,12 +210,10 @@ export default async function CustomerQuotePage({
           cqVersion: t.cqVersion,
           basedOnDdpVersion: t.basedOnDdpVersion,
         }))}
-      >
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {(activeSheetId: string) => {
+        forms={Object.fromEntries(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const tab = moldTabs.find((t: any) => t.sheetId === activeSheetId) ?? moldTabs[0];
-          return (
+          moldTabs.map((tab: any) => [
+            tab.sheetId,
             <CustomerQuoteForm
               key={tab.sheetId}
               locale={locale}
@@ -241,10 +239,10 @@ export default async function CustomerQuotePage({
               quoteImages={quoteImages}
               moldImageUrl={tab.moldImageUrl}
               existingCQ={tab.existingCQ}
-            />
-          );
-        }}
-      </CustomerQuoteWrapper>
+            />,
+          ])
+        )}
+      />
     </div>
   );
 }
