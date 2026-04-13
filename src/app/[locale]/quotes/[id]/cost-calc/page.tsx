@@ -37,6 +37,7 @@ export default async function CostCalcPage({
         printing_lines,
         embossing_lines,
         packaging_lines,
+        attachments,
         wilfred_embossing_cost,
         wilfred_mold_cost_new,
         wilfred_mold_cost_adjust,
@@ -132,6 +133,7 @@ export default async function CostCalcPage({
       embossingLines: sheet.embossing_lines,
       packagingLines: sheet.packaging_lines,
       tierCosts: sheet.factory_cost_tiers ?? [],
+      attachments: Array.isArray(sheet.attachments) ? sheet.attachments : null,
     };
   }
 

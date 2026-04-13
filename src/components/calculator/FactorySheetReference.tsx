@@ -1,6 +1,6 @@
 "use client";
 
-import { Factory } from "lucide-react";
+import { Factory, Paperclip } from "lucide-react";
 
 interface PrintingLine { surface: string; part: string; spec: string }
 interface EmbossingLine { component: string; cost_rmb: string; notes: string }
@@ -35,6 +35,7 @@ export interface FactorySheetRefData {
   embossingLines: EmbossingLine[] | null;
   packagingLines: PackagingLine[] | null;
   tierCosts: TierCost[];
+  attachments: { name: string; url: string }[] | null;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -50,7 +51,7 @@ export default function FactorySheetReference({ data }: { data: FactorySheetRefD
   const {
     moldNumber, productDimensions, steelThickness, version,
     moldCostNew, moldCostModify, moldLeadTimeDays, moldImageUrl,
-    printingLines, embossingLines, packagingLines, tierCosts,
+    printingLines, embossingLines, packagingLines, tierCosts, attachments,
   } = data;
 
   return (
@@ -152,6 +153,26 @@ export default function FactorySheetReference({ data }: { data: FactorySheetRefD
                   <span>Acc: <span className="text-foreground font-mono">{fmtRmbUnit(t.accessories_cost)}</span></span>
                 </div>
               </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* Attachments */}
+      {attachments && attachments.length > 0 && (
+        <Section title="Attachments">
+          <div className="text-xs space-y-1">
+            {attachments.map((att, i) => (
+              <a
+                key={i}
+                href={att.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-muted/60 transition-colors text-blue-700 hover:text-blue-900"
+              >
+                <Paperclip className="h-3 w-3 shrink-0" />
+                <span className="truncate">{att.name}</span>
+              </a>
             ))}
           </div>
         </Section>
