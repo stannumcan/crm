@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, FileText, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import VersionHistory from "@/components/ui/version-history";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 
@@ -25,7 +26,7 @@ export default async function FactorySheetListPage({
       printing_lid, printing_body, printing_bottom, printing_inner, printing_notes,
       embossment, embossment_components, embossment_notes,
       work_orders(wo_number, company_name, project_name),
-      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, version, is_current, created_at),
+      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, version, is_current, sheet_group_id, created_at),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order)
     `)
     .eq("id", id)
@@ -36,7 +37,7 @@ export default async function FactorySheetListPage({
   const wo = quote.work_orders as { wo_number: string; company_name: string; project_name: string } | null;
   let sheets = ((Array.isArray(quote.factory_cost_sheets)
     ? quote.factory_cost_sheets
-    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; version: number; is_current: boolean; created_at: string }[])
+    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; version: number; is_current: boolean; sheet_group_id: string | null; created_at: string }[])
     .filter((s) => s.is_current !== false);
 
   // ── Auto-create one sheet per mold if none exist ────────────────
@@ -129,12 +130,27 @@ export default async function FactorySheetListPage({
                   </p>
                 </div>
               </div>
-              <Link href={`/${locale}/quotes/${id}/factory-sheet/${sheet.id}`}>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
-                </Button>
-              </Link>
+              <div className="flex items-center gap-1">
+                {sheet.version > 1 && sheet.sheet_group_id && (
+                  <VersionHistory
+                    entityType="factory_cost_sheet"
+                    queryParams={{ group_id: sheet.sheet_group_id }}
+                    displayFields={[
+                      { key: "mold_number", label: "Mold #" },
+                      { key: "product_dimensions", label: "Dimensions" },
+                      { key: "steel_thickness", label: "Thickness", format: (v) => v ? `${v}mm` : "—" },
+                      { key: "mold_cost_new", label: "Mold Cost (new)", format: (v) => v ? `¥${Number(v).toLocaleString()}` : "—" },
+                      { key: "mold_cost_modify", label: "Mold Cost (adj)", format: (v) => v ? `¥${Number(v).toLocaleString()}` : "—" },
+                    ]}
+                  />
+                )}
+                <Link href={`/${locale}/quotes/${id}/factory-sheet/${sheet.id}`}>
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                </Link>
+              </div>
             </div>
           ))
         )}

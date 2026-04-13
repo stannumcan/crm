@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import CustomerQuoteForm from "@/components/customer/CustomerQuoteForm";
+import StaleCheck from "@/components/ui/stale-check";
 
 export default async function CustomerQuotePage({
   params,
@@ -145,6 +146,7 @@ export default async function CustomerQuotePage({
       sheetId: sheet.id,
       moldNumber,
       defaultQuoteNumber,
+      basedOnDdpVersion: existingCQ?.based_on_ddp_version ?? null,
       sizeNote,
       ddpCalcs,
       moldType: (quote.mold_type as string) ?? "existing",
@@ -200,6 +202,15 @@ export default async function CustomerQuotePage({
       </div>
 
       {moldTabs.length === 1 ? (
+        <>
+        {moldTabs[0].basedOnDdpVersion && (
+          <StaleCheck
+            upstreamTable="natsuki_ddp_calculations"
+            upstreamFilters={{ cost_sheet_id: moldTabs[0].sheetId }}
+            basedOnVersion={moldTabs[0].basedOnDdpVersion}
+            upstreamName="DDP Calculation"
+          />
+        )}
         <CustomerQuoteForm
           locale={locale}
           quoteId={id}
@@ -225,6 +236,7 @@ export default async function CustomerQuotePage({
           moldImageUrl={moldTabs[0].moldImageUrl}
           existingCQ={moldTabs[0].existingCQ}
         />
+        </>
       ) : (
         <Tabs defaultValue={moldTabs[0].sheetId}>
           <TabsList className="mb-4">
@@ -237,6 +249,14 @@ export default async function CustomerQuotePage({
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {moldTabs.map((tab: any) => (
             <TabsContent key={tab.sheetId} value={tab.sheetId}>
+              {tab.basedOnDdpVersion && (
+                <StaleCheck
+                  upstreamTable="natsuki_ddp_calculations"
+                  upstreamFilters={{ cost_sheet_id: tab.sheetId }}
+                  basedOnVersion={tab.basedOnDdpVersion}
+                  upstreamName={`DDP Calculation (${tab.moldNumber})`}
+                />
+              )}
               <CustomerQuoteForm
                 locale={locale}
                 quoteId={id}

@@ -148,6 +148,9 @@ export default async function CostCalcPage({
           costSheetId={sheets[0].id}
           factoryTiers={sheets[0].factory_cost_tiers ?? []}
           existingCalcs={sheets[0].wilfred_calculations ?? []}
+          sheetVersion={sheets[0].version}
+          wilfredVersion={(sheets[0].wilfred_calculations as { version?: number }[])?.[0]?.version}
+          basedOnSheetVersion={(sheets[0].wilfred_calculations as { based_on_sheet_version?: number }[])?.[0]?.based_on_sheet_version}
           fees={{
             moldCostNew: sheets[0].mold_cost_new,
             moldCostAdjust: sheets[0].mold_cost_modify,
@@ -177,6 +180,9 @@ export default async function CostCalcPage({
                 costSheetId={sheet.id}
                 factoryTiers={sheet.factory_cost_tiers ?? []}
                 existingCalcs={sheet.wilfred_calculations ?? []}
+                sheetVersion={sheet.version}
+                wilfredVersion={(sheet.wilfred_calculations as { version?: number }[])?.[0]?.version}
+                basedOnSheetVersion={(sheet.wilfred_calculations as { based_on_sheet_version?: number }[])?.[0]?.based_on_sheet_version}
                 fees={{
                   moldCostNew: sheet.mold_cost_new,
                   moldCostAdjust: sheet.mold_cost_modify,

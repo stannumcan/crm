@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import DDPCalcForm from "@/components/calculator/DDPCalcForm";
+import StaleCheck from "@/components/ui/stale-check";
+import VersionHistory from "@/components/ui/version-history";
 
 interface SheetData {
   id: string;
@@ -25,6 +27,8 @@ interface SheetData {
   approvedCalcs: { tier_label: string; quantity: number; estimated_cost_rmb: number | null; approved: boolean; quantity_type: string }[];
   existingDDP: Record<string, unknown>[];
   hasSaved: boolean;
+  basedOnSheetVersion?: number;
+  basedOnWilfredVersion?: number;
 }
 
 interface DDPSettings {
@@ -101,6 +105,17 @@ export default function DDPCalcWrapper({
           {savedSheets.size}/{initialSheets.length} saved
         </span>
       </div>
+
+      {/* Stale checks + history */}
+      {initialSheets.map((s) => s.basedOnWilfredVersion ? (
+        <StaleCheck
+          key={`stale-${s.id}`}
+          upstreamTable="wilfred_calculations"
+          upstreamFilters={{ cost_sheet_id: s.id }}
+          basedOnVersion={s.basedOnWilfredVersion}
+          upstreamName={`Wilfred Calc (${s.moldNumber})`}
+        />
+      ) : null)}
 
       {/* Mold tabs */}
       {initialSheets.length === 1 ? (

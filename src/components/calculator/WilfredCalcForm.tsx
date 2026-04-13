@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Pencil } from "lucide-react";
 import { calculateWilfredCost, formatRMB } from "@/lib/calculations";
+import { StaleWarning, VersionBadge } from "@/components/ui/version-badge";
+import VersionHistory from "@/components/ui/version-history";
 
 interface FactoryTier {
   id: string;
@@ -95,6 +97,9 @@ export default function WilfredCalcForm({
   factoryTiers,
   existingCalcs,
   fees,
+  sheetVersion,
+  wilfredVersion,
+  basedOnSheetVersion,
 }: {
   locale: string;
   quoteId: string;
@@ -102,6 +107,9 @@ export default function WilfredCalcForm({
   factoryTiers: FactoryTier[];
   existingCalcs: ExistingCalc[];
   fees?: FeesData;
+  sheetVersion?: number;
+  wilfredVersion?: number;
+  basedOnSheetVersion?: number;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -230,10 +238,33 @@ export default function WilfredCalcForm({
 
   return (
     <div className="space-y-4">
-      {/* Formula reference */}
-      <div className="rounded-md bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
-        <strong>Formula:</strong> (总成本合计 + 人工 + 配件 + 人工×overhead) × (1 + margin%)
+      {/* Formula reference + version info */}
+      <div className="flex items-center justify-between">
+        <div className="rounded-md bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800 flex-1">
+          <strong>Formula:</strong> (总成本合计 + 人工 + 配件 + 人工×overhead) × (1 + margin%)
+        </div>
+        <div className="flex items-center gap-2 ml-3">
+          {wilfredVersion && <VersionBadge version={wilfredVersion} isStale={!!basedOnSheetVersion && !!sheetVersion && basedOnSheetVersion < sheetVersion} />}
+          <VersionHistory
+            entityType="wilfred_calculation"
+            queryParams={{ cost_sheet_id: costSheetId }}
+            displayFields={[
+              { key: "total_subtotal", label: "Total", format: (v) => v != null ? `¥${Number(v).toFixed(4)}` : "—" },
+              { key: "labor_cost", label: "Labor", format: (v) => v != null ? `¥${Number(v).toFixed(4)}` : "—" },
+              { key: "accessories_cost", label: "Acc", format: (v) => v != null ? `¥${Number(v).toFixed(4)}` : "—" },
+              { key: "margin_rate", label: "Margin", format: (v) => v != null ? `${(Number(v) * 100).toFixed(0)}%` : "—" },
+              { key: "estimated_cost_rmb", label: "Est. Cost", format: (v) => v != null ? `¥${Number(v).toFixed(4)}` : "—" },
+              { key: "approved", label: "Approved" },
+            ]}
+            groupByField="tier_label"
+          />
+        </div>
       </div>
+
+      {/* Stale warning */}
+      {basedOnSheetVersion && sheetVersion && basedOnSheetVersion < sheetVersion && (
+        <StaleWarning entityName="Factory Sheet" basedOnVersion={basedOnSheetVersion} currentVersion={sheetVersion} />
+      )}
 
       {/* Status bar */}
       {allApproved && (
