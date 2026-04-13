@@ -158,7 +158,7 @@ export default async function CostCalcPage({
   }
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 max-w-6xl">
       <div className="flex items-center gap-3 mb-6">
         <Link href={`/${locale}/quotes/${id}`}>
           <Button variant="ghost" size="sm" className="gap-2">

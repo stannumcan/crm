@@ -240,7 +240,20 @@ export default function WilfredCalcForm({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex gap-6">
+      {/* Sticky sidebar — factory sheet reference */}
+      {sheetRef && (
+        <aside className="hidden lg:block w-64 shrink-0">
+          <div className="sticky top-6 max-h-[calc(100vh-48px)] overflow-y-auto rounded-lg border p-4"
+            style={{ borderColor: "oklch(0.88 0.04 230)", background: "oklch(0.98 0.005 230)" }}
+          >
+            <FactorySheetReference data={sheetRef} />
+          </div>
+        </aside>
+      )}
+
+      {/* Main form */}
+      <div className="flex-1 min-w-0 space-y-4">
       {/* Formula reference + version info */}
       <div className="flex items-center justify-between">
         <div className="rounded-md bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800 flex-1">
@@ -263,9 +276,6 @@ export default function WilfredCalcForm({
           />
         </div>
       </div>
-
-      {/* Factory sheet reference panel */}
-      {sheetRef && <FactorySheetReference data={sheetRef} />}
 
       {/* Stale warning */}
       {basedOnSheetVersion && sheetVersion && basedOnSheetVersion < sheetVersion && (
@@ -450,6 +460,7 @@ export default function WilfredCalcForm({
           )}
         </div>
       )}
+      </div>{/* end flex-1 main form */}
     </div>
   );
 }
