@@ -82,6 +82,7 @@ interface Props {
   quoteId: string;
   costSheetId?: string;
   moldNumber?: string;
+  defaultQuoteNumber?: string;
   woNumber: string;
   companyName: string;
   companyId: string | null;
@@ -134,6 +135,7 @@ export default function CustomerQuoteForm({
   quoteId,
   costSheetId,
   moldNumber: moldNumberProp,
+  defaultQuoteNumber,
   woNumber,
   companyName,
   companyId,
@@ -301,7 +303,7 @@ export default function CustomerQuoteForm({
 
   // ── editable state ──────────────────────────────────────────
   const [quoteNumber, setQuoteNumber] = useState(
-    String(existingCQ?.winhoop_quote_number ?? `${woNumber}-Q1`)
+    String(existingCQ?.winhoop_quote_number ?? defaultQuoteNumber ?? `Q${woNumber}001`)
   );
   const [dateSent, setDateSent] = useState(
     String(existingCQ?.date_sent ?? new Date().toISOString().slice(0, 10))

@@ -83,6 +83,10 @@ export default async function CustomerQuotePage({
   const allCQs = (Array.isArray(quote.customer_quotes) ? quote.customer_quotes : quote.customer_quotes ? [quote.customer_quotes] : []) as any[];
 
   // Build per-mould data
+  // Count existing customer quotes for this WO to generate sequential numbers
+  const existingCQCount = allCQs.length;
+  let nextSeq = existingCQCount + 1;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const moldTabs: any[] = [];
 
@@ -95,6 +99,11 @@ export default async function CustomerQuotePage({
 
     // Existing customer quote for this sheet
     const existingCQ = allCQs.find((cq: { cost_sheet_id: string }) => cq.cost_sheet_id === sheet.id) ?? null;
+
+    // Generate quote number: Q{woNumber}{3-digit seq}
+    const defaultQuoteNumber = existingCQ?.winhoop_quote_number
+      ?? `Q${wo?.wo_number ?? ""}${String(nextSeq).padStart(3, "0")}`;
+    if (!existingCQ) nextSeq++;
 
     // Printing lines from factory sheet (or fall back to quotation)
     const printingLines = Array.isArray(sheet.printing_lines) && sheet.printing_lines.length > 0
@@ -132,6 +141,7 @@ export default async function CustomerQuotePage({
     moldTabs.push({
       sheetId: sheet.id,
       moldNumber,
+      defaultQuoteNumber,
       sizeNote,
       ddpCalcs,
       moldType: (quote.mold_type as string) ?? "existing",
@@ -192,6 +202,7 @@ export default async function CustomerQuotePage({
           quoteId={id}
           costSheetId={moldTabs[0].sheetId}
           moldNumber={moldTabs[0].moldNumber ?? undefined}
+          defaultQuoteNumber={moldTabs[0].defaultQuoteNumber}
           woNumber={wo?.wo_number ?? ""}
           companyName={wo?.company_name ?? ""}
           companyId={wo?.company_id ?? null}
@@ -228,6 +239,7 @@ export default async function CustomerQuotePage({
                 quoteId={id}
                 costSheetId={tab.sheetId}
                 moldNumber={tab.moldNumber ?? undefined}
+                defaultQuoteNumber={tab.defaultQuoteNumber}
                 woNumber={wo?.wo_number ?? ""}
                 companyName={wo?.company_name ?? ""}
                 companyId={wo?.company_id ?? null}
