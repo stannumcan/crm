@@ -191,6 +191,7 @@ export default async function CustomerQuotePage({
           locale={locale}
           quoteId={id}
           costSheetId={moldTabs[0].sheetId}
+          moldNumber={moldTabs[0].moldNumber ?? undefined}
           woNumber={wo?.wo_number ?? ""}
           companyName={wo?.company_name ?? ""}
           companyId={wo?.company_id ?? null}
@@ -226,6 +227,7 @@ export default async function CustomerQuotePage({
                 locale={locale}
                 quoteId={id}
                 costSheetId={tab.sheetId}
+                moldNumber={tab.moldNumber ?? undefined}
                 woNumber={wo?.wo_number ?? ""}
                 companyName={wo?.company_name ?? ""}
                 companyId={wo?.company_id ?? null}

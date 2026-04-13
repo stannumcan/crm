@@ -46,6 +46,7 @@ interface Props {
   locale: string;
   quoteId: string;
   costSheetId?: string;
+  moldNumber?: string;
   woNumber: string;
   companyName: string;
   companyId: string | null;
@@ -98,6 +99,7 @@ export default function CustomerQuoteForm({
   locale,
   quoteId,
   costSheetId,
+  moldNumber: moldNumberProp,
   woNumber,
   companyName,
   companyId,
@@ -166,7 +168,7 @@ export default function CustomerQuoteForm({
 
   // ── product image state ────────────────────────────────────
   const [productImageUrl, setProductImageUrl] = useState<string>(
-    String(existingCQ?.product_image_url ?? "")
+    String(existingCQ?.product_image_url ?? moldImageUrl ?? "")
   );
   const [imageTab, setImageTab] = useState<"quote" | "mold" | "upload">("quote");
   const [imageUploading, setImageUploading] = useState(false);
@@ -285,7 +287,7 @@ export default function CustomerQuoteForm({
     String(existingCQ?.customer_fax ?? "")
   );
   const [itemName, setItemName] = useState(
-    String(existingCQ?.item_name ?? projectName)
+    String(existingCQ?.item_name ?? moldNumberProp ?? projectName)
   );
   const [sizeNoteState, setSizeNoteState] = useState(
     String(existingCQ?.size_note ?? sizeNote)
