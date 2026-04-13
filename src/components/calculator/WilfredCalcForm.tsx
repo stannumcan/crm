@@ -11,6 +11,7 @@ import { CheckCircle2, Pencil } from "lucide-react";
 import { calculateWilfredCost, formatRMB } from "@/lib/calculations";
 import { StaleWarning, VersionBadge } from "@/components/ui/version-badge";
 import VersionHistory from "@/components/ui/version-history";
+import FactorySheetReference, { type FactorySheetRefData } from "@/components/calculator/FactorySheetReference";
 
 interface FactoryTier {
   id: string;
@@ -100,6 +101,7 @@ export default function WilfredCalcForm({
   sheetVersion,
   wilfredVersion,
   basedOnSheetVersion,
+  sheetRef,
 }: {
   locale: string;
   quoteId: string;
@@ -110,6 +112,7 @@ export default function WilfredCalcForm({
   sheetVersion?: number;
   wilfredVersion?: number;
   basedOnSheetVersion?: number;
+  sheetRef?: FactorySheetRefData;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -260,6 +263,9 @@ export default function WilfredCalcForm({
           />
         </div>
       </div>
+
+      {/* Factory sheet reference panel */}
+      {sheetRef && <FactorySheetReference data={sheetRef} />}
 
       {/* Stale warning */}
       {basedOnSheetVersion && sheetVersion && basedOnSheetVersion < sheetVersion && (

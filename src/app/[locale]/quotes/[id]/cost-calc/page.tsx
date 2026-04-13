@@ -26,12 +26,17 @@ export default async function CostCalcPage({
       factory_cost_sheets(
         id,
         mold_number,
+        product_dimensions,
         steel_thickness,
         version,
         is_current,
         mold_cost_new,
         mold_cost_modify,
+        mold_lead_time_days,
+        mold_image_url,
+        printing_lines,
         embossing_lines,
+        packaging_lines,
         wilfred_embossing_cost,
         wilfred_mold_cost_new,
         wilfred_mold_cost_adjust,
@@ -51,12 +56,17 @@ export default async function CostCalcPage({
   type Sheet = {
     id: string;
     mold_number: string | null;
+    product_dimensions: string | null;
     steel_thickness: number | null;
     version: number;
     is_current: boolean;
     mold_cost_new: number | null;
     mold_cost_modify: number | null;
+    mold_lead_time_days: number | null;
+    mold_image_url: string | null;
+    printing_lines: { surface: string; part: string; spec: string }[] | null;
     embossing_lines: { component: string; cost_rmb: string; notes: string }[] | null;
+    packaging_lines: { type: string; config: string; l: number; w: number; h: number; cbm: number; tins: number }[] | null;
     wilfred_embossing_cost: number | null;
     wilfred_mold_cost_new: number | null;
     wilfred_mold_cost_adjust: number | null;
@@ -97,6 +107,32 @@ export default async function CostCalcPage({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sheet.wilfred_calculations = sheet.wilfred_calculations.filter((wc: any) => wc.is_current !== false);
     }
+  }
+
+  // Build factory sheet reference data for each sheet
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const sheetRefs: Record<string, { moldNumber: string | null; productDimensions: string | null; steelThickness: number | null; version: number; moldCostNew: number | null; moldCostModify: number | null; moldLeadTimeDays: number | null; moldImageUrl: string | null; printingLines: unknown; embossingLines: unknown; packagingLines: unknown; tierCosts: unknown[] }> = {};
+  for (const sheet of sheets) {
+    let moldImageUrl = sheet.mold_image_url;
+    if (!moldImageUrl && sheet.mold_number) {
+      const { data: moldRow } = await db.from("molds").select("image_url").eq("mold_number", sheet.mold_number).maybeSingle();
+      moldImageUrl = moldRow?.image_url ?? null;
+    }
+    sheetRefs[sheet.id] = {
+      moldNumber: sheet.mold_number,
+      productDimensions: sheet.product_dimensions,
+      steelThickness: sheet.steel_thickness,
+      version: sheet.version,
+      moldCostNew: sheet.mold_cost_new,
+      moldCostModify: sheet.mold_cost_modify,
+      moldLeadTimeDays: sheet.mold_lead_time_days,
+      moldImageUrl,
+      printingLines: sheet.printing_lines,
+      embossingLines: sheet.embossing_lines,
+      packagingLines: sheet.packaging_lines,
+      tierCosts: sheet.factory_cost_tiers ?? [],
+    };
   }
 
   if (sheets.length === 0) {
@@ -151,6 +187,7 @@ export default async function CostCalcPage({
           sheetVersion={sheets[0].version}
           wilfredVersion={(sheets[0].wilfred_calculations as { version?: number }[])?.[0]?.version}
           basedOnSheetVersion={(sheets[0].wilfred_calculations as { based_on_sheet_version?: number }[])?.[0]?.based_on_sheet_version}
+          sheetRef={sheetRefs[sheets[0].id] as any}
           fees={{
             moldCostNew: sheets[0].mold_cost_new,
             moldCostAdjust: sheets[0].mold_cost_modify,
@@ -183,6 +220,7 @@ export default async function CostCalcPage({
                 sheetVersion={sheet.version}
                 wilfredVersion={(sheet.wilfred_calculations as { version?: number }[])?.[0]?.version}
                 basedOnSheetVersion={(sheet.wilfred_calculations as { based_on_sheet_version?: number }[])?.[0]?.based_on_sheet_version}
+                sheetRef={sheetRefs[sheet.id] as any}
                 fees={{
                   moldCostNew: sheet.mold_cost_new,
                   moldCostAdjust: sheet.mold_cost_modify,
