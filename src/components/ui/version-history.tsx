@@ -136,8 +136,8 @@ export default function VersionHistory({ entityType, queryParams, displayFields,
                   </thead>
                   <tbody>
                     {displayFields.map((f) => {
-                      const val1 = r1 ? (v: unknown) => formatValue(v, f.formatHint)(r1[f.key]) : "—";
-                      const val2 = r2 ? (v: unknown) => formatValue(v, f.formatHint)(r2[f.key]) : "—";
+                      const val1 = r1 ? formatValue(r1[f.key], f.formatHint) : "—";
+                      const val2 = r2 ? formatValue(r2[f.key], f.formatHint) : "—";
                       const changed = val1 !== val2;
                       return (
                         <tr key={f.key} className={changed ? "bg-amber-50" : ""}>
@@ -172,8 +172,8 @@ export default function VersionHistory({ entityType, queryParams, displayFields,
           </thead>
           <tbody>
             {displayFields.map((f) => {
-              const val1 = r1 ? (v: unknown) => formatValue(v, f.formatHint)(r1[f.key]) : "—";
-              const val2 = r2 ? (v: unknown) => formatValue(v, f.formatHint)(r2[f.key]) : "—";
+              const val1 = r1 ? formatValue(r1[f.key], f.formatHint) : "—";
+              const val2 = r2 ? formatValue(r2[f.key], f.formatHint) : "—";
               const changed = val1 !== val2;
               return (
                 <tr key={f.key} className={changed ? "bg-amber-50" : ""}>
@@ -297,7 +297,7 @@ export default function VersionHistory({ entityType, queryParams, displayFields,
                               {displayFields.map((f) => (
                                 <div key={f.key}>
                                   <span className="text-muted-foreground">{f.label}: </span>
-                                  <span className="font-mono">{(v: unknown) => formatValue(v, f.formatHint)(row[f.key])}</span>
+                                  <span className="font-mono">{formatValue(row[f.key], f.formatHint)}</span>
                                 </div>
                               ))}
                             </div>
@@ -309,7 +309,7 @@ export default function VersionHistory({ entityType, queryParams, displayFields,
                                   {displayFields.map((f) => (
                                     <span key={f.key} className="mr-3">
                                       <span className="text-muted-foreground">{f.label}: </span>
-                                      <span className="font-mono">{(v: unknown) => formatValue(v, f.formatHint)(r[f.key])}</span>
+                                      <span className="font-mono">{formatValue(r[f.key], f.formatHint)}</span>
                                     </span>
                                   ))}
                                 </div>
