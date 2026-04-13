@@ -3,7 +3,7 @@ export const PAGE_PERMISSIONS = {
   workorders:             { label: "Work Orders",              group: "Work Orders", actions: ["view", "create", "edit", "delete"] as const },
   quotes_requests:        { label: "Quote Requests",           group: "Quotes",      actions: ["view", "create", "edit", "delete"] as const },
   quotes_factory_sheet:   { label: "Factory Cost Sheet",       group: "Quotes",      actions: ["view", "edit"] as const },
-  quotes_wilfred_calc:    { label: "Wilfred Cost Calc",        group: "Quotes",      actions: ["view", "edit"] as const },
+  quotes_wilfred_calc:    { label: "Cost Calc",                group: "Quotes",      actions: ["view", "edit"] as const },
   quotes_ddp_calc:        { label: "DDP Calculation",          group: "Quotes",      actions: ["view", "edit"] as const },
   quotes_customer_quote:  { label: "Customer Quote",           group: "Quotes",      actions: ["view", "edit"] as const },
   products:               { label: "Products / Molds",         group: "Catalog",     actions: ["view", "create", "edit", "delete"] as const },
@@ -39,7 +39,7 @@ export const FIELD_PERMISSIONS = {
     },
   },
   wilfred_calc: {
-    label: "Wilfred Cost Calc",
+    label: "Cost Calc",
     fields: {
       labor_cost:          "Labour cost",
       accessories_cost:    "Accessories cost",

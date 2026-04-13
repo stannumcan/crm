@@ -10,7 +10,7 @@ import DeleteButton from "@/components/quotes/DeleteButton";
 const STATUS_STEPS = [
   { key: "draft",           label: "Draft" },
   { key: "pending_factory", label: "Factory" },
-  { key: "pending_wilfred", label: "Wilfred" },
+  { key: "pending_wilfred", label: "Cost Calc" },
   { key: "pending_natsuki", label: "DDP" },
   { key: "sent",            label: "Sent" },
   { key: "approved",        label: "Approved" },
@@ -236,7 +236,7 @@ export default async function QuotesPage({
           </table>
         )}
 
-        {/* ── Wilfred Cost Calc ───────────────────────────────────────── */}
+        {/* ── Cost Calc ────────────────────────────────────────────── */}
         {activeTab === "wilfred-calc" && (
           <table className="w-full text-sm">
             <thead>
@@ -253,7 +253,7 @@ export default async function QuotesPage({
             </thead>
             <tbody className="divide-y divide-border/60">
               {rows.length === 0 && (
-                <tr><td colSpan={8} className="text-center text-muted-foreground py-10">No Wilfred calculations yet</td></tr>
+                <tr><td colSpan={8} className="text-center text-muted-foreground py-10">No cost calculations yet</td></tr>
               )}
               {rows.map((wc) => {
                 const fs = wc.factory_cost_sheets;

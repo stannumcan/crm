@@ -9,7 +9,7 @@ const ALL_TABS: { label: string; suffix: string; pageKey: PageKey | null }[] = [
   { label: "Overview",        suffix: "",                pageKey: "quotes_requests" },
   { label: "Quote Request",   suffix: "/request",        pageKey: "quotes_requests" },
   { label: "Factory Sheet",   suffix: "/factory-sheet",  pageKey: "quotes_factory_sheet" },
-  { label: "Wilfred Calc",    suffix: "/cost-calc",      pageKey: "quotes_wilfred_calc" },
+  { label: "Cost Calc",       suffix: "/cost-calc",      pageKey: "quotes_wilfred_calc" },
   { label: "DDP Calc",        suffix: "/ddp-calc",       pageKey: "quotes_ddp_calc" },
   { label: "Customer Quote",  suffix: "/customer-quote", pageKey: "quotes_customer_quote" },
 ];

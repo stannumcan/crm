@@ -7,7 +7,7 @@ import type { PageKey } from "@/lib/permissions";
 const ALL_TABS: { key: string; label: string; pageKey: PageKey }[] = [
   { key: "requests",       label: "Quote Requests",    pageKey: "quotes_requests" },
   { key: "factory-sheet",  label: "Factory Cost Sheet", pageKey: "quotes_factory_sheet" },
-  { key: "wilfred-calc",   label: "Wilfred Cost Calc",  pageKey: "quotes_wilfred_calc" },
+  { key: "wilfred-calc",   label: "Cost Calc",           pageKey: "quotes_wilfred_calc" },
   { key: "ddp-calc",       label: "DDP Calculation",    pageKey: "quotes_ddp_calc" },
   { key: "customer-quote", label: "Customer Quote",     pageKey: "quotes_customer_quote" },
 ];
