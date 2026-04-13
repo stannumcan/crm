@@ -253,13 +253,25 @@ export default function FactorySheetForm({
     return [makePackagingLine()];
   });
 
-  // Tier costs
-  const [tierCosts, setTierCosts] = useState<TierCost[]>(() =>
-    tiers.map((t) => {
-      const existing = existingTierCosts.find((e) => e.tier_label === t.tier_label);
-      return makeTierCost(t, existing);
-    })
-  );
+  // Tier costs — when editing, prioritize saved factory sheet tiers
+  const [tierCosts, setTierCosts] = useState<TierCost[]>(() => {
+    if (existingTierCosts.length > 0) {
+      // Start with all saved factory sheet tiers
+      const result = existingTierCosts.map((e) => {
+        const quoteTier = tiers.find((t) => t.tier_label === e.tier_label);
+        return makeTierCost(quoteTier ?? { tier_label: e.tier_label, quantity_type: "units", quantity: e.quantity, sort_order: 0 }, e);
+      });
+      // Add any quotation tiers not already in the factory sheet
+      for (const t of tiers) {
+        if (!result.some((r) => r.tier_label === t.tier_label)) {
+          result.push(makeTierCost(t));
+        }
+      }
+      return result;
+    }
+    // New sheet — use quotation tiers as base
+    return tiers.map((t) => makeTierCost(t));
+  });
 
   // Packaging line handlers
   const addLine = () => setPackagingLines((prev) => [...prev, { ...makePackagingLine(), id: Date.now().toString() }]);
