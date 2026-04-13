@@ -26,7 +26,7 @@ export default async function FactorySheetListPage({
       printing_lid, printing_body, printing_bottom, printing_inner, printing_notes,
       embossment, embossment_components, embossment_notes,
       work_orders(wo_number, company_name, project_name),
-      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, printing_lines, embossing_lines, version, is_current, sheet_group_id, created_at),
+      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, printing_lines, embossing_lines, version, is_current, is_cancelled, sheet_group_id, created_at),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order)
     `)
     .eq("id", id)
@@ -37,8 +37,8 @@ export default async function FactorySheetListPage({
   const wo = quote.work_orders as { wo_number: string; company_name: string; project_name: string } | null;
   let sheets = ((Array.isArray(quote.factory_cost_sheets)
     ? quote.factory_cost_sheets
-    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; printing_lines: { surface: string; part: string; spec: string }[] | null; embossing_lines: { component: string }[] | null; version: number; is_current: boolean; sheet_group_id: string | null; created_at: string }[])
-    .filter((s) => s.is_current !== false);
+    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; printing_lines: { surface: string; part: string; spec: string }[] | null; embossing_lines: { component: string }[] | null; version: number; is_current: boolean; is_cancelled: boolean; sheet_group_id: string | null; created_at: string }[])
+    .filter((s) => s.is_current !== false && !s.is_cancelled);
 
   // ── Auto-create one sheet per mold if none exist ────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

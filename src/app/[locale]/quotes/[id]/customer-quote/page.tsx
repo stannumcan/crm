@@ -34,7 +34,7 @@ export default async function CustomerQuotePage({
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order),
       factory_cost_sheets(
         id, mold_number, mold_cost_new, mold_cost_modify, mold_lead_time_days,
-        steel_type, steel_thickness, product_dimensions, version, is_current,
+        steel_type, steel_thickness, product_dimensions, version, is_current, is_cancelled,
         outer_carton_qty, outer_carton_config,
         printing_lines, embossing_lines, packaging_lines, mold_image_url,
         wilfred_calculations(tier_label, quantity, estimated_cost_rmb, approved, is_current),
@@ -82,7 +82,7 @@ export default async function CustomerQuotePage({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sheets = ((Array.isArray(quote.factory_cost_sheets) ? quote.factory_cost_sheets : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as any[])
-    .filter((s: { is_current?: boolean }) => s.is_current !== false);
+    .filter((s: { is_current?: boolean; is_cancelled?: boolean }) => s.is_current !== false && !s.is_cancelled);
   const currentSheetIds = new Set(sheets.map((s: { id: string }) => s.id));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allDDPCalcs = ((quote.natsuki_ddp_calculations ?? []) as any[])

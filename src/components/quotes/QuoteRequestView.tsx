@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, X, Check, Paperclip, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil, X, Check, Paperclip, AlertCircle, CheckCircle2, Ban, Plus } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 
 interface MoldEntry {
   id?: string;
@@ -91,6 +95,60 @@ export default function QuoteRequestView({
   const [embossment, setEmbossment] = useState(quote.embossment);
   const [embossmentNotes, setEmbossmentNotes] = useState(quote.embossment_notes ?? "");
   const [internalNotes, setInternalNotes] = useState(quote.internal_notes ?? "");
+
+  const router = useRouter();
+  const [cancelling, setCancelling] = useState<number | null>(null);
+  const [addLineOpen, setAddLineOpen] = useState(false);
+  const [newMoldNumber, setNewMoldNumber] = useState("");
+  const [newSize, setNewSize] = useState("");
+  const [newThickness, setNewThickness] = useState("");
+  const [newVariant, setNewVariant] = useState("");
+  const [newNotes, setNewNotes] = useState("");
+  const [addingLine, setAddingLine] = useState(false);
+
+  const handleCancelLine = async (idx: number) => {
+    if (!confirm(`Cancel line item ${idx + 1} (${molds[idx]?.value})? This will cancel the factory sheet and all downstream steps.`)) return;
+    setCancelling(idx);
+    try {
+      await fetch(`/api/quotes/${quoteId}/cancel-line`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ line_index: idx }),
+      });
+      router.refresh();
+    } finally {
+      setCancelling(null);
+    }
+  };
+
+  const handleAddLine = async () => {
+    if (!newMoldNumber.trim()) return;
+    setAddingLine(true);
+    try {
+      await fetch(`/api/quotes/${quoteId}/add-line`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          line_item: {
+            type: "existing",
+            value: newMoldNumber.trim(),
+            size: newSize.trim() || null,
+            thickness: newThickness.trim() || null,
+            design_count: 1,
+            variant_label: newVariant.trim() || null,
+            notes: newNotes.trim() || null,
+            printing_lines: [],
+            embossing_lines: [],
+          },
+        }),
+      });
+      setAddLineOpen(false);
+      setNewMoldNumber(""); setNewSize(""); setNewThickness(""); setNewVariant(""); setNewNotes("");
+      router.refresh();
+    } finally {
+      setAddingLine(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -228,12 +286,27 @@ export default function QuoteRequestView({
             const m = mold as any;
             const printingLines = (m.printing_lines ?? []) as { surface: string; part: string; spec: string }[];
             const embossingLines = (m.embossing_lines ?? []) as { component: string; notes?: string }[];
+            const isCancelled = !!m.cancelled;
             return (
-              <div key={i} className="bg-card border border-border rounded-lg p-4 space-y-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="outline" className="font-mono text-xs">{i + 1}</Badge>
-                  <span className="font-mono font-semibold text-sm">{mold.value || "—"}</span>
-                  {m.variant_label && <Badge variant="secondary" className="text-[10px]">{m.variant_label}</Badge>}
+              <div key={i} className={`bg-card border rounded-lg p-4 space-y-3 ${isCancelled ? "border-red-200 opacity-50" : "border-border"}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="font-mono text-xs">{i + 1}</Badge>
+                    <span className={`font-mono font-semibold text-sm ${isCancelled ? "line-through" : ""}`}>{mold.value || "—"}</span>
+                    {m.variant_label && <Badge variant="secondary" className="text-[10px]">{m.variant_label}</Badge>}
+                    {isCancelled && <Badge variant="destructive" className="text-[10px]">Cancelled</Badge>}
+                  </div>
+                  {!isCancelled && !editing && (
+                    <Button
+                      type="button" variant="ghost" size="sm"
+                      className="h-7 text-xs gap-1 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleCancelLine(i)}
+                      disabled={cancelling === i}
+                    >
+                      <Ban className="h-3 w-3" />
+                      {cancelling === i ? "Cancelling..." : "Cancel"}
+                    </Button>
+                  )}
                 </div>
                 <div className="grid grid-cols-4 gap-4 text-sm">
                   <Field label="Size" value={mold.size || "—"} />
@@ -272,6 +345,14 @@ export default function QuoteRequestView({
               </div>
             );
           })}
+
+          {/* Add Line Item button */}
+          {!editing && (
+            <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs"
+              onClick={() => setAddLineOpen(true)}>
+              <Plus className="h-3 w-3" /> Add Line Item
+            </Button>
+          )}
         </div>
       )}
 
@@ -367,6 +448,40 @@ export default function QuoteRequestView({
         Created {new Date(quote.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
         {quote.created_by && ` by ${quote.created_by}`}
       </p>
+
+      {/* Add Line Item Modal */}
+      <Modal open={addLineOpen} onClose={() => setAddLineOpen(false)} title="Add Line Item">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Mold Number <span className="text-red-500">*</span></Label>
+            <Input value={newMoldNumber} onChange={(e) => setNewMoldNumber(e.target.value)} placeholder="ML-1004B" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Size / Dimensions</Label>
+              <Input value={newSize} onChange={(e) => setNewSize(e.target.value)} placeholder="200×200×40mm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Thickness (mm)</Label>
+              <Input value={newThickness} onChange={(e) => setNewThickness(e.target.value)} placeholder="0.25" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Variant Label</Label>
+            <Input value={newVariant} onChange={(e) => setNewVariant(e.target.value)} placeholder="e.g. Gloss, Matte" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Notes</Label>
+            <Input value={newNotes} onChange={(e) => setNewNotes(e.target.value)} placeholder="Notes for this line item" />
+          </div>
+          <div className="flex gap-3 justify-end pt-1">
+            <Button variant="outline" onClick={() => setAddLineOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddLine} disabled={addingLine || !newMoldNumber.trim()}>
+              {addingLine ? "Adding..." : "Add & Create Factory Sheet"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

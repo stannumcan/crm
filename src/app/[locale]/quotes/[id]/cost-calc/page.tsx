@@ -31,6 +31,7 @@ export default async function CostCalcPage({
         steel_thickness,
         version,
         is_current,
+        is_cancelled,
         mold_cost_new,
         mold_cost_modify,
         mold_lead_time_days,
@@ -59,7 +60,7 @@ export default async function CostCalcPage({
   const sheets = ((Array.isArray(quote.factory_cost_sheets)
     ? quote.factory_cost_sheets
     : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as any[])
-    .filter((s: { is_current?: boolean }) => s.is_current !== false);
+    .filter((s: { is_current?: boolean; is_cancelled?: boolean }) => s.is_current !== false && !s.is_cancelled);
 
   // Filter wilfred calcs to current version only
   for (const sheet of sheets) {

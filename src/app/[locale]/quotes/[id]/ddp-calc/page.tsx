@@ -43,7 +43,7 @@ export default async function DDPCalcPage({
       factory_cost_sheets(
         id, mold_number, product_dimensions, mold_cost_new, mold_cost_modify, mold_lead_time_days,
         steel_thickness, packaging_lines, printing_lines, embossing_lines,
-        mold_image_url, attachments, version, is_current,
+        mold_image_url, attachments, version, is_current, is_cancelled,
         wilfred_calculations(tier_label, quantity, total_subtotal, labor_cost, accessories_cost, overhead_multiplier, margin_rate, estimated_cost_rmb, approved, is_current, version),
         wilfred_embossing_cost, wilfred_mold_cost_new, wilfred_mold_cost_adjust
       ),
@@ -75,7 +75,7 @@ export default async function DDPCalcPage({
   const sheets = ((Array.isArray(quote.factory_cost_sheets)
     ? quote.factory_cost_sheets
     : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as any[])
-    .filter((s: { is_current?: boolean }) => s.is_current !== false);
+    .filter((s: { is_current?: boolean; is_cancelled?: boolean }) => s.is_current !== false && !s.is_cancelled);
   const currentSheetIds = new Set(sheets.map((s: { id: string }) => s.id));
 
   const existingDDPAll = ((quote.natsuki_ddp_calculations ?? []) as Record<string, unknown>[])
