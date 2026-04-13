@@ -347,12 +347,10 @@ export default function QuoteRequestView({
           })}
 
           {/* Add Line Item button */}
-          {!editing && (
-            <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs"
-              onClick={() => setAddLineOpen(true)}>
-              <Plus className="h-3 w-3" /> Add Line Item
-            </Button>
-          )}
+          <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs"
+            onClick={() => setAddLineOpen(true)}>
+            <Plus className="h-3 w-3" /> Add Line Item
+          </Button>
         </div>
       )}
 
