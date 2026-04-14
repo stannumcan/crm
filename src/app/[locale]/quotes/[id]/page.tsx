@@ -3,10 +3,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, Circle, Clock, ChevronRight, AlertCircle, Paperclip } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertCircle, Paperclip } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import AuditTrail from "@/components/quotes/AuditTrail";
+import QuoteProgressSteps, { type ProgressStep } from "@/components/quotes/QuoteProgressSteps";
 
 type QuoteStatus =
   | "draft"
@@ -16,22 +17,6 @@ type QuoteStatus =
   | "sent"
   | "approved"
   | "rejected";
-
-const STATUS_ORDER: QuoteStatus[] = [
-  "pending_factory",
-  "pending_wilfred",
-  "pending_natsuki",
-  "sent",
-  "approved",
-];
-
-function getStepState(stepStatus: QuoteStatus, currentStatus: QuoteStatus): "done" | "current" | "upcoming" {
-  const currentIdx = STATUS_ORDER.indexOf(currentStatus);
-  const stepIdx = STATUS_ORDER.indexOf(stepStatus);
-  if (stepIdx < currentIdx) return "done";
-  if (stepIdx === currentIdx) return "current";
-  return "upcoming";
-}
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   draft: "secondary",
@@ -82,38 +67,40 @@ export default async function QuoteDetailPage({
   const hasDDPCalc = Array.isArray(quote.natsuki_ddp_calculations) ? quote.natsuki_ddp_calculations.length > 0 : !!quote.natsuki_ddp_calculations;
   const hasCustomerQuote = Array.isArray(quote.customer_quotes) ? quote.customer_quotes.length > 0 : !!quote.customer_quotes;
 
-  const factorySheetId = hasFactorySheet ? factorySheets[0]?.id : null;
-
   const currentStatus = quote.status as QuoteStatus;
 
-  const steps = [
+  const steps: ProgressStep[] = [
     {
-      status: "pending_factory" as QuoteStatus,
+      status: "pending_factory",
       label: "Factory Cost Sheet",
       sublabel: "Annie enters costs from factory",
       href: `/${locale}/quotes/${id}/factory-sheet`,
       done: hasFactorySheet,
+      pageKey: "quotes_factory_sheet",
     },
     {
-      status: "pending_wilfred" as QuoteStatus,
-      label: "Wilfred Cost Calc",
+      status: "pending_wilfred",
+      label: "Cost Calc",
       sublabel: "Add labour, accessories, overhead + margin",
       href: `/${locale}/quotes/${id}/cost-calc`,
       done: hasWilfredCalc,
+      pageKey: "quotes_wilfred_calc",
     },
     {
-      status: "pending_natsuki" as QuoteStatus,
+      status: "pending_natsuki",
       label: "DDP Calculation",
       sublabel: "Natsuki sets final Japan selling price",
       href: `/${locale}/quotes/${id}/ddp-calc`,
       done: hasDDPCalc,
+      pageKey: "quotes_ddp_calc",
     },
     {
-      status: "sent" as QuoteStatus,
+      status: "sent",
       label: "Customer Quote (お見積書)",
       sublabel: "Generate Japanese quote document",
       href: `/${locale}/quotes/${id}/customer-quote`,
       done: hasCustomerQuote,
+      pageKey: "quotes_customer_quote",
     },
   ];
 
@@ -160,45 +147,9 @@ export default async function QuoteDetailPage({
 
       <div className="grid grid-cols-3 gap-6">
         {/* Step tracker — left 2/3 */}
-        <div className="col-span-2 space-y-3">
+        <div className="col-span-2">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Progress</h3>
-          {steps.map((step, i) => {
-            const state = step.done ? "done" : getStepState(step.status, currentStatus);
-            const isAccessible = step.done || state === "current";
-            return (
-              <div key={step.status} className={`flex items-center gap-4 p-4 rounded-lg border transition-colors ${
-                state === "current"
-                  ? "border-blue-200 bg-blue-50"
-                  : state === "done"
-                  ? "border-green-200 bg-green-50"
-                  : "border-gray-200 bg-gray-50 opacity-60"
-              }`}>
-                <div className="flex-shrink-0">
-                  {state === "done" ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  ) : state === "current" ? (
-                    <Clock className="h-5 w-5 text-blue-600" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-gray-300" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${state === "done" ? "text-green-800" : state === "current" ? "text-blue-800" : "text-gray-500"}`}>
-                    {step.label}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">{step.sublabel}</p>
-                </div>
-                {isAccessible && (
-                  <Link href={step.href}>
-                    <Button size="sm" variant={state === "current" ? "default" : "outline"} className="gap-1 flex-shrink-0">
-                      {state === "done" ? "View" : "Start"}
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            );
-          })}
+          <QuoteProgressSteps steps={steps} currentStatus={currentStatus} />
         </div>
 
         {/* Spec summary — right 1/3 */}
