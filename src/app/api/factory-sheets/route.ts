@@ -107,8 +107,14 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  // Detect price changes by comparing old vs new tier costs
+  // Detect price changes — only flag if EXISTING price was changed, not initial entry
   let pricingChanged = false;
+  // Helper: a price is "set" if it's not null/undefined
+  const isSet = (v: unknown) => v !== null && v !== undefined && v !== "";
+  // Helper: compare prices, returns true if old was set AND new differs
+  const priceChanged = (oldVal: unknown, newVal: unknown) =>
+    isSet(oldVal) && Number(oldVal) !== Number(newVal);
+
   if (tiers?.length) {
     const { data: oldTiers } = await db
       .from("factory_cost_tiers")
@@ -117,20 +123,20 @@ export async function PATCH(request: NextRequest) {
 
     for (const newTier of tiers) {
       const oldTier = (oldTiers ?? []).find((o: { tier_label: string }) => o.tier_label === newTier.tier_label);
-      if (!oldTier) { pricingChanged = true; break; }
-      if (Number(oldTier.total_subtotal) !== Number(newTier.total_subtotal)
-        || Number(oldTier.labor_cost) !== Number(newTier.labor_cost)
-        || Number(oldTier.accessories_cost) !== Number(newTier.accessories_cost)) {
+      if (!oldTier) continue; // new tier added — not a price change to existing
+      if (priceChanged(oldTier.total_subtotal, newTier.total_subtotal)
+        || priceChanged(oldTier.labor_cost, newTier.labor_cost)
+        || priceChanged(oldTier.accessories_cost, newTier.accessories_cost)) {
         pricingChanged = true;
         break;
       }
     }
   }
 
-  // Also check mold cost changes
+  // Also check mold cost changes — only if OLD value was set
   if (!pricingChanged) {
-    if (Number(current.mold_cost_new) !== Number(newSheet.mold_cost_new)
-      || Number(current.mold_cost_modify) !== Number(newSheet.mold_cost_modify)) {
+    if (priceChanged(current.mold_cost_new, newSheet.mold_cost_new)
+      || priceChanged(current.mold_cost_modify, newSheet.mold_cost_modify)) {
       pricingChanged = true;
     }
   }
