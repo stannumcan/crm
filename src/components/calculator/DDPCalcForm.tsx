@@ -90,16 +90,28 @@ function autoShippingType(quantityType: string): TierState["shippingType"] {
   return "lcl";
 }
 
-function initTier(calc: ApprovedCalc): TierState {
+function initTier(calc: ApprovedCalc, existing?: { unit_price_jpy?: number | null; selected_margin?: number | null; shipping_cost_jpy?: number | null }, marginValues?: number[]): TierState {
+  // If there's an existing saved DDP record, pre-populate the manual override
+  // so the form shows the user's previously-saved selling price
+  const savedUnitPrice = existing?.unit_price_jpy != null ? String(existing.unit_price_jpy) : "";
+
+  // Try to match selected_margin to its index in the default margin array
+  let selIdx = "4";
+  if (existing?.selected_margin != null && marginValues) {
+    const targetPct = existing.selected_margin * 100;
+    const idx = marginValues.findIndex((m) => Math.abs(m - targetPct) < 0.01);
+    if (idx >= 0) selIdx = String(idx);
+  }
+
   return {
     tier_label: calc.tier_label,
     quantity: String(calc.quantity ?? ""),
     rmbUnitPrice: calc.estimated_cost_rmb != null ? calc.estimated_cost_rmb.toFixed(4) : "",
     bufferPct: "5",
     shippingType: autoShippingType(calc.quantity_type),
-    manualShippingCostJpy: "",
-    selectedMarginIdx: "4", // index 4 = 40% in default array
-    manualUnitPriceJpy: "",
+    manualShippingCostJpy: existing?.shipping_cost_jpy != null ? String(existing.shipping_cost_jpy) : "",
+    selectedMarginIdx: selIdx,
+    manualUnitPriceJpy: savedUnitPrice,
   };
 }
 
@@ -177,7 +189,13 @@ export default function DDPCalcForm({
     setPkg((prev) => ({ ...prev, [field]: value }));
 
   // Per-tier state
-  const [tiers, setTiers] = useState<TierState[]>(() => approvedCalcs.map(initTier));
+  const [tiers, setTiers] = useState<TierState[]>(() => {
+    const defaultMargins = defaultSettings.margin_values ?? [60, 55, 50, 45, 40, 35, 30, 25];
+    return approvedCalcs.map((c) => {
+      const existing = existingDDP.find((d) => (d as { tier_label?: string }).tier_label === c.tier_label) as { unit_price_jpy?: number | null; selected_margin?: number | null; shipping_cost_jpy?: number | null } | undefined;
+      return initTier(c, existing, defaultMargins);
+    });
+  });
   const updateTier = (label: string, field: keyof TierState, value: string) =>
     setTiers((prev) => prev.map((t) => t.tier_label === label ? { ...t, [field]: value } : t));
 
