@@ -91,11 +91,20 @@ function makeLineItem(partial?: Partial<LineItem>): LineItem {
   };
 }
 
+// Auto-derived label shown on the line item header when design_count is set
+function designCountLabel(design_count: string): string | null {
+  const n = parseInt(design_count);
+  if (!n || n < 1) return null;
+  return n === 1 ? "1 design" : `${n} designs`;
+}
+
 function duplicateLineItem(item: LineItem): LineItem {
   return {
     ...item,
     id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-    variant_label: item.variant_label ? `${item.variant_label} (copy)` : "copy",
+    // Keep design_count — user will change it on the new line (that's the whole point).
+    // variant_label is auto-derived, so no "(copy)" suffix needed.
+    variant_label: "",
     expanded: true,
   };
 }
@@ -367,7 +376,9 @@ export default function QuoteRequestForm({
         size: li.size.trim() || null,
         thickness: li.thickness.trim() || null,
         design_count: parseInt(li.design_count) || 1,
-        variant_label: li.variant_label.trim() || null,
+        // variant_label auto-derived from design_count so existing display code
+        // (factory sheet bar, customer quote bar, etc.) keeps showing a useful badge.
+        variant_label: designCountLabel(li.design_count),
         notes: li.notes.trim() || null,
         printing_lines: li.printing_lines.filter((ln) => ln.spec || ln.part),
         embossing_lines: li.embossing_lines.filter((ln) => ln.component),
@@ -470,7 +481,9 @@ export default function QuoteRequestForm({
                   <div className="flex items-center gap-3">
                     <Badge variant="outline" className="font-mono text-xs">{itemIdx + 1}</Badge>
                     <span className="font-mono text-sm font-semibold">{item.mold_number || "New item"}</span>
-                    {item.variant_label && <Badge variant="secondary" className="text-xs">{item.variant_label}</Badge>}
+                    {designCountLabel(item.design_count) && (
+                      <Badge variant="secondary" className="text-xs">{designCountLabel(item.design_count)}</Badge>
+                    )}
                     {item.printing_lines.length > 0 && item.printing_lines.some((ln) => ln.spec) && (
                       <span className="text-xs text-muted-foreground">
                         {item.printing_lines.filter((ln) => ln.spec).length} printing
@@ -514,7 +527,7 @@ export default function QuoteRequestForm({
                         >
                           <Copy className="h-2.5 w-2.5" />
                           {source.mold_number || `Item ${lineItems.indexOf(source) + 1}`}
-                          {source.variant_label ? ` (${source.variant_label})` : ""}
+                          {designCountLabel(source.design_count) ? ` (${designCountLabel(source.design_count)})` : ""}
                         </Button>
                       ))}
                     </div>
@@ -566,9 +579,15 @@ export default function QuoteRequestForm({
                         onChange={(e) => updateItem(item.id, { thickness: e.target.value })} placeholder="0.25" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Variant Label</Label>
-                      <Input className="h-8 text-sm" value={item.variant_label}
-                        onChange={(e) => updateItem(item.id, { variant_label: e.target.value })} placeholder="e.g. Gloss" />
+                      <Label className="text-xs">Designs</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        className="h-8 text-sm font-mono"
+                        value={item.design_count}
+                        onChange={(e) => updateItem(item.id, { design_count: e.target.value })}
+                        placeholder="1"
+                      />
                     </div>
                   </div>
 
