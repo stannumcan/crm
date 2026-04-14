@@ -19,7 +19,7 @@ function fmtRmb(v: number | string | null | undefined): string {
 function fmtRmbUnit(v: number | string | null | undefined): string {
   if (v == null) return "—";
   const n = typeof v === "string" ? parseFloat(v) : v;
-  return isNaN(n) ? "—" : `¥${n.toFixed(4)}`;
+  return isNaN(n) ? "—" : `¥${n.toFixed(2)}`;
 }
 
 export interface FactorySheetRefData {

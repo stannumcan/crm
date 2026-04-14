@@ -19,7 +19,13 @@ function fmtRmb(v: number | string | null | undefined): string {
 function fmtRmbUnit(v: number | string | null | undefined): string {
   if (v == null) return "—";
   const n = typeof v === "string" ? parseFloat(v) : v;
-  return isNaN(n) ? "—" : `¥${n.toFixed(4)}`;
+  return isNaN(n) ? "—" : `¥${n.toFixed(2)}`;
+}
+
+function fmtJpy(v: number | string | null | undefined): string {
+  if (v == null) return "—";
+  const n = typeof v === "string" ? parseInt(v) : v;
+  return isNaN(n) ? "—" : `¥${n.toLocaleString()}`;
 }
 
 export interface DDPSidebarData {
@@ -41,6 +47,8 @@ export interface DDPSidebarData {
   // From wilfred calc (price data)
   wilfredVersion: number | null;
   wilfredTiers: WilfredTier[];
+  // Selling prices from current DDP entries (matched by tier_label)
+  ddpPrices?: Record<string, { unit_price_jpy: number | null }>;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -57,7 +65,7 @@ export default function DDPSidebarReference({ data }: { data: DDPSidebarData }) 
     moldNumber, productDimensions, steelThickness, sheetVersion,
     moldImageUrl, printingLines, embossingLines, packagingLines, attachments,
     moldCostNew, moldCostModify, moldLeadTimeDays, embossingCost,
-    wilfredVersion, wilfredTiers,
+    wilfredVersion, wilfredTiers, ddpPrices,
   } = data;
 
   return (
@@ -119,7 +127,7 @@ export default function DDPSidebarReference({ data }: { data: DDPSidebarData }) 
       <div className="flex items-center gap-2 pt-2 pb-1 border-t" style={{ borderColor: "oklch(0.88 0.06 300)" }}>
         <Calculator className="h-4 w-4 shrink-0" style={{ color: "oklch(0.55 0.12 300)" }} />
         <div>
-          <p className="text-sm font-semibold">Wilfred Calc</p>
+          <p className="text-sm font-semibold">Cost</p>
           {wilfredVersion && <p className="text-[10px] text-muted-foreground font-mono">v{wilfredVersion}</p>}
         </div>
       </div>
@@ -134,22 +142,27 @@ export default function DDPSidebarReference({ data }: { data: DDPSidebarData }) 
         </div>
       </Section>
 
-      {/* Wilfred tier prices */}
+      {/* Tier prices */}
       {wilfredTiers.length > 0 && (
         <Section title="Price per Tier">
           <div className="text-xs space-y-1">
-            {wilfredTiers.map((t) => (
-              <div key={t.tier_label} className="rounded bg-muted/40 px-2 py-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">Tier {t.tier_label}</span>
-                  <span className="text-muted-foreground">{t.quantity?.toLocaleString()} pcs</span>
+            {wilfredTiers.map((t) => {
+              const sellingPrice = ddpPrices?.[t.tier_label]?.unit_price_jpy;
+              return (
+                <div key={t.tier_label} className="rounded bg-muted/40 px-2 py-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{t.quantity?.toLocaleString()} pcs</span>
+                    <span className="text-foreground font-mono font-semibold">{fmtRmbUnit(t.estimated_cost_rmb)}/pc</span>
+                  </div>
+                  {sellingPrice != null && (
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="text-[10px] text-muted-foreground">Selling</span>
+                      <span className="text-[11px] font-mono text-green-700 font-semibold">{fmtJpy(sellingPrice)}/pc</span>
+                    </div>
+                  )}
                 </div>
-                <div className="mt-0.5">
-                  <span className="text-foreground font-mono font-semibold">{fmtRmbUnit(t.estimated_cost_rmb)}</span>
-                  <span className="text-muted-foreground"> /pc</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Section>
       )}

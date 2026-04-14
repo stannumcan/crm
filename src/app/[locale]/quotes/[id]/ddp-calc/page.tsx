@@ -209,6 +209,12 @@ export default async function DDPCalcPage({
         margin_rate: c.margin_rate,
         estimated_cost_rmb: c.estimated_cost_rmb,
       })),
+      ddpPrices: Object.fromEntries(
+        ts.existingDDP.map((d: Record<string, unknown>) => [
+          d.tier_label as string,
+          { unit_price_jpy: (d.unit_price_jpy as number | null) ?? null },
+        ])
+      ),
     };
   }
 

@@ -376,19 +376,19 @@ export default function WilfredCalcForm({
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs">总成本合计 (RMB/pc)</Label>
-                  <Input type="number" step="0.0001" value={row.total_subtotal}
+                  <Input type="number" step="0.01" value={row.total_subtotal}
                     onChange={(e) => updateRow(i, "total_subtotal", e.target.value)}
                     disabled={isLocked} className="font-mono" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">人工 Labor (RMB/pc)</Label>
-                  <Input type="number" step="0.0001" value={row.labor_cost}
+                  <Input type="number" step="0.01" value={row.labor_cost}
                     onChange={(e) => updateRow(i, "labor_cost", e.target.value)}
                     disabled={isLocked} className="font-mono" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">配件 Accessories (RMB/pc)</Label>
-                  <Input type="number" step="0.0001" value={row.accessories_cost}
+                  <Input type="number" step="0.01" value={row.accessories_cost}
                     onChange={(e) => updateRow(i, "accessories_cost", e.target.value)}
                     disabled={isLocked} className="font-mono" />
                 </div>
