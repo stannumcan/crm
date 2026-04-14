@@ -64,7 +64,7 @@ export default function DDPCalcWrapper({
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState("");
   // Live prices keyed by sheetId → tier_label → price details
-  const [livePrices, setLivePrices] = useState<Record<string, Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null; total_cost_per_pc_jpy: number | null }>>>({});
+  const [livePrices, setLivePrices] = useState<Record<string, Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null; total_cost_per_pc_jpy: number | null; shipping_method: string | null }>>>({});
 
   const allSaved = initialSheets.every((s) => savedSheets.has(s.id));
   const active = initialSheets.find((s) => s.id === activeSheet) ?? initialSheets[0];

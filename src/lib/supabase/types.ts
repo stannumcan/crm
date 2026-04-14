@@ -11,7 +11,7 @@ export type QuoteStatus =
 
 export type MoldType = "existing" | "new";
 export type QuantityType = "units" | "fcl_20ft" | "fcl_40ft";
-export type ShippingType = "lcl" | "fcl_20gp" | "fcl_40gp" | "fcl_40hq" | "multi_container";
+export type ShippingType = "auto" | "lcl" | "fcl_20gp" | "fcl_40gp" | "fcl_40hq" | "multi_container";
 export type Component = "lid" | "body" | "bottom" | "inner_lid";
 export type WOStatus = "active" | "completed" | "cancelled";
 

@@ -48,7 +48,7 @@ export interface DDPSidebarData {
   wilfredVersion: number | null;
   wilfredTiers: WilfredTier[];
   // Live or saved prices keyed by tier_label
-  ddpPrices?: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy?: number | null; shipping_per_pc_jpy?: number | null; duty_per_pc_jpy?: number | null; total_cost_per_pc_jpy?: number | null }>;
+  ddpPrices?: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy?: number | null; shipping_per_pc_jpy?: number | null; duty_per_pc_jpy?: number | null; total_cost_per_pc_jpy?: number | null; shipping_method?: string | null }>;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -163,7 +163,9 @@ export default function DDPSidebarReference({ data }: { data: DDPSidebarData }) 
                   </div>
                   {shippingPerPc != null && (
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground">Shipping</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Shipping{ddp?.shipping_method ? ` (${ddp.shipping_method})` : ""}
+                      </span>
                       <span className="text-[11px] font-mono text-muted-foreground">¥{shippingPerPc.toFixed(2)}/pc</span>
                     </div>
                   )}

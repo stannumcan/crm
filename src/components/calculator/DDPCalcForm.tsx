@@ -63,7 +63,7 @@ interface TierState {
   quantity: string;
   rmbUnitPrice: string;
   bufferPct: string;
-  shippingType: "lcl" | "fcl_20gp" | "fcl_40gp" | "fcl_40hq" | "multi_container";
+  shippingType: "auto" | "lcl" | "fcl_20gp" | "fcl_40gp" | "fcl_40hq" | "multi_container";
   manualShippingCostJpy: string;
   selectedMarginIdx: string; // index into marginValues array
   manualUnitPriceJpy: string; // user override for selling price; "" = use computed
@@ -83,11 +83,10 @@ interface PackagingState {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function autoShippingType(quantityType: string): TierState["shippingType"] {
-  if (quantityType === "fcl_20gp") return "fcl_20gp";
-  if (quantityType === "fcl_40gp") return "fcl_40gp";
-  if (quantityType === "fcl_40hq") return "fcl_40hq";
-  return "lcl";
+function autoShippingType(_quantityType: string): TierState["shippingType"] {
+  // Default to "auto" — the algorithm picks cheapest valid shipping.
+  // Manual override is still available via the dropdown.
+  return "auto";
 }
 
 function initTier(calc: ApprovedCalc, existing?: { unit_price_jpy?: number | null; selected_margin?: number | null; shipping_cost_jpy?: number | null }, marginValues?: number[]): TierState {
@@ -130,6 +129,7 @@ function initPackaging(defaults: PackagingDefaults): PackagingState {
 }
 
 const SHIPPING_OPTIONS: { value: TierState["shippingType"]; label: string }[] = [
+  { value: "auto", label: "Auto (cheapest)" },
   { value: "lcl", label: "LCL" },
   { value: "fcl_20gp", label: "20GP" },
   { value: "fcl_40gp", label: "40GP" },
@@ -160,7 +160,7 @@ export default function DDPCalcForm({
   existingDDP: Record<string, unknown>[];
   shippingRates: DDPSettings;
   onSaved?: () => void;
-  onLivePricesChange?: (prices: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null; total_cost_per_pc_jpy: number | null }>) => void;
+  onLivePricesChange?: (prices: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null; total_cost_per_pc_jpy: number | null; shipping_method: string | null }>) => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -199,6 +199,11 @@ export default function DDPCalcForm({
   const updateTier = (label: string, field: keyof TierState, value: string) =>
     setTiers((prev) => prev.map((t) => t.tier_label === label ? { ...t, [field]: value } : t));
 
+  // Container capacities (tins per container) from factory sheet
+  const pcs20GP = packagingDefaults.containers.find((c) => c.type === "20GP")?.pcsPerContainer ?? 0;
+  const pcs40GP = packagingDefaults.containers.find((c) => c.type === "40GP")?.pcsPerContainer ?? 0;
+  const pcs40HQ = packagingDefaults.containers.find((c) => c.type === "40HQ")?.pcsPerContainer ?? 0;
+
   // Build calc result for a tier
   function calcTier(tier: TierState) {
     const qty = parseInt(tier.quantity);
@@ -221,6 +226,9 @@ export default function DDPCalcForm({
       palletWmm: parseFloat(pkg.palletW) || 1000,
       palletHmm: parseFloat(pkg.palletH) || 1100,
       boxesPerPallet: bpp,
+      pcs20GP,
+      pcs40GP,
+      pcs40HQ,
       bufferPct: parseFloat(tier.bufferPct) / 100 || 0.05,
       shippingType: tier.shippingType,
       manualShippingCostJpy: tier.manualShippingCostJpy ? parseInt(tier.manualShippingCostJpy) : undefined,
@@ -228,7 +236,7 @@ export default function DDPCalcForm({
       lclBaseFee: parseFloat(lclBaseFee) || 0,
       fcl20gpCost: parseFloat(fcl20gpCost) || 250000,
       fcl40gpCost: parseFloat(fcl40gpCost) || 400000,
-      fcl40hqCost: parseFloat(fcl40hqCost) || 450000,
+      fcl40hqCost: parseFloat(fcl40hqCost) || 0,
       margins: parsedMargins,
       importDutyRate: parseFloat(importDutyRate) / 100,
       consumptionTaxRate: parseFloat(consumptionTaxRate) / 100,
@@ -239,7 +247,7 @@ export default function DDPCalcForm({
   // Push live prices up to parent for sidebar display
   useEffect(() => {
     if (!onLivePricesChange) return;
-    const prices: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null; total_cost_per_pc_jpy: number | null }> = {};
+    const prices: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null; total_cost_per_pc_jpy: number | null; shipping_method: string | null }> = {};
     for (const tier of tiers) {
       const result = calcTier(tier);
       const qty = parseInt(tier.quantity) || 0;
@@ -253,6 +261,7 @@ export default function DDPCalcForm({
         shipping_per_pc_jpy: result && qty > 0 ? Math.round((result.shippingCostJpy / qty) * 100) / 100 : null,
         duty_per_pc_jpy: result && qty > 0 ? Math.round((result.importDutyJpy / qty) * 100) / 100 : null,
         total_cost_per_pc_jpy: result && qty > 0 ? Math.round(result.totalCostJpy / qty) : null,
+        shipping_method: result?.shippingMethod ?? null,
       };
     }
     onLivePricesChange(prices);
@@ -287,6 +296,9 @@ export default function DDPCalcForm({
           palletWmm: parseFloat(pkg.palletW) || 1000,
           palletHmm: parseFloat(pkg.palletH) || 1100,
           boxesPerPallet: bpp,
+          pcs20GP,
+          pcs40GP,
+          pcs40HQ,
           bufferPct: parseFloat(tier.bufferPct) / 100 || 0.05,
           shippingType: tier.shippingType,
           manualShippingCostJpy: tier.manualShippingCostJpy ? parseInt(tier.manualShippingCostJpy) : undefined,
@@ -294,7 +306,7 @@ export default function DDPCalcForm({
           lclBaseFee: parseFloat(lclBaseFee) || 0,
           fcl20gpCost: parseFloat(fcl20gpCost) || 250000,
           fcl40gpCost: parseFloat(fcl40gpCost) || 400000,
-          fcl40hqCost: parseFloat(fcl40hqCost) || 450000,
+          fcl40hqCost: parseFloat(fcl40hqCost) || 0,
           margins: parsedMargins,
           importDutyRate: parseFloat(importDutyRate) / 100,
           consumptionTaxRate: parseFloat(consumptionTaxRate) / 100,
@@ -320,7 +332,8 @@ export default function DDPCalcForm({
               lcl_base_fee: parseFloat(lclBaseFee) || 0,
               fcl_20gp_jpy: parseFloat(fcl20gpCost) || 250000,
               fcl_40gp_jpy: parseFloat(fcl40gpCost) || 400000,
-              fcl_40hq_jpy: parseFloat(fcl40hqCost) || 450000,
+              // 40HQ: 0 disables this container in the auto algorithm
+              fcl_40hq_jpy: parseFloat(fcl40hqCost) || 0,
               margin_values: marginValues.map((m) => parseFloat(m)).filter((m) => !isNaN(m) && m >= 0),
             },
           }),
@@ -426,8 +439,8 @@ export default function DDPCalcForm({
                   <Input type="number" value={fcl40gpCost} onChange={(e) => setFcl40gpCost(e.target.value)} className="h-8 font-mono" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">40HQ Cost (¥)</Label>
-                  <Input type="number" value={fcl40hqCost} onChange={(e) => setFcl40hqCost(e.target.value)} className="h-8 font-mono" />
+                  <Label className="text-xs">40HQ Cost (¥) <span className="text-gray-400 font-normal">— 0 to disable</span></Label>
+                  <Input type="number" value={fcl40hqCost} onChange={(e) => setFcl40hqCost(e.target.value)} className="h-8 font-mono" placeholder="0 = disabled" />
                 </div>
               </div>
             </div>
@@ -606,6 +619,7 @@ export default function DDPCalcForm({
                             <Row label="Factory production qty" value={`${result.factoryProductionQty.toLocaleString()} pcs`} />
                             <Row label="Pallets" value={result.pallets.toLocaleString()} />
                             <Row label="Total CBM" value={`${result.totalCBM} m³`} />
+                            <Row label="Shipping method" value={result.shippingMethod} />
                           </div>
                         </div>
 
@@ -616,7 +630,14 @@ export default function DDPCalcForm({
                           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Cost Breakdown</p>
                           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
                             <Row label="Manufacturing" value={formatJPY(result.manufacturingCostJpy)} />
-                            <Row label={`Shipping (${SHIPPING_OPTIONS.find((o) => o.value === tier.shippingType)?.label ?? tier.shippingType})`} value={formatJPY(result.shippingCostJpy)} />
+                            <Row
+                              label={
+                                tier.shippingType === "auto"
+                                  ? `Shipping (Auto → ${result.shippingMethod})`
+                                  : `Shipping (${result.shippingMethod})`
+                              }
+                              value={formatJPY(result.shippingCostJpy)}
+                            />
                             <Row label={`Import duty (${importDutyRate}%)`} value={formatJPY(result.importDutyJpy)} />
                             {result.consumptionTaxJpy > 0 && (
                               <Row label={`Consumption tax (${consumptionTaxRate}%)`} value={formatJPY(result.consumptionTaxJpy)} />
