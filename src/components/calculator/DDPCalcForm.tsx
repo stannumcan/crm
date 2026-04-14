@@ -66,6 +66,7 @@ interface TierState {
   shippingType: "lcl" | "fcl_20gp" | "fcl_40gp" | "fcl_40hq" | "multi_container";
   manualShippingCostJpy: string;
   selectedMarginIdx: string; // index into marginValues array
+  manualUnitPriceJpy: string; // user override for selling price; "" = use computed
 }
 
 interface PackagingState {
@@ -98,6 +99,7 @@ function initTier(calc: ApprovedCalc): TierState {
     shippingType: autoShippingType(calc.quantity_type),
     manualShippingCostJpy: "",
     selectedMarginIdx: "4", // index 4 = 40% in default array
+    manualUnitPriceJpy: "",
   };
 }
 
@@ -221,8 +223,14 @@ export default function DDPCalcForm({
     if (!onLivePricesChange) return;
     const prices: Record<string, number | null> = {};
     for (const tier of tiers) {
-      const result = calcTier(tier);
-      prices[tier.tier_label] = result?.unitPriceJpy ?? null;
+      // Manual override takes precedence
+      const manual = parseInt(tier.manualUnitPriceJpy);
+      if (!isNaN(manual) && manual > 0) {
+        prices[tier.tier_label] = manual;
+      } else {
+        const result = calcTier(tier);
+        prices[tier.tier_label] = result?.unitPriceJpy ?? null;
+      }
     }
     onLivePricesChange(prices);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -268,6 +276,7 @@ export default function DDPCalcForm({
           importDutyRate: parseFloat(importDutyRate) / 100,
           consumptionTaxRate: parseFloat(consumptionTaxRate) / 100,
           selectedMargin: parsedMargins[selIdx] ?? 0.4,
+          manualUnitPriceJpy: tier.manualUnitPriceJpy ? parseInt(tier.manualUnitPriceJpy) : undefined,
         };
       });
 
@@ -625,18 +634,58 @@ export default function DDPCalcForm({
                           </div>
                         </div>
 
-                        {/* Selected price banner */}
-                        <div className="flex items-center justify-between rounded-lg bg-blue-700 text-white px-4 py-3">
-                          <div>
-                            <p className="text-xs opacity-70">Selected: {marginValues[parseInt(tier.selectedMarginIdx)] ?? "—"}% margin</p>
-                            <p className="text-2xl font-bold">{formatJPY(result.unitPriceJpy)}<span className="text-sm font-normal opacity-80"> / pc</span></p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs opacity-70">Total revenue</p>
-                            <p className="text-lg font-semibold">{formatJPY(result.totalRevenueJpy)}</p>
-                            <p className="text-xs opacity-80 mt-0.5">Profit: {formatJPY(result.totalRevenueJpy - result.totalCostJpy)}</p>
-                          </div>
-                        </div>
+                        {/* Selected price banner — cost vs editable selling price */}
+                        {(() => {
+                          const qty = parseInt(tier.quantity) || 0;
+                          const costPerPc = qty > 0 ? Math.round(result.totalCostJpy / qty) : 0;
+                          const manual = parseInt(tier.manualUnitPriceJpy);
+                          const sellingPerPc = !isNaN(manual) && manual > 0 ? manual : result.unitPriceJpy;
+                          const totalRevenue = sellingPerPc * qty;
+                          const profit = totalRevenue - result.totalCostJpy;
+                          return (
+                            <div className="rounded-lg bg-blue-700 text-white px-4 py-3 space-y-2">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-xs opacity-70">Cost / pc (DDP, JPY)</p>
+                                  <p className="text-2xl font-bold">¥{costPerPc.toLocaleString()}<span className="text-sm font-normal opacity-80"> / pc</span></p>
+                                </div>
+                                <div>
+                                  <p className="text-xs opacity-70">Selling Price / pc (editable)</p>
+                                  <div className="flex items-baseline gap-1">
+                                    <span className="text-2xl font-bold">¥</span>
+                                    <input
+                                      type="number"
+                                      value={tier.manualUnitPriceJpy || result.unitPriceJpy}
+                                      onChange={(e) => updateTier(tier.tier_label, "manualUnitPriceJpy", e.target.value)}
+                                      className="bg-blue-800/50 border border-blue-400 rounded px-2 py-0.5 text-2xl font-bold text-white w-32 outline-none focus:border-white"
+                                    />
+                                    <span className="text-sm opacity-80">/ pc</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between pt-1 border-t border-blue-500/50 text-xs">
+                                <span className="opacity-70">
+                                  Margin: {tier.manualUnitPriceJpy ? `${(((sellingPerPc - costPerPc) / costPerPc) * 100).toFixed(1)}% (manual)` : `${marginValues[parseInt(tier.selectedMarginIdx)] ?? "—"}%`}
+                                </span>
+                                <div className="text-right">
+                                  <span className="opacity-70">Revenue: </span>
+                                  <span className="font-semibold">¥{totalRevenue.toLocaleString()}</span>
+                                  <span className="opacity-70 ml-3">Profit: </span>
+                                  <span className="font-semibold">¥{profit.toLocaleString()}</span>
+                                </div>
+                              </div>
+                              {tier.manualUnitPriceJpy && (
+                                <button
+                                  type="button"
+                                  onClick={() => updateTier(tier.tier_label, "manualUnitPriceJpy", "")}
+                                  className="text-[10px] underline opacity-70 hover:opacity-100"
+                                >
+                                  Reset to calculated
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                       </CardContent>
                     </Card>

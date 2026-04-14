@@ -39,8 +39,11 @@ export async function POST(request: NextRequest) {
     await supersedeCurrent(supabase, "natsuki_ddp_calculations", filters);
   }
 
-  const records = tiers.map((t: DDPInputs & { tier_label: string }) => {
+  const records = tiers.map((t: DDPInputs & { tier_label: string; manualUnitPriceJpy?: number }) => {
     const result = calculateDDP(t);
+    // Apply manual override if set
+    const finalUnitPrice = t.manualUnitPriceJpy && t.manualUnitPriceJpy > 0 ? t.manualUnitPriceJpy : result.unitPriceJpy;
+    const finalRevenue = finalUnitPrice * t.customerOrderQty;
     return {
       quotation_id,
       annie_quotation_id,
@@ -60,8 +63,8 @@ export async function POST(request: NextRequest) {
       manufacturing_cost_jpy: result.manufacturingCostJpy,
       total_cost_jpy: result.totalCostJpy,
       selected_margin: t.selectedMargin,
-      unit_price_jpy: result.unitPriceJpy,
-      total_revenue_jpy: result.totalRevenueJpy,
+      unit_price_jpy: finalUnitPrice,
+      total_revenue_jpy: finalRevenue,
       version: newVersion,
       is_current: true,
       based_on_sheet_version: basedOnSheetVersion,
