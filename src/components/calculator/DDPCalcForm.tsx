@@ -148,7 +148,7 @@ export default function DDPCalcForm({
   existingDDP: Record<string, unknown>[];
   shippingRates: DDPSettings;
   onSaved?: () => void;
-  onLivePricesChange?: (prices: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null }>) => void;
+  onLivePricesChange?: (prices: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null; total_cost_per_pc_jpy: number | null }>) => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -221,7 +221,7 @@ export default function DDPCalcForm({
   // Push live prices up to parent for sidebar display
   useEffect(() => {
     if (!onLivePricesChange) return;
-    const prices: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null }> = {};
+    const prices: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null; total_cost_per_pc_jpy: number | null }> = {};
     for (const tier of tiers) {
       const result = calcTier(tier);
       const qty = parseInt(tier.quantity) || 0;
@@ -234,6 +234,7 @@ export default function DDPCalcForm({
         cost_per_pc_jpy: result && qty > 0 ? Math.round(result.manufacturingCostJpy / qty) : null,
         shipping_per_pc_jpy: result && qty > 0 ? Math.round((result.shippingCostJpy / qty) * 100) / 100 : null,
         duty_per_pc_jpy: result && qty > 0 ? Math.round((result.importDutyJpy / qty) * 100) / 100 : null,
+        total_cost_per_pc_jpy: result && qty > 0 ? Math.round(result.totalCostJpy / qty) : null,
       };
     }
     onLivePricesChange(prices);
@@ -522,15 +523,20 @@ export default function DDPCalcForm({
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Manufacturing Unit Price (RMB/pc)</Label>
-                        <Input
-                          type="number"
-                          step="0.0001"
-                          value={tier.rmbUnitPrice}
-                          onChange={(e) => updateTier(tier.tier_label, "rmbUnitPrice", e.target.value)}
-                          className="font-mono"
-                        />
-                        <p className="text-xs text-gray-400">Auto-filled from Wilfred calc</p>
+                        <Label className="text-xs">Manufacturing Unit Price</Label>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-9 px-3 rounded-md border bg-muted/40 flex items-center font-mono text-sm">
+                            ¥{tier.rmbUnitPrice || "—"} <span className="text-muted-foreground text-xs ml-1">RMB/pc</span>
+                          </div>
+                          <div className="flex-1 h-9 px-3 rounded-md border bg-muted/40 flex items-center font-mono text-sm">
+                            ¥{(() => {
+                              const rmb = parseFloat(tier.rmbUnitPrice);
+                              const fx = parseFloat(fxRate);
+                              if (isNaN(rmb) || isNaN(fx)) return "—";
+                              return Math.round(rmb * fx).toLocaleString();
+                            })()} <span className="text-muted-foreground text-xs ml-1">JPY/pc</span>
+                          </div>
+                        </div>
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Shipping Type</Label>

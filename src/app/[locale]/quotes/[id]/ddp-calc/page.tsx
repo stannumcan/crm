@@ -224,6 +224,7 @@ export default async function DDPCalcPage({
               cost_per_pc_jpy: mfgCost != null && qty > 0 ? Math.round(mfgCost / qty) : null,
               shipping_per_pc_jpy: shipping != null && qty > 0 ? Math.round((shipping / qty) * 100) / 100 : null,
               duty_per_pc_jpy: duty != null && qty > 0 ? Math.round((duty / qty) * 100) / 100 : null,
+              total_cost_per_pc_jpy: totalCost != null && qty > 0 ? Math.round(totalCost / qty) : null,
             },
           ];
         })

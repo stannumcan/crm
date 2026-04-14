@@ -48,7 +48,7 @@ export interface DDPSidebarData {
   wilfredVersion: number | null;
   wilfredTiers: WilfredTier[];
   // Live or saved prices keyed by tier_label
-  ddpPrices?: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy?: number | null; shipping_per_pc_jpy?: number | null; duty_per_pc_jpy?: number | null }>;
+  ddpPrices?: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy?: number | null; shipping_per_pc_jpy?: number | null; duty_per_pc_jpy?: number | null; total_cost_per_pc_jpy?: number | null }>;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -151,6 +151,7 @@ export default function DDPSidebarReference({ data }: { data: DDPSidebarData }) 
               const costPerPc = ddp?.cost_per_pc_jpy;
               const shippingPerPc = ddp?.shipping_per_pc_jpy;
               const dutyPerPc = ddp?.duty_per_pc_jpy;
+              const totalCostPerPc = ddp?.total_cost_per_pc_jpy;
               const sellingPrice = ddp?.unit_price_jpy;
               return (
                 <div key={t.tier_label} className="rounded bg-muted/40 px-2 py-1.5 space-y-0.5">
@@ -172,8 +173,14 @@ export default function DDPSidebarReference({ data }: { data: DDPSidebarData }) 
                       <span className="text-[11px] font-mono text-muted-foreground">¥{dutyPerPc.toFixed(2)}/pc</span>
                     </div>
                   )}
-                  {sellingPrice != null && (
+                  {totalCostPerPc != null && (
                     <div className="flex items-center justify-between border-t border-muted-foreground/20 pt-0.5 mt-0.5">
+                      <span className="text-[10px] font-medium">Total Cost</span>
+                      <span className="text-[11px] font-mono font-semibold">¥{totalCostPerPc.toLocaleString()}/pc</span>
+                    </div>
+                  )}
+                  {sellingPrice != null && (
+                    <div className="flex items-center justify-between">
                       <span className="text-[10px] text-green-700 font-medium">Selling</span>
                       <span className="text-[11px] font-mono text-green-700 font-semibold">¥{sellingPrice.toLocaleString()}/pc</span>
                     </div>
