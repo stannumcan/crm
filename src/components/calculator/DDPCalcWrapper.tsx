@@ -62,6 +62,8 @@ export default function DDPCalcWrapper({
   });
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState("");
+  // Live prices keyed by sheetId → { tier_label: unit_price_jpy }
+  const [livePrices, setLivePrices] = useState<Record<string, Record<string, number | null>>>({});
 
   const allSaved = initialSheets.every((s) => savedSheets.has(s.id));
   const active = initialSheets.find((s) => s.id === activeSheet) ?? initialSheets[0];
@@ -95,7 +97,12 @@ export default function DDPCalcWrapper({
           <div className="sticky top-6 max-h-[calc(100vh-48px)] overflow-y-auto rounded-lg border p-4"
             style={{ borderColor: "oklch(0.88 0.04 230)", background: "oklch(0.98 0.005 230)" }}
           >
-            <DDPSidebarReference data={active.sidebarData} />
+            <DDPSidebarReference data={{
+              ...active.sidebarData,
+              ddpPrices: livePrices[active.id]
+                ? Object.fromEntries(Object.entries(livePrices[active.id]).map(([k, v]) => [k, { unit_price_jpy: v }]))
+                : active.sidebarData.ddpPrices,
+            }} />
           </div>
         </aside>
       )}
@@ -190,6 +197,7 @@ export default function DDPCalcWrapper({
           existingDDP={active.existingDDP}
           shippingRates={shippingRates}
           onSaved={() => markSaved(active.id)}
+          onLivePricesChange={(p) => setLivePrices((prev) => ({ ...prev, [active.id]: p }))}
         />
       )}
 

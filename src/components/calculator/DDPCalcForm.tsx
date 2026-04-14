@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,6 +135,7 @@ export default function DDPCalcForm({
   existingDDP,
   shippingRates: defaultSettings,
   onSaved,
+  onLivePricesChange,
 }: {
   locale: string;
   quoteId: string;
@@ -145,6 +146,7 @@ export default function DDPCalcForm({
   existingDDP: Record<string, unknown>[];
   shippingRates: DDPSettings;
   onSaved?: () => void;
+  onLivePricesChange?: (prices: Record<string, number | null>) => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -213,6 +215,18 @@ export default function DDPCalcForm({
       selectedMargin: parsedMargins[selIdx] ?? 0.4,
     });
   }
+
+  // Push live prices up to parent for sidebar display
+  useEffect(() => {
+    if (!onLivePricesChange) return;
+    const prices: Record<string, number | null> = {};
+    for (const tier of tiers) {
+      const result = calcTier(tier);
+      prices[tier.tier_label] = result?.unitPriceJpy ?? null;
+    }
+    onLivePricesChange(prices);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tiers, fxRate, pkg, marginValues, lclRatePerCbm, lclBaseFee, fcl20gpCost, fcl40gpCost, fcl40hqCost, importDutyRate, consumptionTaxRate]);
 
   const handleSubmit = async () => {
     setLoading(true);
