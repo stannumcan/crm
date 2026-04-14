@@ -12,13 +12,14 @@ export async function POST(request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 
-  // Get upstream versions
+  // Get upstream versions + ref_number
   const { data: sheetRow } = await db
     .from("factory_cost_sheets")
-    .select("version")
+    .select("version, ref_number")
     .eq("id", cost_sheet_id)
     .single();
   const basedOnSheetVersion = sheetRow?.version ?? 1;
+  const dcRefNumber = sheetRow?.ref_number ? `${sheetRow.ref_number}/DC` : null;
 
   const { data: wilfredRow } = await db
     .from("wilfred_calculations")
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest) {
       is_current: true,
       based_on_sheet_version: basedOnSheetVersion,
       based_on_wilfred_version: basedOnWilfredVersion,
+      ref_number: dcRefNumber,
     };
   });
 

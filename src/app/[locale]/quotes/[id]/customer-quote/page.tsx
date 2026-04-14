@@ -34,7 +34,7 @@ export default async function CustomerQuotePage({
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order),
       factory_cost_sheets(
         id, mold_number, mold_cost_new, mold_cost_modify, mold_lead_time_days,
-        steel_type, steel_thickness, product_dimensions, version, is_current, is_cancelled,
+        steel_type, steel_thickness, product_dimensions, version, is_current, is_cancelled, ref_number,
         outer_carton_qty, outer_carton_config,
         printing_lines, embossing_lines, packaging_lines, mold_image_url,
         wilfred_calculations(tier_label, quantity, estimated_cost_rmb, approved, is_current),
@@ -111,8 +111,11 @@ export default async function CustomerQuotePage({
     // Existing customer quote for this sheet
     const existingCQ = allCQs.find((cq: { cost_sheet_id: string }) => cq.cost_sheet_id === sheet.id) ?? null;
 
-    // Generate quote number: Q{woNumber}{3-digit seq}
+    // Quote number is the chain ID (factory_sheet ref + /CQ)
+    // Falls back to legacy format if no ref_number set
+    const chainQuoteNumber = sheet.ref_number ? `${sheet.ref_number}/CQ` : null;
     const defaultQuoteNumber = existingCQ?.winhoop_quote_number
+      ?? chainQuoteNumber
       ?? `Q${wo?.wo_number ?? ""}${String(nextSeq).padStart(3, "0")}`;
     if (!existingCQ) nextSeq++;
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { notifyWorkflowStep, notifyFactorySheet } from "@/lib/workflow-notify";
 import { getNextVersion, supersedeCurrent, logChange } from "@/lib/versioning";
+import { getNextChainLetter, buildFactorySheetRef, generateNewMoldNumber } from "@/lib/ref-numbers";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -11,12 +12,24 @@ export async function POST(request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 
-  // Get quote version for linking
+  // Get quote version + WO number for ref generation
   const { data: quotation } = await db
     .from("quotations")
-    .select("quote_version")
+    .select("quote_version, work_orders(wo_number)")
     .eq("id", sheetData.quotation_id)
     .single();
+
+  // Generate NM placeholder if no mold number provided
+  let moldNumber = sheetData.mold_number;
+  if (!moldNumber) {
+    moldNumber = await generateNewMoldNumber(supabase);
+    sheetData.mold_number = moldNumber;
+  }
+
+  // Assign chain letter + ref number
+  const chainLetter = await getNextChainLetter(supabase, sheetData.quotation_id, moldNumber);
+  const woNumber = (quotation?.work_orders as { wo_number: string } | null)?.wo_number ?? "WO";
+  const refNumber = buildFactorySheetRef(woNumber, moldNumber, chainLetter);
 
   const { data: sheet, error } = await db
     .from("factory_cost_sheets")
@@ -25,6 +38,8 @@ export async function POST(request: NextRequest) {
       version: 1,
       is_current: true,
       based_on_quote_version: quotation?.quote_version ?? 1,
+      chain_letter: chainLetter,
+      ref_number: refNumber,
     })
     .select()
     .single();
@@ -83,8 +98,22 @@ export async function PATCH(request: NextRequest) {
   // Supersede the current version
   await supersedeCurrent(supabase, "factory_cost_sheets", { sheet_group_id: sheetGroupId });
 
-  // Insert new version
+  // Insert new version (chain_letter persists across versions)
   const { id: _oldId, created_at: _ca, superseded_at: _sa, ...currentFields } = current;
+  const mergedMold = sheetData.mold_number ?? current.mold_number;
+
+  // Regenerate ref_number if mold changed
+  let refNumber = current.ref_number;
+  if (sheetData.mold_number && sheetData.mold_number !== current.mold_number) {
+    const { data: q } = await db
+      .from("quotations")
+      .select("work_orders(wo_number)")
+      .eq("id", current.quotation_id)
+      .single();
+    const woNumber = (q?.work_orders as { wo_number: string } | null)?.wo_number ?? "WO";
+    refNumber = buildFactorySheetRef(woNumber, mergedMold, current.chain_letter ?? "A");
+  }
+
   const { data: newSheet, error } = await db
     .from("factory_cost_sheets")
     .insert({
@@ -94,6 +123,7 @@ export async function PATCH(request: NextRequest) {
       is_current: true,
       sheet_group_id: sheetGroupId,
       superseded_at: null,
+      ref_number: refNumber,
     })
     .select()
     .single();

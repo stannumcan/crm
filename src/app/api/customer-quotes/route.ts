@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
   // Get upstream versions
   let basedOnDdpVersion = 1;
   let basedOnSheetVersion = 1;
+  let cqRefNumber: string | null = null;
+  let chainId: string | null = null;
   if (body.cost_sheet_id) {
     const { data: ddpRow } = await db
       .from("natsuki_ddp_calculations")
@@ -25,20 +27,29 @@ export async function POST(request: NextRequest) {
 
     const { data: sheetRow } = await db
       .from("factory_cost_sheets")
-      .select("version")
+      .select("version, ref_number")
       .eq("id", body.cost_sheet_id)
       .single();
     basedOnSheetVersion = sheetRow?.version ?? 1;
+    if (sheetRow?.ref_number) {
+      cqRefNumber = `${sheetRow.ref_number}/CQ`;
+      chainId = cqRefNumber;
+    }
   }
+
+  // Use chain ID as the customer quote number (replacing legacy winhoop_quote_number)
+  const insertBody = { ...body };
+  if (chainId) insertBody.winhoop_quote_number = chainId;
 
   const { data, error } = await db
     .from("customer_quotes")
     .insert({
-      ...body,
+      ...insertBody,
       version: 1,
       is_current: true,
       based_on_ddp_version: basedOnDdpVersion,
       based_on_sheet_version: basedOnSheetVersion,
+      ref_number: cqRefNumber,
     })
     .select()
     .single();

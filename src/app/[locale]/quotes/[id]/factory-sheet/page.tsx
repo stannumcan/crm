@@ -26,7 +26,7 @@ export default async function FactorySheetListPage({
       printing_lid, printing_body, printing_bottom, printing_inner, printing_notes,
       embossment, embossment_components, embossment_notes,
       work_orders(wo_number, company_name, project_name),
-      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, printing_lines, embossing_lines, version, is_current, is_cancelled, sheet_group_id, created_at),
+      factory_cost_sheets(id, mold_number, sheet_date, product_dimensions, printing_lines, embossing_lines, version, is_current, is_cancelled, sheet_group_id, ref_number, chain_letter, created_at),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order)
     `)
     .eq("id", id)
@@ -37,7 +37,7 @@ export default async function FactorySheetListPage({
   const wo = quote.work_orders as { wo_number: string; company_name: string; project_name: string } | null;
   let sheets = ((Array.isArray(quote.factory_cost_sheets)
     ? quote.factory_cost_sheets
-    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; printing_lines: { surface: string; part: string; spec: string }[] | null; embossing_lines: { component: string }[] | null; version: number; is_current: boolean; is_cancelled: boolean; sheet_group_id: string | null; created_at: string }[])
+    : quote.factory_cost_sheets ? [quote.factory_cost_sheets] : []) as { id: string; mold_number: string | null; sheet_date: string | null; product_dimensions: string | null; printing_lines: { surface: string; part: string; spec: string }[] | null; embossing_lines: { component: string }[] | null; version: number; is_current: boolean; is_cancelled: boolean; sheet_group_id: string | null; ref_number: string | null; chain_letter: string | null; created_at: string }[])
     .filter((s) => s.is_current !== false && !s.is_cancelled);
 
   // ── Auto-create one sheet per mold if none exist ────────────────
@@ -45,11 +45,30 @@ export default async function FactorySheetListPage({
   const molds = (quote.molds as any[]) ?? [];
   if (sheets.length === 0 && molds.length > 0) {
     const tiers = (quote.quotation_quantity_tiers ?? []) as { tier_label: string; quantity_type: string; quantity: number | null; sort_order: number }[];
+    const woNumber = (quote.work_orders as { wo_number: string } | null)?.wo_number ?? "WO";
+
+    // Track chain letter per mold within this batch
+    const chainCounts: Record<string, number> = {};
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sheetsToInsert = molds.map((m: any) => ({
+    const sheetsToInsert = await Promise.all(molds.map(async (m: any) => {
+      // Generate NM number for new molds without a number
+      let moldNumber = m.value ?? null;
+      if (!moldNumber) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: nmResult } = await (db as any).rpc("get_next_nm_mold_number");
+        moldNumber = nmResult ?? `ML-NM${Date.now().toString().slice(-4)}`;
+      }
+      // Assign chain letter
+      const idx = chainCounts[moldNumber] ?? 0;
+      const chainLetter = String.fromCharCode(65 + idx);
+      chainCounts[moldNumber] = idx + 1;
+
+      return {
       quotation_id: id,
-      mold_number: m.value ?? null,
+      mold_number: moldNumber,
+      chain_letter: chainLetter,
+      ref_number: `${woNumber}-${moldNumber}-${chainLetter}`,
       product_dimensions: m.size ?? null,
       steel_thickness: m.thickness ? parseFloat(m.thickness) : null,
       sheet_date: new Date().toISOString().split("T")[0],
@@ -67,6 +86,7 @@ export default async function FactorySheetListPage({
         : quote.embossment
           ? [{ component: quote.embossment_components ?? "", cost_rmb: "", notes: quote.embossment_notes ?? "" }]
           : [],
+      };
     }));
 
     const { data: created } = await db
@@ -141,6 +161,9 @@ export default async function FactorySheetListPage({
                         {lineItem?.variant_label && <Badge variant="secondary" className="text-[10px]">{lineItem.variant_label}</Badge>}
                         <Badge variant="outline" className="text-[10px] text-muted-foreground">v{sheet.version ?? 1}</Badge>
                       </div>
+                      {sheet.ref_number && (
+                        <p className="text-[10px] font-mono text-blue-700 mt-0.5">{sheet.ref_number}</p>
+                      )}
                       <p className="text-xs text-gray-500">
                         {sheet.product_dimensions && <span>{sheet.product_dimensions} · </span>}
                         {sheet.sheet_date ? new Date(sheet.sheet_date).toLocaleDateString() : "No date"}

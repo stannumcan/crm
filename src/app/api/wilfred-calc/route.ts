@@ -12,14 +12,15 @@ export async function POST(request: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 
-  // Get the factory sheet's current version
+  // Get the factory sheet's current version + ref_number
   const { data: sheet } = await db
     .from("factory_cost_sheets")
-    .select("version")
+    .select("version, ref_number")
     .eq("id", cost_sheet_id)
     .single();
 
   const basedOnSheetVersion = sheet?.version ?? 1;
+  const ccRefNumber = sheet?.ref_number ? `${sheet.ref_number}/CC` : null;
 
   // Find next version for this cost_sheet_id
   const newVersion = await getNextVersion(supabase, "wilfred_calculations", { cost_sheet_id });
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
     version: newVersion,
     is_current: true,
     based_on_sheet_version: basedOnSheetVersion,
+    ref_number: ccRefNumber,
   }));
 
   const { data, error } = await db

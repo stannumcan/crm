@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getNextChainLetter, buildFactorySheetRef, generateNewMoldNumber } from "@/lib/ref-numbers";
 
 // POST { line_item } — add a new line item to an existing quotation
 export async function POST(
@@ -38,11 +39,27 @@ export async function POST(
   // Auto-create a factory sheet for the new line item
   const tiers = (quote.quotation_quantity_tiers ?? []) as { tier_label: string; quantity_type: string; quantity: number | null; sort_order: number }[];
 
+  // Generate NM placeholder if no mold number
+  let moldNumber = line_item.value;
+  if (!moldNumber) {
+    moldNumber = await generateNewMoldNumber(supabase);
+  }
+
+  // Get WO + assign chain letter + ref number
+  const { data: q2 } = await db
+    .from("quotations")
+    .select("work_orders(wo_number)")
+    .eq("id", quotationId)
+    .single();
+  const woNumber = (q2?.work_orders as { wo_number: string } | null)?.wo_number ?? "WO";
+  const chainLetter = await getNextChainLetter(supabase, quotationId, moldNumber);
+  const refNumber = buildFactorySheetRef(woNumber, moldNumber, chainLetter);
+
   const { data: sheet } = await db
     .from("factory_cost_sheets")
     .insert({
       quotation_id: quotationId,
-      mold_number: line_item.value ?? null,
+      mold_number: moldNumber,
       product_dimensions: line_item.size ?? null,
       steel_thickness: line_item.thickness ? parseFloat(line_item.thickness) : null,
       sheet_date: new Date().toISOString().split("T")[0],
@@ -52,6 +69,8 @@ export async function POST(
       })),
       version: 1,
       is_current: true,
+      chain_letter: chainLetter,
+      ref_number: refNumber,
     })
     .select("id")
     .single();
