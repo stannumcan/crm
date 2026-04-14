@@ -41,7 +41,7 @@ export default async function DDPCalcPage({
       work_orders(wo_number, company_name, project_name),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order),
       factory_cost_sheets(
-        id, mold_number, product_dimensions, mold_cost_new, mold_cost_modify, mold_lead_time_days,
+        id, mold_number, ref_number, product_dimensions, mold_cost_new, mold_cost_modify, mold_lead_time_days,
         steel_thickness, packaging_lines, printing_lines, embossing_lines,
         mold_image_url, attachments, version, is_current, is_cancelled,
         wilfred_calculations(tier_label, quantity, total_subtotal, labor_cost, accessories_cost, overhead_multiplier, margin_rate, estimated_cost_rmb, approved, is_current, version),
@@ -84,6 +84,7 @@ export default async function DDPCalcPage({
   type SheetForDDP = {
     id: string;
     moldNumber: string | null;
+    refNumber?: string | null;
     variantLabel?: string | null;
     quoteInfo: {
       companyName: string; projectName: string; woNumber: string; canSize: string;
@@ -132,6 +133,7 @@ export default async function DDPCalcPage({
     typedSheets.push({
       id: sheet.id,
       moldNumber: sheet.mold_number ?? null,
+      refNumber: sheet.ref_number ?? null,
       variantLabel,
       quoteInfo: {
         companyName: wo?.company_name ?? "",

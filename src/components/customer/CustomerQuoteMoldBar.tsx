@@ -10,6 +10,7 @@ interface MoldTab {
   variantLabel?: string | null;
   cqVersion?: number;
   hasSaved: boolean;
+  refNumber?: string | null;
 }
 
 export default function CustomerQuoteMoldBar({ tabs, activeSheetId }: { tabs: MoldTab[]; activeSheetId: string }) {
@@ -42,6 +43,9 @@ export default function CustomerQuoteMoldBar({ tabs, activeSheetId }: { tabs: Mo
                 <span className="text-[10px] text-muted-foreground font-mono">v{t.cqVersion}</span>
               )}
             </div>
+            {t.refNumber && (
+              <p className="text-[10px] font-mono text-blue-700 mt-0.5">{t.refNumber}</p>
+            )}
             <div className="flex items-center gap-1 mt-0.5">
               {t.hasSaved ? (
                 <>

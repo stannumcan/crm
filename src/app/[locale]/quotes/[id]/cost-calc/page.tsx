@@ -27,6 +27,7 @@ export default async function CostCalcPage({
       factory_cost_sheets(
         id,
         mold_number,
+        ref_number,
         product_dimensions,
         steel_thickness,
         version,
@@ -117,6 +118,7 @@ export default async function CostCalcPage({
     sheetEntries.push({
       id: sheet.id,
       moldNumber: sheet.mold_number ?? null,
+      refNumber: sheet.ref_number ?? null,
       variantLabel: quoteMolds.find((m: { value?: string }) => m.value === sheet.mold_number)?.variant_label ?? null,
       steelThickness: sheet.steel_thickness ?? null,
       version: sheet.version ?? 1,

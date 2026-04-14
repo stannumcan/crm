@@ -79,6 +79,9 @@ export default async function EditFactorySheetPage({
           {wo && (
             <p className="text-sm text-gray-500">{wo.wo_number} · {wo.project_name} · {wo.company_name}</p>
           )}
+          {sheet.ref_number && (
+            <p className="text-xs font-mono text-blue-700 mt-0.5">{sheet.ref_number}</p>
+          )}
         </div>
       </div>
 

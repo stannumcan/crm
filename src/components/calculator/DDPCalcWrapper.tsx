@@ -12,6 +12,7 @@ import VersionHistory from "@/components/ui/version-history";
 interface SheetData {
   id: string;
   moldNumber: string | null;
+  refNumber?: string | null;
   variantLabel?: string | null;
   ddpVersion?: number;
   quoteInfo: {
@@ -133,6 +134,9 @@ export default function DDPCalcWrapper({
                   <span className="text-[10px] text-muted-foreground font-mono">v{s.ddpVersion}</span>
                 )}
               </div>
+              {s.refNumber && (
+                <p className="text-[10px] font-mono text-blue-700 mt-0.5">{s.refNumber}/DC</p>
+              )}
               <div className="flex items-center gap-1 mt-0.5">
                 {isSaved ? (
                   <>

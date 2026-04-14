@@ -20,6 +20,7 @@ interface FeesData {
 interface SheetEntry {
   id: string;
   moldNumber: string | null;
+  refNumber?: string | null;
   variantLabel?: string | null;
   steelThickness: number | null;
   version: number;
@@ -72,6 +73,9 @@ export default function CostCalcWrapper({
                     <span className="text-[10px] text-muted-foreground font-mono">v{s.wilfredVersion}</span>
                   )}
                 </div>
+                {s.refNumber && (
+                  <p className="text-[10px] font-mono text-blue-700 mt-0.5">{s.refNumber}/CC</p>
+                )}
                 <div className="flex items-center gap-1 mt-0.5">
                   {s.isApproved ? (
                     <>

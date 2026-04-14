@@ -273,12 +273,12 @@ export default function WorkflowDesigner() {
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Email Subject Line</Label>
             <p className="text-xs text-muted-foreground">
-              Use placeholders: {"{company}"}, {"{project}"}, {"{wo}"}, {"{mold}"}
+              Use placeholders: {"{company}"}, {"{project}"}, {"{wo}"}, {"{mold}"}, {"{ref}"}, {"{step}"}
             </p>
             <Input
               value={editSubject}
               onChange={(e) => setEditSubject(e.target.value)}
-              placeholder="e.g. Pricing Request - {company} - {project} - {wo} - {mold}"
+              placeholder="e.g. Pricing Request - {ref} - {company} - {project}"
             />
           </div>
 

@@ -248,12 +248,13 @@ export default async function CustomerQuotePage({
 
       {/* Mould card bar */}
       <CustomerQuoteMoldBar
-        tabs={moldTabs.map((t: { sheetId: string; moldNumber: string | null; variantLabel?: string | null; hasSaved: boolean; cqVersion?: number }) => ({
+        tabs={moldTabs.map((t: { sheetId: string; moldNumber: string | null; variantLabel?: string | null; hasSaved: boolean; cqVersion?: number; defaultQuoteNumber: string }) => ({
           sheetId: t.sheetId,
           moldNumber: t.moldNumber,
           variantLabel: t.variantLabel,
           hasSaved: t.hasSaved,
           cqVersion: t.cqVersion,
+          refNumber: t.defaultQuoteNumber,
         }))}
         activeSheetId={activeTab.sheetId}
       />

@@ -12,7 +12,7 @@ interface Attachment {
 function resolveSubject(
   template: string | null,
   fallback: string,
-  vars: { company: string; project: string; wo: string; mold?: string; step?: string },
+  vars: { company: string; project: string; wo: string; mold?: string; step?: string; ref?: string },
   pricingChanged = false,
 ): string {
   let subject: string;
@@ -22,7 +22,8 @@ function resolveSubject(
       .replace(/\{project\}/gi, vars.project)
       .replace(/\{wo\}/gi, vars.wo)
       .replace(/\{mold\}/gi, vars.mold ?? "")
-      .replace(/\{step\}/gi, vars.step ?? "");
+      .replace(/\{step\}/gi, vars.step ?? "")
+      .replace(/\{ref\}/gi, vars.ref ?? "");
   } else {
     subject = fallback;
   }
@@ -243,11 +244,12 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string, p
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = sheet as any;
     const moldNumber = s.mold_number ?? "—";
+    const refNumber = s.ref_number ?? null;
 
     const subject = resolveSubject(
       step.subject_template,
-      `Pricing Request - ${companyName} - ${projectName} - ${woNumber} - ${moldNumber}`,
-      { company: companyName, project: projectName, wo: woNumber, mold: moldNumber, step: step.label },
+      `Pricing Request - ${refNumber ?? `${woNumber} - ${moldNumber}`} - ${companyName} - ${projectName}`,
+      { company: companyName, project: projectName, wo: woNumber, mold: moldNumber, step: step.label, ref: refNumber ?? "" },
       pricingChanged,
     );
 
@@ -335,6 +337,7 @@ function buildFactorySheetSections(sheet: any) {
 
   // Mold info
   const mold: { label: string; value: string }[] = [];
+  if (sheet.ref_number) mold.push({ label: "Ref #", value: sheet.ref_number });
   if (sheet.mold_number) mold.push({ label: "Mold Number", value: sheet.mold_number });
   if (sheet.product_dimensions) mold.push({ label: "Dimensions", value: sheet.product_dimensions });
   if (sheet.steel_thickness) mold.push({ label: "Thickness", value: `${sheet.steel_thickness}mm` });
