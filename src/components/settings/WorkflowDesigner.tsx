@@ -272,13 +272,25 @@ export default function WorkflowDesigner() {
           {/* Subject line */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Email Subject Line</Label>
-            <p className="text-xs text-muted-foreground">
-              Use placeholders: {"{company}"}, {"{project}"}, {"{wo}"}, {"{mold}"}, {"{ref}"}, {"{step}"}
-            </p>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>
+                <span className="font-medium">Placeholders:</span>{" "}
+                <code>{"{company}"}</code>, <code>{"{project}"}</code>, <code>{"{wo}"}</code>,{" "}
+                <code>{"{mold}"}</code>, <code>{"{step}"}</code>
+              </p>
+              <p>
+                <span className="font-medium">Reference numbers:</span>{" "}
+                <code>{"{ref}"}</code> = chain ID (e.g. JP260001-ML0599-A),{" "}
+                <code>{"{ref_fc}"}</code> factory sheet,{" "}
+                <code>{"{ref_cc}"}</code> /CC,{" "}
+                <code>{"{ref_dc}"}</code> /DC,{" "}
+                <code>{"{ref_cq}"}</code> /CQ
+              </p>
+            </div>
             <Input
               value={editSubject}
               onChange={(e) => setEditSubject(e.target.value)}
-              placeholder="e.g. Pricing Request - {ref} - {company} - {project}"
+              placeholder="e.g. Pricing Request - {ref_fc} - {company} - {project}"
             />
           </div>
 

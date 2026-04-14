@@ -17,13 +17,18 @@ function resolveSubject(
 ): string {
   let subject: string;
   if (template) {
+    const ref = vars.ref ?? "";
     subject = template
       .replace(/\{company\}/gi, vars.company)
       .replace(/\{project\}/gi, vars.project)
       .replace(/\{wo\}/gi, vars.wo)
       .replace(/\{mold\}/gi, vars.mold ?? "")
       .replace(/\{step\}/gi, vars.step ?? "")
-      .replace(/\{ref\}/gi, vars.ref ?? "");
+      .replace(/\{ref_fc\}/gi, ref)
+      .replace(/\{ref_cc\}/gi, ref ? `${ref}/CC` : "")
+      .replace(/\{ref_dc\}/gi, ref ? `${ref}/DC` : "")
+      .replace(/\{ref_cq\}/gi, ref ? `${ref}/CQ` : "")
+      .replace(/\{ref\}/gi, ref);
   } else {
     subject = fallback;
   }
