@@ -210,10 +210,23 @@ export default async function DDPCalcPage({
         estimated_cost_rmb: c.estimated_cost_rmb,
       })),
       ddpPrices: Object.fromEntries(
-        ts.existingDDP.map((d: Record<string, unknown>) => [
-          d.tier_label as string,
-          { unit_price_jpy: (d.unit_price_jpy as number | null) ?? null },
-        ])
+        ts.existingDDP.map((d: Record<string, unknown>) => {
+          const qty = (d.quantity as number) || 0;
+          const mfgCost = d.manufacturing_cost_jpy as number | null;
+          const shipping = d.shipping_cost_jpy as number | null;
+          const totalCost = d.total_cost_jpy as number | null;
+          // duty = total_cost - manufacturing - shipping (rough estimate)
+          const duty = totalCost != null && mfgCost != null && shipping != null ? totalCost - mfgCost - shipping : null;
+          return [
+            d.tier_label as string,
+            {
+              unit_price_jpy: (d.unit_price_jpy as number | null) ?? null,
+              cost_per_pc_jpy: mfgCost != null && qty > 0 ? Math.round(mfgCost / qty) : null,
+              shipping_per_pc_jpy: shipping != null && qty > 0 ? Math.round((shipping / qty) * 100) / 100 : null,
+              duty_per_pc_jpy: duty != null && qty > 0 ? Math.round((duty / qty) * 100) / 100 : null,
+            },
+          ];
+        })
       ),
     };
   }

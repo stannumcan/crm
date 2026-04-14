@@ -148,7 +148,7 @@ export default function DDPCalcForm({
   existingDDP: Record<string, unknown>[];
   shippingRates: DDPSettings;
   onSaved?: () => void;
-  onLivePricesChange?: (prices: Record<string, number | null>) => void;
+  onLivePricesChange?: (prices: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null }>) => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -221,16 +221,20 @@ export default function DDPCalcForm({
   // Push live prices up to parent for sidebar display
   useEffect(() => {
     if (!onLivePricesChange) return;
-    const prices: Record<string, number | null> = {};
+    const prices: Record<string, { unit_price_jpy: number | null; cost_per_pc_jpy: number | null; shipping_per_pc_jpy: number | null; duty_per_pc_jpy: number | null }> = {};
     for (const tier of tiers) {
-      // Manual override takes precedence
+      const result = calcTier(tier);
+      const qty = parseInt(tier.quantity) || 0;
       const manual = parseInt(tier.manualUnitPriceJpy);
-      if (!isNaN(manual) && manual > 0) {
-        prices[tier.tier_label] = manual;
-      } else {
-        const result = calcTier(tier);
-        prices[tier.tier_label] = result?.unitPriceJpy ?? null;
-      }
+      const sellingPrice = !isNaN(manual) && manual > 0
+        ? manual
+        : result?.unitPriceJpy ?? null;
+      prices[tier.tier_label] = {
+        unit_price_jpy: sellingPrice,
+        cost_per_pc_jpy: result && qty > 0 ? Math.round(result.manufacturingCostJpy / qty) : null,
+        shipping_per_pc_jpy: result && qty > 0 ? Math.round((result.shippingCostJpy / qty) * 100) / 100 : null,
+        duty_per_pc_jpy: result && qty > 0 ? Math.round((result.importDutyJpy / qty) * 100) / 100 : null,
+      };
     }
     onLivePricesChange(prices);
   // eslint-disable-next-line react-hooks/exhaustive-deps
