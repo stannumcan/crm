@@ -71,7 +71,7 @@ async function resolveAssignees(
   };
 }
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://japan-crm.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jp.stannumcan.ca";
 
 interface Attachment {
   filename: string;

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getResend, EMAIL_FROM } from "@/lib/email";
 import { buildQuoteEmail } from "@/lib/email-template";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://japan-crm.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jp.stannumcan.ca";
 
 // POST { quotation_id, new_status }
 // Looks up the workflow step for new_status, sends email to assignees
