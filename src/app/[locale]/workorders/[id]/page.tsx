@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Plus, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+import WorkorderNotes from "@/components/workorders/WorkorderNotes";
 
 const QUOTE_STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   draft: "secondary",
@@ -75,6 +76,11 @@ export default async function WorkOrderDetailPage({
             {new Date(wo.created_at).toLocaleDateString()}
           </div>
         </div>
+      </div>
+
+      {/* Notes */}
+      <div className="mb-6">
+        <WorkorderNotes workorderId={wo.id} initialNotes={(wo.notes as string | null) ?? null} />
       </div>
 
       {/* Quotations */}
