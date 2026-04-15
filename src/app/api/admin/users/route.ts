@@ -36,14 +36,35 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, display_name, profile_id } = await request.json();
+    const { email, display_name, profile_id, password } = await request.json();
     if (!email?.trim()) return NextResponse.json({ error: "Email is required" }, { status: 400 });
 
+    const trimmedPassword = typeof password === "string" ? password : "";
+    if (trimmedPassword && trimmedPassword.length < 6) {
+      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    }
+
     const admin = createAdminClient();
-    const { data: { user }, error } = await admin.auth.admin.inviteUserByEmail(email.trim(), {
-      data: { display_name: display_name?.trim() || null },
-    });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // If a password is supplied → create the user directly with email_confirmed=true.
+    // Otherwise → send an invite email (magic link, user sets their own password on first sign-in).
+    let user;
+    if (trimmedPassword) {
+      const { data, error } = await admin.auth.admin.createUser({
+        email: email.trim(),
+        password: trimmedPassword,
+        email_confirm: true,
+        user_metadata: { display_name: display_name?.trim() || null },
+      });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      user = data.user;
+    } else {
+      const { data, error } = await admin.auth.admin.inviteUserByEmail(email.trim(), {
+        data: { display_name: display_name?.trim() || null },
+      });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      user = data.user;
+    }
     if (!user) return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
 
     // Create user_profiles entry

@@ -20,6 +20,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       await (supabase as any).from("user_profiles").upsert({ user_id: id, suspended: body.suspended });
     }
 
+    // Handle password reset (admin-set)
+    if (typeof body.password === "string" && body.password.length > 0) {
+      if (body.password.length < 6) {
+        return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+      }
+      const { error } = await admin.auth.admin.updateUserById(id, { password: body.password });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
     // Handle profile assignment + display name
     const profileUpdate: Record<string, unknown> = { user_id: id };
     if ("profile_id" in body) profileUpdate.profile_id = body.profile_id;

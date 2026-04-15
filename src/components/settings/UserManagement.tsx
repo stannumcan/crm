@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserPlus, Trash2, PauseCircle, PlayCircle, Pencil, Loader2 } from "lucide-react";
+import { UserPlus, Trash2, PauseCircle, PlayCircle, Pencil, Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
 
 interface Profile { id: string; name: string; }
 interface User {
@@ -34,6 +34,8 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteProfile, setInviteProfile] = useState("");
+  const [invitePassword, setInvitePassword] = useState("");
+  const [showInvitePassword, setShowInvitePassword] = useState(false);
   const [inviting, setSaving] = useState(false);
   const [inviteErr, setInviteErr] = useState("");
 
@@ -41,7 +43,10 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [editName, setEditName] = useState("");
   const [editProfile, setEditProfile] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  const [editErr, setEditErr] = useState("");
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -61,17 +66,26 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) { setInviteErr("Email is required"); return; }
+    if (invitePassword && invitePassword.length < 6) {
+      setInviteErr("Password must be at least 6 characters"); return;
+    }
     setSaving(true);
     setInviteErr("");
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail, display_name: inviteName, profile_id: inviteProfile || null }),
+        body: JSON.stringify({
+          email: inviteEmail,
+          display_name: inviteName,
+          profile_id: inviteProfile || null,
+          password: invitePassword || undefined,
+        }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
       setInviteOpen(false);
-      setInviteEmail(""); setInviteName(""); setInviteProfile("");
+      setInviteEmail(""); setInviteName(""); setInviteProfile(""); setInvitePassword("");
+      setShowInvitePassword(false);
       fetchUsers();
     } catch (e) {
       setInviteErr(e instanceof Error ? e.message : "Failed to invite");
@@ -99,19 +113,36 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
     setEditUser(user);
     setEditName(user.profile?.display_name ?? "");
     setEditProfile(user.profile?.profile_id ?? "");
+    setEditPassword("");
+    setShowEditPassword(false);
+    setEditErr("");
   };
 
   const handleEditSave = async () => {
     if (!editUser) return;
+    if (editPassword && editPassword.length < 6) {
+      setEditErr("Password must be at least 6 characters"); return;
+    }
     setEditSaving(true);
-    await fetch(`/api/admin/users/${editUser.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ display_name: editName, profile_id: editProfile || null }),
-    });
-    setEditUser(null);
-    setEditSaving(false);
-    fetchUsers();
+    setEditErr("");
+    try {
+      const res = await fetch(`/api/admin/users/${editUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          display_name: editName,
+          profile_id: editProfile || null,
+          password: editPassword || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+      setEditUser(null);
+      fetchUsers();
+    } catch (e) {
+      setEditErr(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   const isSuspended = (u: User) => u.profile?.suspended || (!!u.banned_until && new Date(u.banned_until) > new Date());
@@ -221,10 +252,37 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-1.5">
+            <Label>Initial Password <span className="text-xs text-muted-foreground font-normal">— optional</span></Label>
+            <p className="text-xs text-muted-foreground">
+              If set, the user is created with this password and can sign in immediately.
+              Leave blank to send a magic-link invite instead.
+            </p>
+            <div className="relative">
+              <Input
+                type={showInvitePassword ? "text" : "password"}
+                value={invitePassword}
+                onChange={(e) => setInvitePassword(e.target.value)}
+                placeholder="At least 6 characters"
+                className="pr-9 font-mono"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowInvitePassword(!showInvitePassword)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+              >
+                {showInvitePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
           {inviteErr && <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{inviteErr}</div>}
           <div className="flex gap-3 justify-end pt-1">
             <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={handleInvite} disabled={inviting}>{inviting ? "Sending..." : "Send Invite"}</Button>
+            <Button onClick={handleInvite} disabled={inviting}>
+              {inviting ? "Saving..." : invitePassword ? "Create User" : "Send Invite"}
+            </Button>
           </div>
         </div>
       </Modal>
@@ -246,6 +304,38 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Set Password */}
+          <div className="space-y-1.5 rounded-lg border p-3" style={{ borderColor: "oklch(0.88 0.04 230)", background: "oklch(0.98 0.01 230)" }}>
+            <Label className="text-sm font-medium flex items-center gap-1.5">
+              <KeyRound className="h-3.5 w-3.5 text-blue-600" />
+              Set New Password <span className="text-xs text-muted-foreground font-normal">— optional</span>
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Overrides the user&apos;s current password. They&apos;ll need to sign in with this new password.
+              Leave blank to keep existing password.
+            </p>
+            <div className="relative">
+              <Input
+                type={showEditPassword ? "text" : "password"}
+                value={editPassword}
+                onChange={(e) => setEditPassword(e.target.value)}
+                placeholder="At least 6 characters"
+                className="pr-9 font-mono h-8"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEditPassword(!showEditPassword)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+              >
+                {showEditPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          {editErr && <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{editErr}</div>}
           <div className="flex gap-3 justify-end pt-1">
             <Button variant="outline" onClick={() => setEditUser(null)}>Cancel</Button>
             <Button onClick={handleEditSave} disabled={editSaving}>{editSaving ? "Saving..." : "Save"}</Button>
