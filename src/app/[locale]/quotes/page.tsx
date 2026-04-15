@@ -8,6 +8,19 @@ import QuoteRequestsTable, { type QuoteRow } from "@/components/quotes/QuoteRequ
 
 // Each tab is a view of the same quotations, filtered by which workflow step
 // they've reached. Clicking a row drops you into that step's page.
+// Quote appears on a step tab when its workflow status has REACHED that step
+// (waiting/in-progress/done), not only when it has actual data rows. This way
+// the Cost Calc tab shows quotes at pending_wilfred as "Needs action" even
+// before Wilfred has saved anything.
+const STATUS_ORDER = ["draft", "pending_factory", "pending_wilfred", "pending_natsuki", "sent", "approved"];
+function hasReached(quoteStatus: string, stepKey: string): boolean {
+  if (quoteStatus === "rejected") return false;
+  const stepIdx = STATUS_ORDER.indexOf(stepKey);
+  const curIdx = STATUS_ORDER.indexOf(quoteStatus);
+  if (stepIdx < 0 || curIdx < 0) return false;
+  return curIdx >= stepIdx;
+}
+
 const TABS: Record<string, {
   // The URL suffix appended to /quotes/{id}. Empty string = overview.
   hrefSuffix: string;
@@ -28,35 +41,34 @@ const TABS: Record<string, {
   },
   "factory-sheet": {
     hrefSuffix: "/factory-sheet",
-    predicate: (q) => q.has_factory_sheet,
+    predicate: (q) => hasReached(q.status, "pending_factory"),
     stepKey: "pending_factory",
     emptyTitle: "No factory cost sheets yet",
-    emptyDescription: "Quotes will appear here once the factory starts entering costs.",
+    emptyDescription: "Quotes waiting on the factory or already complete will appear here.",
   },
   "wilfred-calc": {
     hrefSuffix: "/cost-calc",
-    predicate: (q) => q.has_cost_calc,
+    predicate: (q) => hasReached(q.status, "pending_wilfred"),
     stepKey: "pending_wilfred",
     emptyTitle: "No cost calcs yet",
-    emptyDescription: "Quotes will appear here once Wilfred runs the cost calc.",
+    emptyDescription: "Quotes ready for cost calc (or already done) will appear here.",
   },
   "ddp-calc": {
     hrefSuffix: "/ddp-calc",
-    predicate: (q) => q.has_ddp_calc,
+    predicate: (q) => hasReached(q.status, "pending_natsuki"),
     stepKey: "pending_natsuki",
     emptyTitle: "No DDP calcs yet",
-    emptyDescription: "Quotes will appear here once Natsuki runs the DDP calc.",
+    emptyDescription: "Quotes ready for DDP calc (or already done) will appear here.",
   },
   "customer-quote": {
     hrefSuffix: "/customer-quote",
-    predicate: (q) => q.has_customer_quote,
+    predicate: (q) => hasReached(q.status, "sent"),
     stepKey: "sent",
     emptyTitle: "No customer quotes yet",
-    emptyDescription: "Quotes will appear here once a customer quote has been generated.",
+    emptyDescription: "Quotes ready for customer-facing document (or already sent) will appear here.",
   },
 };
 
-// Shape of a quotation row enriched with presence flags for each workflow step.
 interface QuotationWithRollup {
   id: string;
   status: string;
@@ -70,10 +82,6 @@ interface QuotationWithRollup {
     company_name: string | null;
     project_name: string | null;
   } | null;
-  has_factory_sheet: boolean;
-  has_cost_calc: boolean;
-  has_ddp_calc: boolean;
-  has_customer_quote: boolean;
 }
 
 export default async function QuotesPage({
@@ -95,65 +103,21 @@ export default async function QuotesPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 
-  // Single query — fetch all quotations + presence of each downstream step.
-  // We use nested relations so we can derive boolean flags per quote.
+  // Each tab's predicate checks the quote's status against the step's position
+  // in STATUS_ORDER, so we only need the flat quotation row + its WO.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await db
     .from("quotations")
     .select(`
       id, status, quote_version, created_at, updated_at,
-      work_orders(id, wo_number, company_id, company_name, project_name),
-      factory_cost_sheets(id, is_current, is_cancelled, wilfred_calculations(id, is_current)),
-      natsuki_ddp_calculations!quotation_id(id, is_current),
-      customer_quotes(id, is_current)
+      work_orders(id, wo_number, company_id, company_name, project_name)
     `)
     .order("updated_at", { ascending: false })
     .limit(500);
 
-  // Derive rollup flags
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const enriched: QuotationWithRollup[] = (data ?? []).map((q: any) => {
-    const factorySheets = Array.isArray(q.factory_cost_sheets) ? q.factory_cost_sheets : [];
-    const currentSheets = factorySheets.filter((s: { is_current?: boolean; is_cancelled?: boolean }) =>
-      s.is_current !== false && !s.is_cancelled,
-    );
-    const hasFactorySheet = currentSheets.length > 0;
+  const enriched: QuotationWithRollup[] = (data ?? []) as QuotationWithRollup[];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hasCostCalc = currentSheets.some((s: any) =>
-      Array.isArray(s.wilfred_calculations) && s.wilfred_calculations.some((wc: { is_current?: boolean }) => wc.is_current !== false),
-    );
-
-    const ddpCalcs = Array.isArray(q.natsuki_ddp_calculations) ? q.natsuki_ddp_calculations : [];
-    const hasDDPCalc = ddpCalcs.some((d: { is_current?: boolean }) => d.is_current !== false);
-
-    const customerQuotes = Array.isArray(q.customer_quotes) ? q.customer_quotes : [];
-    const hasCustomerQuote = customerQuotes.some((cq: { is_current?: boolean }) => cq.is_current !== false);
-
-    return {
-      id: q.id,
-      status: q.status,
-      quote_version: q.quote_version,
-      created_at: q.created_at,
-      updated_at: q.updated_at,
-      work_orders: q.work_orders,
-      has_factory_sheet: hasFactorySheet,
-      has_cost_calc: hasCostCalc,
-      has_ddp_calc: hasDDPCalc,
-      has_customer_quote: hasCustomerQuote,
-    };
-  });
-
-  const rows: QuoteRow[] = enriched
-    .filter(tabConfig.predicate)
-    .map((q) => ({
-      id: q.id,
-      status: q.status,
-      quote_version: q.quote_version,
-      created_at: q.created_at,
-      updated_at: q.updated_at,
-      work_orders: q.work_orders,
-    }));
+  const rows: QuoteRow[] = enriched.filter(tabConfig.predicate);
 
   return (
     <div className="p-6">
