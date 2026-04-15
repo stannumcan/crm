@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { FileText, ClipboardList, Building2, Settings, Package, LogOut, FlaskConical, X } from "lucide-react";
+import { FileText, ClipboardList, Building2, Settings, Package, LogOut, FlaskConical, X, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { usePermissions } from "@/lib/permissions-context";
@@ -20,6 +20,9 @@ export default function Sidebar({ locale }: { locale: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const { canView, isAdmin, testProfileId, testProfileName, setTestProfile, allProfiles } = usePermissions();
+
+  // Dashboard is always visible to authenticated users — no permission gate needed.
+  const dashboardItem = { href: `/${locale}`, label: t("dashboard"), icon: Home };
 
   const allNavItems: { href: string; label: string; icon: React.ElementType; pageKey: PageKey }[] = [
     { href: `/${locale}/workorders`, label: t("workorders"), icon: ClipboardList, pageKey: "workorders" },
@@ -107,8 +110,37 @@ export default function Sidebar({ locale }: { locale: string }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5">
+        {/* Dashboard — always visible, highlighted only when exactly on the locale root */}
+        {(() => {
+          const Icon = dashboardItem.icon;
+          const active = pathname === dashboardItem.href || pathname === `${dashboardItem.href}/`;
+          return (
+            <Link
+              href={dashboardItem.href}
+              className="group flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
+              style={{
+                background: active ? "var(--primary)" : "transparent",
+                color: active ? "#fff" : "var(--sidebar-foreground)",
+              }}
+              onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--sidebar-accent)"; }}
+              onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            >
+              <span
+                className="tabular-nums shrink-0 w-4 text-right"
+                style={{ fontFamily: "var(--font-mono)", color: active ? "rgba(255,255,255,0.55)" : "oklch(0.40 0.01 52)", fontSize: "10px" }}
+              >
+                00
+              </span>
+              <Icon className="h-3.5 w-3.5 shrink-0" style={{ opacity: active ? 1 : 0.65 }} />
+              <span style={{ fontSize: "13px", letterSpacing: "0.01em" }}>{dashboardItem.label}</span>
+            </Link>
+          );
+        })()}
+
         {navItems.map(({ href, label, icon: Icon }, idx) => {
-          const active = pathname.startsWith(href);
+          // Active check must exclude the dashboard prefix match — everything under locale
+          // starts with the dashboard href, so use exact/segment match for non-dashboard links.
+          const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
               key={href}
