@@ -71,6 +71,14 @@ export default async function QuoteDetailPage({
 
   const steps: ProgressStep[] = [
     {
+      status: "draft",
+      label: "Quote Request",
+      sublabel: "Mold, printing, embossing, quantity tiers",
+      href: `/${locale}/quotes/${id}/request`,
+      done: true, // The quote exists, so the request step is by definition complete
+      pageKey: "quotes_requests",
+    },
+    {
       status: "pending_factory",
       label: "Factory Cost Sheet",
       sublabel: "Annie enters costs from factory",

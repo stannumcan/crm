@@ -16,6 +16,7 @@ type QuoteStatus =
   | "rejected";
 
 const STATUS_ORDER: QuoteStatus[] = [
+  "draft",
   "pending_factory",
   "pending_wilfred",
   "pending_natsuki",
