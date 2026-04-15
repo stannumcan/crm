@@ -25,6 +25,39 @@ function statusPillStyle(status: string): { bg: string; fg: string; border: stri
   return { bg: "oklch(0.96 0 0)", fg: "oklch(0.35 0 0)", border: "oklch(0.88 0 0)" };
 }
 
+// ── Per-tab step status (Waiting / Needs action / Complete) ──────────────────
+const STATUS_ORDER = ["draft", "pending_factory", "pending_wilfred", "pending_natsuki", "sent", "approved"];
+
+type StepStatus = "waiting" | "needs_action" | "complete" | "rejected";
+
+function computeStepStatus(stepKey: string, quoteStatus: string): StepStatus {
+  if (quoteStatus === "rejected") return "rejected";
+  const stepIdx = STATUS_ORDER.indexOf(stepKey);
+  const currentIdx = STATUS_ORDER.indexOf(quoteStatus);
+  if (stepIdx < 0 || currentIdx < 0) return "waiting";
+  if (currentIdx < stepIdx) return "waiting";
+  if (currentIdx === stepIdx) return "needs_action";
+  return "complete";
+}
+
+function stepStatusLabel(s: StepStatus): string {
+  switch (s) {
+    case "complete":     return "Complete";
+    case "needs_action": return "Needs action";
+    case "waiting":      return "Waiting for previous step";
+    case "rejected":     return "Rejected";
+  }
+}
+
+function stepStatusStyle(s: StepStatus): { bg: string; fg: string; border: string } {
+  switch (s) {
+    case "complete":     return { bg: "oklch(0.97 0.04 145)", fg: "oklch(0.40 0.15 145)", border: "oklch(0.85 0.08 145)" };
+    case "needs_action": return { bg: "oklch(0.97 0.04 85)",  fg: "oklch(0.45 0.14 85)",  border: "oklch(0.85 0.10 85)"  };
+    case "waiting":      return { bg: "oklch(0.96 0 0)",       fg: "oklch(0.50 0 0)",       border: "oklch(0.88 0 0)"       };
+    case "rejected":     return { bg: "oklch(0.97 0.02 20)",   fg: "oklch(0.45 0.15 20)",   border: "oklch(0.85 0.08 20)"   };
+  }
+}
+
 function daysAgo(iso: string | null): string {
   if (!iso) return "—";
   const ms = Date.now() - new Date(iso).getTime();
@@ -70,6 +103,7 @@ export default function QuoteRequestsTable({
   rows,
   locale,
   rowHrefSuffix = "",
+  stepKey,
   emptyTitle,
   emptyDescription,
   emptyActionLabel,
@@ -79,6 +113,9 @@ export default function QuoteRequestsTable({
   locale: string;
   /** Appended to /quotes/{id} when a row is clicked. Default: overview. */
   rowHrefSuffix?: string;
+  /** If provided, Progress column shows waiting/needs-action/complete
+   *  relative to this workflow step key instead of the raw quote status. */
+  stepKey?: string;
   emptyTitle?: string;
   emptyDescription?: string;
   emptyActionLabel?: string;
@@ -88,10 +125,28 @@ export default function QuoteRequestsTable({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // Filter chips differ by mode:
+  //   - Without stepKey (Quote Requests tab): by raw status
+  //   - With stepKey (step tabs): by step-relative status
+  const chips = stepKey
+    ? [
+        { value: "all",          label: "All" },
+        { value: "waiting",      label: "Waiting" },
+        { value: "needs_action", label: "Needs action" },
+        { value: "complete",     label: "Complete" },
+      ]
+    : FILTER_CHIPS;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (statusFilter !== "all") {
+        if (stepKey) {
+          if (computeStepStatus(stepKey, r.status) !== statusFilter) return false;
+        } else {
+          if (r.status !== statusFilter) return false;
+        }
+      }
       if (!q) return true;
       const quoteRef = r.work_orders?.wo_number && r.quote_version
         ? `${r.work_orders.wo_number}-${String(r.quote_version).padStart(2, "0")}`
@@ -105,7 +160,16 @@ export default function QuoteRequestsTable({
       ].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(q);
     });
-  }, [rows, search, statusFilter]);
+  }, [rows, search, statusFilter, stepKey]);
+
+  // Count helper for the chip count badge
+  const countFor = (chipValue: string): number => {
+    if (chipValue === "all") return rows.length;
+    if (stepKey) {
+      return rows.filter((r) => computeStepStatus(stepKey, r.status) === chipValue).length;
+    }
+    return rows.filter((r) => r.status === chipValue).length;
+  };
 
   return (
     <div>
@@ -131,9 +195,9 @@ export default function QuoteRequestsTable({
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {FILTER_CHIPS.map((chip) => {
+          {chips.map((chip) => {
             const active = statusFilter === chip.value;
-            const count = chip.value === "all" ? rows.length : rows.filter((r) => r.status === chip.value).length;
+            const count = countFor(chip.value);
             return (
               <button
                 key={chip.value}
@@ -197,8 +261,16 @@ export default function QuoteRequestsTable({
               const woRef = wo?.wo_number ?? "—";
               const version = q.quote_version ?? 1;
               const quoteRef = wo?.wo_number ? `${wo.wo_number}-${String(version).padStart(2, "0")}` : "—";
-              const statusLabel = STATUS_LABEL[q.status] ?? q.status;
-              const pill = statusPillStyle(q.status);
+
+              // If this table is filtered to a specific workflow step, show the
+              // row's status RELATIVE to that step (waiting / needs action /
+              // complete). Otherwise show the raw quote status.
+              const statusLabel = stepKey
+                ? stepStatusLabel(computeStepStatus(stepKey, q.status))
+                : (STATUS_LABEL[q.status] ?? q.status);
+              const pill = stepKey
+                ? stepStatusStyle(computeStepStatus(stepKey, q.status))
+                : statusPillStyle(q.status);
 
               // Row-level click navigates to the quote overview (or a step page).
               // Inner links (WO #, Company) stopPropagation so they take precedence.

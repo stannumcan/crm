@@ -13,6 +13,10 @@ const TABS: Record<string, {
   hrefSuffix: string;
   // Returns true if this quote should appear on this tab.
   predicate: (q: QuotationWithRollup) => boolean;
+  // The workflow step_key this tab represents. When set, the Progress column
+  // shows step-relative status (waiting / needs action / complete) instead
+  // of the raw quote status.
+  stepKey?: string;
   emptyTitle: string;
   emptyDescription: string;
 }> = {
@@ -25,24 +29,28 @@ const TABS: Record<string, {
   "factory-sheet": {
     hrefSuffix: "/factory-sheet",
     predicate: (q) => q.has_factory_sheet,
+    stepKey: "pending_factory",
     emptyTitle: "No factory cost sheets yet",
     emptyDescription: "Quotes will appear here once the factory starts entering costs.",
   },
   "wilfred-calc": {
     hrefSuffix: "/cost-calc",
     predicate: (q) => q.has_cost_calc,
+    stepKey: "pending_wilfred",
     emptyTitle: "No cost calcs yet",
     emptyDescription: "Quotes will appear here once Wilfred runs the cost calc.",
   },
   "ddp-calc": {
     hrefSuffix: "/ddp-calc",
     predicate: (q) => q.has_ddp_calc,
+    stepKey: "pending_natsuki",
     emptyTitle: "No DDP calcs yet",
     emptyDescription: "Quotes will appear here once Natsuki runs the DDP calc.",
   },
   "customer-quote": {
     hrefSuffix: "/customer-quote",
     predicate: (q) => q.has_customer_quote,
+    stepKey: "sent",
     emptyTitle: "No customer quotes yet",
     emptyDescription: "Quotes will appear here once a customer quote has been generated.",
   },
@@ -174,6 +182,7 @@ export default async function QuotesPage({
           rows={rows}
           locale={locale}
           rowHrefSuffix={tabConfig.hrefSuffix}
+          stepKey={tabConfig.stepKey}
           emptyTitle={tabConfig.emptyTitle}
           emptyDescription={tabConfig.emptyDescription}
           emptyActionLabel={activeTab === "requests" ? "New Quote Request" : undefined}
