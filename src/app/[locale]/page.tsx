@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import MyQueue, { type DashboardQuote } from "@/components/dashboard/MyQueue";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,8 @@ export default async function DashboardPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  const t = await getTranslations("dashboard");
+  const tn = await getTranslations("nav");
   const supabase = await createClient();
 
   // Fetch active quotes the user can see (RLS filters automatically)
@@ -39,7 +42,7 @@ export default async function DashboardPage({
 
   const now = new Date();
   const hour = now.getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const greeting = hour < 12 ? t("greetingMorning") : hour < 18 ? t("greetingAfternoon") : t("greetingEvening");
 
   return (
     <div className="p-6 max-w-5xl">
@@ -58,19 +61,19 @@ export default async function DashboardPage({
         <div className="space-y-3">
           <Card>
             <CardContent className="pt-4 pb-3 space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Quick Links</p>
-              <QuickLink href={`/${locale}/workorders`} icon={ClipboardList} label="Workorders" />
-              <QuickLink href={`/${locale}/quotes`} icon={FileText} label="All Quotes" />
-              <QuickLink href={`/${locale}/companies`} icon={Building2} label="Companies" />
-              <QuickLink href={`/${locale}/products`} icon={Package} label="Products / Molds" />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t("quickLinks")}</p>
+              <QuickLink href={`/${locale}/workorders`} icon={ClipboardList} label={tn("workorders")} />
+              <QuickLink href={`/${locale}/quotes`} icon={FileText} label={tn("quotes")} />
+              <QuickLink href={`/${locale}/companies`} icon={Building2} label={tn("companies")} />
+              <QuickLink href={`/${locale}/products`} icon={Package} label={tn("products")} />
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="pt-4 pb-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Active quotes</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{t("activeQuotes")}</p>
               <p className="text-3xl font-bold tabular-nums">{quotes.length}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">in the workflow right now</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("activeQuotesDesc")}</p>
             </CardContent>
           </Card>
         </div>

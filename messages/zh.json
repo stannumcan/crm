@@ -25,7 +25,35 @@
     "workorders": "工作单",
     "quotes": "报价单",
     "companies": "客户公司",
+    "products": "产品",
     "settings": "设置"
+  },
+  "dashboard": {
+    "greetingMorning": "早上好",
+    "greetingAfternoon": "下午好",
+    "greetingEvening": "晚上好",
+    "waitingOnYou": "待您处理",
+    "allClear": "已完成",
+    "allClearDesc": "目前没有需要您处理的任务。新任务会显示在这里。",
+    "recentActivity": "最近更新",
+    "viewAll": "查看全部",
+    "quickLinks": "快捷入口",
+    "activeQuotes": "进行中的报价",
+    "activeQuotesDesc": "当前处于流程中的数量",
+    "pricingChanged": "价格已变更",
+    "quotesAffected": "{n, plural, other {# 个报价受影响}}"
+  },
+  "workflow": {
+    "quoteRequest": "报价请求",
+    "factorySheet": "工厂成本单",
+    "factoryCostSheet": "工厂成本单",
+    "costCalc": "成本计算",
+    "ddpCalc": "DDP计算",
+    "ddpCalculation": "DDP计算",
+    "customerQuote": "客户报价",
+    "overview": "概览",
+    "waitingOn": "等待",
+    "progress": "进度"
   },
   "companies": {
     "title": "客户公司",

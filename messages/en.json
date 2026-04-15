@@ -25,7 +25,35 @@
     "workorders": "Workorders",
     "quotes": "Quotes",
     "companies": "Companies",
+    "products": "Products",
     "settings": "Settings"
+  },
+  "dashboard": {
+    "greetingMorning": "Good morning",
+    "greetingAfternoon": "Good afternoon",
+    "greetingEvening": "Good evening",
+    "waitingOnYou": "Waiting on you",
+    "allClear": "All clear",
+    "allClearDesc": "Nothing is waiting on you right now. New assignments will show up here.",
+    "recentActivity": "Recent activity",
+    "viewAll": "View all",
+    "quickLinks": "Quick Links",
+    "activeQuotes": "Active quotes",
+    "activeQuotesDesc": "in the workflow right now",
+    "pricingChanged": "Pricing Changed",
+    "quotesAffected": "{n, plural, one {# quote affected} other {# quotes affected}}"
+  },
+  "workflow": {
+    "quoteRequest": "Quote Request",
+    "factorySheet": "Factory Sheet",
+    "factoryCostSheet": "Factory Cost Sheet",
+    "costCalc": "Cost Calc",
+    "ddpCalc": "DDP Calc",
+    "ddpCalculation": "DDP Calculation",
+    "customerQuote": "Customer Quote",
+    "overview": "Overview",
+    "waitingOn": "Waiting on",
+    "progress": "Progress"
   },
   "companies": {
     "title": "Companies",
@@ -82,6 +110,10 @@
     "newMoldPlaceholder": "Describe the new mold",
     "sizeDimensions": "Size / Dimensions",
     "printing": "Printing",
+    "printing_lid": "Lid",
+    "printing_body": "Body",
+    "printing_bottom": "Bottom",
+    "printing_inner": "Inner",
     "embossment": "Embossment",
     "embossmentHint": "(leave blank if none)",
     "embossmentComponentsPlaceholder": "e.g. Lid + Body",
@@ -128,12 +160,5 @@
     "createSuccess": "Quote created successfully",
     "updateSuccess": "Quote updated successfully",
     "deleteSuccess": "Quote deleted successfully"
-  },
-  "dashboard": {
-    "title": "Dashboard",
-    "totalQuotes": "Total Quotes",
-    "pendingQuotes": "Pending",
-    "approvedQuotes": "Approved",
-    "totalValue": "Total Value"
   }
 }

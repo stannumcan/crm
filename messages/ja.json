@@ -25,7 +25,35 @@
     "workorders": "作業指示書",
     "quotes": "見積書",
     "companies": "取引先",
+    "products": "製品",
     "settings": "設定"
+  },
+  "dashboard": {
+    "greetingMorning": "おはようございます",
+    "greetingAfternoon": "こんにちは",
+    "greetingEvening": "お疲れさまです",
+    "waitingOnYou": "対応待ちのタスク",
+    "allClear": "完了しました",
+    "allClearDesc": "現在、対応待ちのタスクはありません。新しいアサインがあればここに表示されます。",
+    "recentActivity": "最近の更新",
+    "viewAll": "すべて表示",
+    "quickLinks": "クイックリンク",
+    "activeQuotes": "進行中の見積",
+    "activeQuotesDesc": "現在ワークフローに入っている件数",
+    "pricingChanged": "価格が変更されました",
+    "quotesAffected": "{n, plural, other {# 件影響あり}}"
+  },
+  "workflow": {
+    "quoteRequest": "見積依頼",
+    "factorySheet": "工場原価表",
+    "factoryCostSheet": "工場原価表",
+    "costCalc": "原価計算",
+    "ddpCalc": "DDP計算",
+    "ddpCalculation": "DDP計算",
+    "customerQuote": "御見積書",
+    "overview": "概要",
+    "waitingOn": "対応待ち",
+    "progress": "進捗"
   },
   "companies": {
     "title": "取引先",
@@ -82,6 +110,10 @@
     "newMoldPlaceholder": "新規金型の説明",
     "sizeDimensions": "サイズ・寸法",
     "printing": "印刷",
+    "printing_lid": "蓋",
+    "printing_body": "身",
+    "printing_bottom": "底",
+    "printing_inner": "内面",
     "embossment": "エンボス加工",
     "embossmentHint": "（なければ空欄）",
     "embossmentComponentsPlaceholder": "例：蓋・本体",
@@ -128,12 +160,5 @@
     "createSuccess": "見積依頼を作成しました",
     "updateSuccess": "見積依頼を更新しました",
     "deleteSuccess": "見積依頼を削除しました"
-  },
-  "dashboard": {
-    "title": "ダッシュボード",
-    "totalQuotes": "見積総数",
-    "pendingQuotes": "保留中",
-    "approvedQuotes": "承認済",
-    "totalValue": "合計金額"
   }
 }
