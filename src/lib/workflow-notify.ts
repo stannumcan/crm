@@ -3,6 +3,26 @@ import { getResend, EMAIL_FROM, EMAIL_REPLY_TO } from "@/lib/email";
 import { buildQuoteEmail } from "@/lib/email-template";
 import { sendWorkNotification, isDingTalkConfigured } from "@/lib/dingtalk";
 
+// Filter assignee emails by each user's notification_prefs.email flag.
+// If there's no user_profile row for a given email (external contact),
+// the email IS sent — opt-out is opt-in.
+async function filterEmailRecipients(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  emails: string[],
+): Promise<string[]> {
+  if (emails.length === 0) return [];
+  const { data: profiles } = await supabase
+    .from("user_profiles")
+    .select("email, notification_prefs")
+    .in("email", emails);
+  const optedOut = new Set<string>();
+  for (const p of (profiles as { email: string; notification_prefs: { email?: boolean } | null }[] | null ?? [])) {
+    if (p.notification_prefs?.email === false) optedOut.add(p.email);
+  }
+  return emails.filter((e) => !optedOut.has(e));
+}
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://japan-crm.vercel.app";
 
 interface Attachment {
@@ -97,7 +117,10 @@ export async function notifyWorkflowStep(quotationId: string, newStatus: string)
 
     const resend = getResend();
 
-    for (const email of step.assignee_emails) {
+    // Filter out users who opted out of email notifications
+    const emailRecipients = await filterEmailRecipients(supabase, step.assignee_emails ?? []);
+
+    for (const email of emailRecipients) {
       const { data: sendResult, error: sendError } = await resend.emails.send({
         from: EMAIL_FROM,
         replyTo: EMAIL_REPLY_TO,
@@ -327,7 +350,10 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string, p
 
     const resend = getResend();
 
-    for (const email of step.assignee_emails) {
+    // Filter out users who opted out of email notifications
+    const emailRecipients = await filterEmailRecipients(supabase, step.assignee_emails ?? []);
+
+    for (const email of emailRecipients) {
       const { data: sendResult, error: sendError } = await resend.emails.send({
         from: EMAIL_FROM,
         replyTo: EMAIL_REPLY_TO,

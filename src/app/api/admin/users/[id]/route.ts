@@ -29,10 +29,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Handle profile assignment + display name
+    // Handle profile assignment + display name + notification prefs
     const profileUpdate: Record<string, unknown> = { user_id: id };
     if ("profile_id" in body) profileUpdate.profile_id = body.profile_id;
     if ("display_name" in body) profileUpdate.display_name = body.display_name;
+    if ("notification_prefs" in body && body.notification_prefs && typeof body.notification_prefs === "object") {
+      profileUpdate.notification_prefs = body.notification_prefs;
+    }
 
     if (Object.keys(profileUpdate).length > 1) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserPlus, Trash2, PauseCircle, PlayCircle, Pencil, Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
+import { UserPlus, Trash2, PauseCircle, PlayCircle, Pencil, Loader2, Eye, EyeOff, KeyRound, Mail, MessageSquare } from "lucide-react";
 
 interface Profile { id: string; name: string; }
 interface User {
@@ -21,6 +21,7 @@ interface User {
     suspended: boolean;
     profile_id: string | null;
     permission_profiles: { id: string; name: string } | null;
+    notification_prefs?: { email?: boolean; dingtalk?: boolean } | null;
   } | null;
 }
 
@@ -47,6 +48,8 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editErr, setEditErr] = useState("");
+  const [editEmailNotifs, setEditEmailNotifs] = useState(true);
+  const [editDingtalkNotifs, setEditDingtalkNotifs] = useState(true);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -116,6 +119,9 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
     setEditPassword("");
     setShowEditPassword(false);
     setEditErr("");
+    const prefs = user.profile?.notification_prefs ?? {};
+    setEditEmailNotifs(prefs.email !== false);
+    setEditDingtalkNotifs(prefs.dingtalk !== false);
   };
 
   const handleEditSave = async () => {
@@ -133,6 +139,7 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
           display_name: editName,
           profile_id: editProfile || null,
           password: editPassword || undefined,
+          notification_prefs: { email: editEmailNotifs, dingtalk: editDingtalkNotifs },
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
@@ -303,6 +310,46 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
                 {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Notification preferences */}
+          <div className="space-y-2 rounded-lg border p-3" style={{ borderColor: "oklch(0.88 0.04 145)", background: "oklch(0.98 0.01 145)" }}>
+            <Label className="text-sm font-medium">Notification Channels</Label>
+            <p className="text-xs text-muted-foreground">Which channels this user actually receives. Works alongside per-step toggles in Workflow Designer.</p>
+            <div className="flex items-center justify-between py-1">
+              <span className="text-sm flex items-center gap-2">
+                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                Email notifications
+              </span>
+              <button
+                type="button"
+                onClick={() => setEditEmailNotifs(!editEmailNotifs)}
+                className="relative w-10 h-5 rounded-full transition-colors"
+                style={{ background: editEmailNotifs ? "var(--primary)" : "oklch(0.85 0 0)" }}
+              >
+                <div
+                  className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform"
+                  style={{ left: editEmailNotifs ? "calc(100% - 18px)" : "2px" }}
+                />
+              </button>
+            </div>
+            <div className="flex items-center justify-between py-1">
+              <span className="text-sm flex items-center gap-2">
+                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                DingTalk notifications
+              </span>
+              <button
+                type="button"
+                onClick={() => setEditDingtalkNotifs(!editDingtalkNotifs)}
+                className="relative w-10 h-5 rounded-full transition-colors"
+                style={{ background: editDingtalkNotifs ? "var(--primary)" : "oklch(0.85 0 0)" }}
+              >
+                <div
+                  className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform"
+                  style={{ left: editDingtalkNotifs ? "calc(100% - 18px)" : "2px" }}
+                />
+              </button>
+            </div>
           </div>
 
           {/* Set Password */}

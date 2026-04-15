@@ -8,7 +8,7 @@ export async function GET() {
     const { data: { users }, error } = await admin.auth.admin.listUsers();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Fetch user_profiles for extra metadata
+    // Fetch user_profiles for extra metadata (including notification_prefs)
     const supabase = await createClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: profiles } = await (supabase as any)
