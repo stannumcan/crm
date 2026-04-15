@@ -3,6 +3,7 @@ import { getMessages, getLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import Sidebar from "@/components/layout/Sidebar";
+import GlobalSearch from "@/components/layout/GlobalSearch";
 import { PermissionsProvider } from "@/lib/permissions-context";
 
 type Locale = "en" | "ja" | "zh";
@@ -30,6 +31,7 @@ export default async function LocaleLayout({
           <main className="flex-1 overflow-auto page-enter">
             {children}
           </main>
+          <GlobalSearch locale={locale} />
         </div>
       </PermissionsProvider>
     </NextIntlClientProvider>
