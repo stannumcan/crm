@@ -29,10 +29,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Handle profile assignment + display name + notification prefs
+    // Handle profile assignment + display name + notification prefs + dingtalk id
     const profileUpdate: Record<string, unknown> = { user_id: id };
     if ("profile_id" in body) profileUpdate.profile_id = body.profile_id;
     if ("display_name" in body) profileUpdate.display_name = body.display_name;
+    if ("dingtalk_userid" in body) profileUpdate.dingtalk_userid = body.dingtalk_userid || null;
     if ("notification_prefs" in body && body.notification_prefs && typeof body.notification_prefs === "object") {
       profileUpdate.notification_prefs = body.notification_prefs;
     }

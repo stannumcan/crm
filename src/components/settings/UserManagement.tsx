@@ -22,6 +22,7 @@ interface User {
     profile_id: string | null;
     permission_profiles: { id: string; name: string } | null;
     notification_prefs?: { email?: boolean; dingtalk?: boolean } | null;
+    dingtalk_userid?: string | null;
   } | null;
 }
 
@@ -50,6 +51,7 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
   const [editErr, setEditErr] = useState("");
   const [editEmailNotifs, setEditEmailNotifs] = useState(true);
   const [editDingtalkNotifs, setEditDingtalkNotifs] = useState(true);
+  const [editDingtalkUserid, setEditDingtalkUserid] = useState("");
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -122,6 +124,7 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
     const prefs = user.profile?.notification_prefs ?? {};
     setEditEmailNotifs(prefs.email !== false);
     setEditDingtalkNotifs(prefs.dingtalk !== false);
+    setEditDingtalkUserid(user.profile?.dingtalk_userid ?? "");
   };
 
   const handleEditSave = async () => {
@@ -140,6 +143,7 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
           profile_id: editProfile || null,
           password: editPassword || undefined,
           notification_prefs: { email: editEmailNotifs, dingtalk: editDingtalkNotifs },
+          dingtalk_userid: editDingtalkUserid.trim() || null,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
@@ -349,6 +353,20 @@ export default function UserManagement({ profiles }: { profiles: Profile[] }) {
                   style={{ left: editDingtalkNotifs ? "calc(100% - 18px)" : "2px" }}
                 />
               </button>
+            </div>
+            {/* DingTalk userid — stored centrally so Workflow Designer can reference by name */}
+            <div className="space-y-1 pt-1">
+              <Label className="text-xs">DingTalk userid</Label>
+              <Input
+                value={editDingtalkUserid}
+                onChange={(e) => setEditDingtalkUserid(e.target.value)}
+                placeholder="e.g. manager8848"
+                className="h-8 text-sm font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                From DingTalk admin console: 员工管理 → click user → copy 员工userid.
+                Used automatically when this user is added to a workflow step.
+              </p>
             </div>
           </div>
 

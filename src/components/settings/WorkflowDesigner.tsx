@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import {
   Loader2, Mail, MailX, Pencil, Plus, X, ArrowDown, Check,
-  FileText, Factory, Calculator, Truck, Send, ThumbsUp, MessageSquare,
+  FileText, Factory, Calculator, Truck, Send, ThumbsUp, MessageSquare, User,
 } from "lucide-react";
 
 interface WorkflowStep {
@@ -23,6 +23,14 @@ interface WorkflowStep {
   subject_template: string | null;
   send_dingtalk: boolean;
   assignee_dingtalk_userids: string[];
+  assignee_user_ids: string[];
+}
+
+interface DirectoryUser {
+  user_id: string;
+  display_name: string | null;
+  email: string | null;
+  dingtalk_userid: string | null;
 }
 
 const STEP_COLORS: Record<string, string> = {
@@ -58,6 +66,11 @@ export default function WorkflowDesigner() {
   const [editSendDingtalk, setEditSendDingtalk] = useState(false);
   const [editDingtalkIds, setEditDingtalkIds] = useState<string[]>([]);
   const [editNewDingtalkId, setEditNewDingtalkId] = useState("");
+  const [editAssignedUserIds, setEditAssignedUserIds] = useState<string[]>([]);
+  const [userSearch, setUserSearch] = useState("");
+
+  // User directory (loaded once)
+  const [directory, setDirectory] = useState<DirectoryUser[]>([]);
 
   const fetchSteps = useCallback(async () => {
     setLoading(true);
@@ -67,7 +80,16 @@ export default function WorkflowDesigner() {
     setLoading(false);
   }, []);
 
+  const fetchDirectory = useCallback(async () => {
+    const res = await fetch("/api/admin/users/directory");
+    if (res.ok) {
+      const data = await res.json();
+      setDirectory(Array.isArray(data) ? data : []);
+    }
+  }, []);
+
   useEffect(() => { fetchSteps(); }, [fetchSteps]);
+  useEffect(() => { fetchDirectory(); }, [fetchDirectory]);
 
   const openEdit = (step: WorkflowStep) => {
     setEditStep(step);
@@ -79,6 +101,19 @@ export default function WorkflowDesigner() {
     setEditSendDingtalk(step.send_dingtalk ?? false);
     setEditDingtalkIds([...(step.assignee_dingtalk_userids ?? [])]);
     setEditNewDingtalkId("");
+    setEditAssignedUserIds([...(step.assignee_user_ids ?? [])]);
+    setUserSearch("");
+  };
+
+  const addAssignedUser = (userId: string) => {
+    if (!editAssignedUserIds.includes(userId)) {
+      setEditAssignedUserIds([...editAssignedUserIds, userId]);
+    }
+    setUserSearch("");
+  };
+
+  const removeAssignedUser = (userId: string) => {
+    setEditAssignedUserIds(editAssignedUserIds.filter((id) => id !== userId));
   };
 
   const addEmail = () => {
@@ -117,6 +152,7 @@ export default function WorkflowDesigner() {
         subject_template: editSubject.trim() || null,
         send_dingtalk: editSendDingtalk,
         assignee_dingtalk_userids: editDingtalkIds,
+        assignee_user_ids: editAssignedUserIds,
       }),
     });
     setEditStep(null);
@@ -147,7 +183,10 @@ export default function WorkflowDesigner() {
           const color = STEP_COLORS[step.step_key] ?? "oklch(0.5 0 0)";
           const Icon = STEP_ICONS[step.step_key] ?? FileText;
           const isLast = idx === steps.length - 1;
-          const hasRecipients = step.assignee_emails.length > 0;
+          const assignedUsers = (step.assignee_user_ids ?? [])
+            .map((uid) => directory.find((d) => d.user_id === uid))
+            .filter((u): u is DirectoryUser => !!u);
+          const hasRecipients = step.assignee_emails.length > 0 || assignedUsers.length > 0;
 
           return (
             <div key={step.id}>
@@ -185,12 +224,25 @@ export default function WorkflowDesigner() {
                     <div className="flex-1">
                       {hasRecipients ? (
                         <div className="flex flex-wrap gap-1.5">
+                          {assignedUsers.map((u) => (
+                            <Badge
+                              key={u.user_id}
+                              variant="outline"
+                              className="text-xs gap-1"
+                              style={{ borderColor: color + "50", color: color }}
+                              title={u.email ?? undefined}
+                            >
+                              <User className="h-3 w-3" />
+                              {u.display_name || u.email}
+                            </Badge>
+                          ))}
                           {step.assignee_emails.map((email) => (
                             <Badge
                               key={email}
                               variant="outline"
-                              className="text-xs gap-1"
+                              className="text-xs gap-1 opacity-80"
                               style={{ borderColor: color + "50", color: color }}
+                              title="External recipient (no CRM account)"
                             >
                               <Mail className="h-3 w-3" />
                               {email}
@@ -250,11 +302,97 @@ export default function WorkflowDesigner() {
       {/* Edit modal */}
       <Modal open={!!editStep} onClose={() => setEditStep(null)} title={`Configure: ${editStep?.label ?? ""}`}>
         <div className="space-y-5">
+          {/* Assigned users — picks from user directory; resolves email + dingtalk from their profile */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Assigned Users</Label>
+            <p className="text-xs text-muted-foreground">
+              Pick CRM users by name. Their email and DingTalk userid come from their profile automatically —
+              update Settings → Users once, applies everywhere.
+            </p>
+            <div className="relative">
+              <Input
+                placeholder="Search users by name or email..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className="h-8 text-sm"
+              />
+              {userSearch.trim().length > 0 && (() => {
+                const q = userSearch.trim().toLowerCase();
+                const matches = directory
+                  .filter((u) => !editAssignedUserIds.includes(u.user_id))
+                  .filter((u) =>
+                    (u.display_name?.toLowerCase() ?? "").includes(q) ||
+                    (u.email?.toLowerCase() ?? "").includes(q),
+                  )
+                  .slice(0, 8);
+                if (matches.length === 0) {
+                  return (
+                    <div className="absolute z-10 mt-1 w-full rounded-md border bg-card shadow-lg p-2 text-xs text-muted-foreground">
+                      No matches. Check Settings → Users to add them.
+                    </div>
+                  );
+                }
+                return (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border bg-card shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+                    {matches.map((u) => (
+                      <button
+                        key={u.user_id}
+                        type="button"
+                        onClick={() => addAssignedUser(u.user_id)}
+                        className="w-full px-3 py-2 text-left hover:bg-muted/60 flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm truncate">{u.display_name || u.email || "Unnamed"}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {u.email ?? "—"}
+                            {u.dingtalk_userid ? <span className="ml-1 font-mono">· DT: {u.dingtalk_userid}</span> : null}
+                          </p>
+                        </div>
+                        <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+            {editAssignedUserIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {editAssignedUserIds.map((uid) => {
+                  const u = directory.find((d) => d.user_id === uid);
+                  const label = u?.display_name || u?.email || uid.slice(0, 8);
+                  const missingEmail = u && !u.email;
+                  const missingDingtalk = u && editSendDingtalk && !u.dingtalk_userid;
+                  return (
+                    <Badge
+                      key={uid}
+                      variant="secondary"
+                      className="gap-1 text-xs pr-1"
+                      title={missingDingtalk ? "No DingTalk userid on profile — DingTalk notif will skip this user" : undefined}
+                    >
+                      <User className="h-3 w-3" />
+                      {label}
+                      {(missingEmail || missingDingtalk) && (
+                        <span className="text-amber-600">!</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeAssignedUser(uid)}
+                        className="hover:text-red-600 transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Email toggle */}
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-sm font-medium">Send Email Notification</Label>
-              <p className="text-xs text-muted-foreground">Automatically email assigned people when this step is reached</p>
+              <p className="text-xs text-muted-foreground">Fires when this step&apos;s work is completed</p>
             </div>
             <button
               type="button"
@@ -269,9 +407,10 @@ export default function WorkflowDesigner() {
             </button>
           </div>
 
-          {/* Recipients */}
+          {/* External email recipients (non-user) */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Recipients</Label>
+            <Label className="text-sm font-medium">Additional External Emails</Label>
+            <p className="text-xs text-muted-foreground">For factory reps, customers, or others without a CRM account.</p>
             <div className="flex gap-2">
               <Input
                 type="email"
@@ -279,16 +418,17 @@ export default function WorkflowDesigner() {
                 value={editNewEmail}
                 onChange={(e) => setEditNewEmail(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addEmail(); } }}
-                className="flex-1"
+                className="flex-1 h-8 text-sm"
               />
-              <Button size="sm" variant="outline" onClick={addEmail} className="shrink-0">
+              <Button size="sm" variant="outline" onClick={addEmail} className="shrink-0 h-8">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
             {editEmails.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex flex-wrap gap-1.5 mt-1">
                 {editEmails.map((email) => (
                   <Badge key={email} variant="secondary" className="gap-1.5 text-xs pr-1">
+                    <Mail className="h-3 w-3" />
                     {email}
                     <button onClick={() => removeEmail(email)} className="hover:text-red-600 transition-colors">
                       <X className="h-3 w-3" />
@@ -361,9 +501,10 @@ export default function WorkflowDesigner() {
             </div>
             {editSendDingtalk && (
               <div className="space-y-2">
-                <Label className="text-xs font-medium">Recipient DingTalk userIds</Label>
+                <Label className="text-xs font-medium">Additional External DingTalk userIds</Label>
                 <p className="text-[11px] text-muted-foreground">
-                  Find in DingTalk admin console: 员工管理 → click employee → copy userid (e.g. <code>manager8848</code>)
+                  Assigned users (above) auto-receive DingTalk notifications if their profile has a DingTalk userid set.
+                  Add external DingTalk IDs here only for people without a CRM account.
                 </p>
                 <div className="flex gap-2">
                   <Input

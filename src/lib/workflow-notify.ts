@@ -23,6 +23,54 @@ async function filterEmailRecipients(
   return emails.filter((e) => !optedOut.has(e));
 }
 
+// Resolve a workflow_steps row's assignee_user_ids + external arrays into the
+// final email and DingTalk recipient lists. Per-user notification_prefs are
+// honoured: users who opted out of a channel are dropped from that channel
+// even if they're on the step's assignee_user_ids.
+async function resolveAssignees(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  step: {
+    assignee_emails?: string[] | null;
+    assignee_dingtalk_userids?: string[] | null;
+    assignee_user_ids?: string[] | null;
+  },
+): Promise<{ emails: string[]; dingtalkUserIds: string[] }> {
+  const externalEmails = step.assignee_emails ?? [];
+  const externalDingtalk = step.assignee_dingtalk_userids ?? [];
+  const userIds = step.assignee_user_ids ?? [];
+
+  // Look up each referenced user's contact details + prefs
+  let resolvedEmails: string[] = [];
+  let resolvedDingtalk: string[] = [];
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("user_profiles")
+      .select("user_id, email, dingtalk_userid, notification_prefs")
+      .in("user_id", userIds);
+    for (const p of (profiles as {
+      user_id: string;
+      email: string | null;
+      dingtalk_userid: string | null;
+      notification_prefs: { email?: boolean; dingtalk?: boolean } | null;
+    }[] | null ?? [])) {
+      if (p.email && p.notification_prefs?.email !== false) resolvedEmails.push(p.email);
+      if (p.dingtalk_userid && p.notification_prefs?.dingtalk !== false) resolvedDingtalk.push(p.dingtalk_userid);
+    }
+  }
+
+  // Merge with external (non-user) recipients
+  // External emails still go through filterEmailRecipients further up — no prefs to check here
+  // since external addresses don't have user_profiles rows by definition.
+  const emailSet = new Set<string>([...resolvedEmails, ...externalEmails]);
+  const dingtalkSet = new Set<string>([...resolvedDingtalk, ...externalDingtalk]);
+
+  return {
+    emails: Array.from(emailSet),
+    dingtalkUserIds: Array.from(dingtalkSet),
+  };
+}
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://japan-crm.vercel.app";
 
 interface Attachment {
@@ -67,9 +115,15 @@ export async function notifyWorkflowStep(quotationId: string, newStatus: string)
       .eq("step_key", newStatus)
       .single();
 
-    if (!step || !step.send_email || !step.assignee_emails?.length) {
-      return;
-    }
+    if (!step) return;
+
+    // Resolve final recipient lists from assignee_user_ids + external arrays
+    const { emails: resolvedEmails, dingtalkUserIds: resolvedDingtalk } = await resolveAssignees(supabase, step);
+
+    // Short-circuit if nothing to send on any enabled channel
+    const hasEmailRecipients = step.send_email && resolvedEmails.length > 0;
+    const hasDingtalkRecipients = step.send_dingtalk && resolvedDingtalk.length > 0 && isDingTalkConfigured();
+    if (!hasEmailRecipients && !hasDingtalkRecipients) return;
 
     // Get quotation + work order + tiers
     const { data: quote } = await supabase
@@ -117,36 +171,40 @@ export async function notifyWorkflowStep(quotationId: string, newStatus: string)
 
     const resend = getResend();
 
-    // Filter out users who opted out of email notifications
-    const emailRecipients = await filterEmailRecipients(supabase, step.assignee_emails ?? []);
+    if (hasEmailRecipients) {
+      // Filter external emails against notification_prefs (user-resolved emails
+      // were already filtered by resolveAssignees, but external addresses might
+      // coincidentally belong to a user who opted out).
+      const emailRecipients = await filterEmailRecipients(supabase, resolvedEmails);
 
-    for (const email of emailRecipients) {
-      const { data: sendResult, error: sendError } = await resend.emails.send({
-        from: EMAIL_FROM,
-        replyTo: EMAIL_REPLY_TO,
-        to: email,
-        subject,
-        html,
-        attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
-      });
+      for (const email of emailRecipients) {
+        const { data: sendResult, error: sendError } = await resend.emails.send({
+          from: EMAIL_FROM,
+          replyTo: EMAIL_REPLY_TO,
+          to: email,
+          subject,
+          html,
+          attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
+        });
 
-      if (sendError) {
-        console.error(`[workflow-notify] Resend error for ${email}:`, JSON.stringify(sendError));
-        continue;
+        if (sendError) {
+          console.error(`[workflow-notify] Resend error for ${email}:`, JSON.stringify(sendError));
+          continue;
+        }
+
+        console.log(`[workflow-notify] Email sent to ${email}, id: ${sendResult?.id}`);
+
+        await supabase.from("workflow_email_log").insert({
+          quotation_id: quotationId,
+          step_key: newStatus,
+          recipient_email: email,
+          subject,
+        });
       }
-
-      console.log(`[workflow-notify] Email sent to ${email}, id: ${sendResult?.id}`);
-
-      await supabase.from("workflow_email_log").insert({
-        quotation_id: quotationId,
-        step_key: newStatus,
-        recipient_email: email,
-        subject,
-      });
     }
 
     // ── DingTalk work notification (fires in parallel with email) ──
-    if (step.send_dingtalk && step.assignee_dingtalk_userids?.length > 0 && isDingTalkConfigured()) {
+    if (hasDingtalkRecipients) {
       const ctaUrl = `${APP_URL}/en/quotes/${quotationId}/request`;
       const mdText = buildDingTalkQuoteMarkdown({
         title: subject,
@@ -155,7 +213,7 @@ export async function notifyWorkflowStep(quotationId: string, newStatus: string)
         ctaUrl,
         pricingChanged: isPricingChanged,
       });
-      const result = await sendWorkNotification(step.assignee_dingtalk_userids, {
+      const result = await sendWorkNotification(resolvedDingtalk, {
         title: subject,
         text: mdText,
       });
@@ -265,7 +323,13 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string, p
       .eq("step_key", "pending_factory")
       .single();
 
-    if (!step || !step.send_email || !step.assignee_emails?.length) return;
+    if (!step) return;
+
+    // Resolve recipients from assigned users + external lists
+    const { emails: resolvedEmails, dingtalkUserIds: resolvedDingtalk } = await resolveAssignees(supabase, step);
+    const hasEmailRecipients = step.send_email && resolvedEmails.length > 0;
+    const hasDingtalkRecipients = step.send_dingtalk && resolvedDingtalk.length > 0 && isDingTalkConfigured();
+    if (!hasEmailRecipients && !hasDingtalkRecipients) return;
 
     // Get the factory sheet with all details
     const { data: sheet } = await supabase
@@ -351,36 +415,37 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string, p
 
     const resend = getResend();
 
-    // Filter out users who opted out of email notifications
-    const emailRecipients = await filterEmailRecipients(supabase, step.assignee_emails ?? []);
+    if (hasEmailRecipients) {
+      const emailRecipients = await filterEmailRecipients(supabase, resolvedEmails);
 
-    for (const email of emailRecipients) {
-      const { data: sendResult, error: sendError } = await resend.emails.send({
-        from: EMAIL_FROM,
-        replyTo: EMAIL_REPLY_TO,
-        to: email,
-        subject,
-        html,
-        attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
-      });
+      for (const email of emailRecipients) {
+        const { data: sendResult, error: sendError } = await resend.emails.send({
+          from: EMAIL_FROM,
+          replyTo: EMAIL_REPLY_TO,
+          to: email,
+          subject,
+          html,
+          attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
+        });
 
-      if (sendError) {
-        console.error(`[workflow-notify] Resend error for ${email}:`, JSON.stringify(sendError));
-        continue;
+        if (sendError) {
+          console.error(`[workflow-notify] Resend error for ${email}:`, JSON.stringify(sendError));
+          continue;
+        }
+
+        console.log(`[workflow-notify] Factory sheet email sent to ${email}, id: ${sendResult?.id}`);
+
+        await supabase.from("workflow_email_log").insert({
+          quotation_id: quotationId,
+          step_key: "pending_factory",
+          recipient_email: email,
+          subject,
+        });
       }
-
-      console.log(`[workflow-notify] Factory sheet email sent to ${email}, id: ${sendResult?.id}`);
-
-      await supabase.from("workflow_email_log").insert({
-        quotation_id: quotationId,
-        step_key: "pending_factory",
-        recipient_email: email,
-        subject,
-      });
     }
 
     // ── DingTalk work notification for factory sheet ──
-    if (step.send_dingtalk && step.assignee_dingtalk_userids?.length > 0 && isDingTalkConfigured()) {
+    if (hasDingtalkRecipients) {
       const ctaUrl = `${APP_URL}/en/quotes/${quotationId}/factory-sheet/${sheetId}`;
       const mdText = buildDingTalkQuoteMarkdown({
         title: subject,
@@ -391,7 +456,7 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string, p
         ctaUrl,
         pricingChanged,
       });
-      const result = await sendWorkNotification(step.assignee_dingtalk_userids, {
+      const result = await sendWorkNotification(resolvedDingtalk, {
         title: subject,
         text: mdText,
       });

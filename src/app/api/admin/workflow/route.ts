@@ -19,7 +19,7 @@ export async function PATCH(request: Request) {
   const body = await request.json();
   const {
     id, assignee_emails, send_email, task_description, subject_template,
-    send_dingtalk, assignee_dingtalk_userids,
+    send_dingtalk, assignee_dingtalk_userids, assignee_user_ids,
   } = body;
 
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -35,6 +35,7 @@ export async function PATCH(request: Request) {
       subject_template: subject_template ?? null,
       send_dingtalk: send_dingtalk ?? false,
       assignee_dingtalk_userids: assignee_dingtalk_userids ?? [],
+      assignee_user_ids: assignee_user_ids ?? [],
     })
     .eq("id", id)
     .select()
