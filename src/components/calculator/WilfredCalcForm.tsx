@@ -16,7 +16,7 @@ import FactorySheetReference, { type FactorySheetRefData } from "@/components/ca
 interface FactoryTier {
   id: string;
   tier_label: string;
-  quantity: number;
+  quantity: number | null; // null for FCL tiers (qty computed downstream by factory)
   total_subtotal: number | null;
   labor_cost: number | null;
   accessories_cost: number | null;
@@ -38,7 +38,8 @@ interface ExistingCalc {
 
 interface TierRow {
   tier_label: string;
-  quantity: number;
+  quantity: number | null;
+  container_info: string | null;
   total_subtotal: string;
   labor_cost: string;
   accessories_cost: string;
@@ -47,6 +48,14 @@ interface TierRow {
   wilfred_notes: string;
   existingId?: string;
   approved?: boolean;
+}
+
+// Friendly header label for a tier — uses piece count when set, otherwise the
+// container info (e.g. "20GP") so FCL tiers don't show as "null pcs".
+function tierHeaderLabel(row: { quantity: number | null; container_info: string | null; tier_label: string }): string {
+  if (row.quantity != null) return `${row.quantity.toLocaleString()} pcs`;
+  if (row.container_info) return row.container_info;
+  return `Tier ${row.tier_label}`;
 }
 
 interface FeesData {
@@ -64,6 +73,7 @@ function initRow(tier: FactoryTier, existing?: ExistingCalc): TierRow {
   return {
     tier_label: tier.tier_label,
     quantity: tier.quantity,
+    container_info: tier.container_info,
     total_subtotal: existing ? String(existing.total_subtotal) : String(tier.total_subtotal ?? ""),
     labor_cost: existing ? String(existing.labor_cost) : String(tier.labor_cost ?? ""),
     accessories_cost: existing ? String(existing.accessories_cost) : String(tier.accessories_cost ?? ""),
@@ -364,7 +374,7 @@ export default function WilfredCalcForm({
         return (
           <Card key={row.tier_label}>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base">{row.quantity.toLocaleString()} pcs</CardTitle>
+              <CardTitle className="text-base">{tierHeaderLabel(row)}</CardTitle>
               {estimate !== null && (
                 <div className="text-right">
                   <p className="text-xs text-gray-400">Estimated unit cost</p>

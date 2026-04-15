@@ -156,7 +156,9 @@ export default function DDPSidebarReference({ data }: { data: DDPSidebarData }) 
               return (
                 <div key={t.tier_label} className="rounded bg-muted/40 px-2 py-1.5 space-y-0.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">{t.quantity?.toLocaleString()} pcs</span>
+                    <span className="font-medium">
+                      {t.quantity != null ? `${t.quantity.toLocaleString()} pcs` : "FCL"}
+                    </span>
                     {costPerPc != null && (
                       <span className="text-foreground font-mono font-semibold">¥{costPerPc.toLocaleString()}/pc</span>
                     )}

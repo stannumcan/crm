@@ -5,7 +5,7 @@ import { Factory, Paperclip } from "lucide-react";
 interface PrintingLine { surface: string; part: string; spec: string }
 interface EmbossingLine { component: string; cost_rmb: string; notes: string }
 interface PackagingLine { type: string; config: string; l: number; w: number; h: number; cbm: number; tins: number }
-interface TierCost { tier_label: string; quantity: number; total_subtotal: number | null; labor_cost: number | null; accessories_cost: number | null }
+interface TierCost { tier_label: string; quantity: number | null; container_info?: string | null; total_subtotal: number | null; labor_cost: number | null; accessories_cost: number | null }
 
 const SURFACE_MAP: Record<string, string> = { outside: "Outside", inside: "Inside", "外面": "Outside", "内面": "Inside" };
 const PART_MAP: Record<string, string> = { lid: "Lid", body: "Body", bottom: "Bottom", lid_body: "Lid & Body", lid_body_bottom: "Lid, Body & Bottom", "蓋": "Lid", "身": "Body", "底": "Bottom" };
@@ -145,7 +145,9 @@ export default function FactorySheetReference({ data }: { data: FactorySheetRefD
               <div key={t.tier_label} className="rounded bg-muted/40 px-2 py-1.5">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Tier {t.tier_label}</span>
-                  <span className="text-muted-foreground">{t.quantity?.toLocaleString()} pcs</span>
+                  <span className="text-muted-foreground">
+                    {t.quantity != null ? `${t.quantity.toLocaleString()} pcs` : (t.container_info ?? "—")}
+                  </span>
                 </div>
                 <div className="flex gap-3 mt-0.5 text-muted-foreground">
                   <span>Tot: <span className="text-foreground font-mono">{fmtRmbUnit(t.total_subtotal)}</span></span>
