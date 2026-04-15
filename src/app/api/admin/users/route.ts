@@ -59,8 +59,13 @@ export async function POST(request: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       user = data.user;
     } else {
+      // Explicit redirectTo so the email link lands on our callback route
+      // regardless of the project's SITE_URL setting in Supabase dashboard.
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+      const redirectTo = appUrl ? `${appUrl.replace(/\/$/, "")}/auth/callback?type=invite` : undefined;
       const { data, error } = await admin.auth.admin.inviteUserByEmail(email.trim(), {
         data: { display_name: display_name?.trim() || null },
+        redirectTo,
       });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       user = data.user;
