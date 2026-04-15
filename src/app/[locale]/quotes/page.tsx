@@ -6,47 +6,7 @@ import { FileText, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import QuoteTabNav from "@/components/quotes/QuoteTabNav";
 import DeleteButton from "@/components/quotes/DeleteButton";
-
-const STATUS_STEPS = [
-  { key: "draft",           label: "Draft" },
-  { key: "pending_factory", label: "Factory" },
-  { key: "pending_wilfred", label: "Cost Calc" },
-  { key: "pending_natsuki", label: "DDP" },
-  { key: "sent",            label: "Sent" },
-  { key: "approved",        label: "Approved" },
-];
-
-function QuoteProgress({ status }: { status: string }) {
-  if (status === "rejected") {
-    return (
-      <div className="flex items-center gap-1.5">
-        <div className="h-1.5 w-24 rounded-full bg-red-200 overflow-hidden">
-          <div className="h-full w-full bg-red-500 rounded-full" />
-        </div>
-        <span className="text-xs text-red-600 font-medium">Rejected</span>
-      </div>
-    );
-  }
-  const currentIdx = STATUS_STEPS.findIndex((s) => s.key === status);
-  const total = STATUS_STEPS.length - 1; // 0-indexed max
-  const pct = currentIdx <= 0 ? 4 : Math.round((currentIdx / total) * 100);
-  const label = STATUS_STEPS[currentIdx]?.label ?? status;
-  const done = status === "approved";
-  return (
-    <div className="flex items-center gap-2 min-w-[140px]">
-      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{
-            width: `${pct}%`,
-            background: done ? "oklch(0.60 0.15 145)" : "var(--primary)",
-          }}
-        />
-      </div>
-      <span className="text-xs text-muted-foreground whitespace-nowrap">{label}</span>
-    </div>
-  );
-}
+import QuoteRequestsTable, { type QuoteRow } from "@/components/quotes/QuoteRequestsTable";
 
 // ── Table wrappers ───────────────────────────────────────────────────────────
 function Th({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
@@ -145,51 +105,10 @@ export default async function QuotesPage({
       <QuoteTabNav locale={locale} activeTab={activeTab} />
 
       {/* Table */}
-      <div className="border border-t-0 rounded-b-lg overflow-hidden bg-card">
+      <div className={activeTab === "requests" ? "mt-3" : "border border-t-0 rounded-b-lg overflow-hidden bg-card"}>
         {/* ── Quote Requests ──────────────────────────────────────────── */}
         {activeTab === "requests" && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/50 border-b border-border">
-                <Th>WO #</Th>
-                <Th>Company</Th>
-                <Th>Project</Th>
-                <Th>Version</Th>
-                <Th>Progress</Th>
-                <Th>Created</Th>
-                <Th className="w-10" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {rows.length === 0 && (
-                <tr><td colSpan={7} className="text-center text-muted-foreground py-10">No quote requests yet</td></tr>
-              )}
-
-              {rows.map((q) => {
-                const wo = q.work_orders;
-                return (
-                  <tr key={q.id} className="hover:bg-muted/30 transition-colors">
-                    <Td><span className="font-mono font-semibold text-blue-700">{wo?.wo_number ?? "—"}</span></Td>
-                    <Td className="font-medium">{wo?.company_name ?? "—"}</Td>
-                    <Td className="text-muted-foreground">{wo?.project_name ?? "—"}</Td>
-                    <Td className="text-muted-foreground">{t("version")} {q.quote_version}</Td>
-                    <Td><QuoteProgress status={q.status} /></Td>
-                    <Td className="text-muted-foreground">{q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"}</Td>
-                    <Td>
-                      <div className="flex items-center gap-0.5 justify-end">
-                        <Link href={`/${locale}/quotes/${q.id}/request`}>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <DeleteButton endpoint={`/api/quotes/${q.id}`} label={`quote ${wo?.wo_number ?? q.id}`} />
-                      </div>
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <QuoteRequestsTable rows={rows as QuoteRow[]} locale={locale} tVersion={t("version")} />
         )}
 
         {/* ── Factory Cost Sheets ─────────────────────────────────────── */}
