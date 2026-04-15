@@ -20,7 +20,7 @@ export default async function QuoteDetailLayout({
   const { data: quote } = await (supabase as any)
     .from("quotations")
     .select(`
-      status, urgency, pricing_changed, design_count, size_dimensions,
+      status, urgency, pricing_changed, design_count, size_dimensions, quote_version,
       work_orders(wo_number, company_name, project_name)
     `)
     .eq("id", id)
@@ -36,6 +36,7 @@ export default async function QuoteDetailLayout({
         locale={locale}
         quoteId={id}
         woNumber={wo?.wo_number ?? null}
+        quoteVersion={(quote?.quote_version as number | null | undefined) ?? null}
         companyName={wo?.company_name ?? null}
         projectName={wo?.project_name ?? null}
         status={status}

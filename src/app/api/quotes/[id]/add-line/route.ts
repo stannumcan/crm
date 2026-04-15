@@ -45,15 +45,16 @@ export async function POST(
     moldNumber = await generateNewMoldNumber(supabase);
   }
 
-  // Get WO + assign chain letter + ref number
+  // Get WO + quote_version + assign chain letter + ref number
   const { data: q2 } = await db
     .from("quotations")
-    .select("work_orders(wo_number)")
+    .select("quote_version, work_orders(wo_number)")
     .eq("id", quotationId)
     .single();
   const woNumber = (q2?.work_orders as { wo_number: string } | null)?.wo_number ?? "WO";
+  const quoteVersion = (q2?.quote_version as number | undefined) ?? 1;
   const chainLetter = await getNextChainLetter(supabase, quotationId, moldNumber);
-  const refNumber = buildFactorySheetRef(woNumber, moldNumber, chainLetter);
+  const refNumber = buildFactorySheetRef(woNumber, quoteVersion, moldNumber, chainLetter);
 
   const { data: sheet } = await db
     .from("factory_cost_sheets")

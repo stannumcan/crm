@@ -23,7 +23,7 @@ export default async function FactorySheetListPage({
   const { data: quote } = await db
     .from("quotations")
     .select(`
-      id, status, mold_number, molds,
+      id, status, mold_number, molds, quote_version,
       printing_lid, printing_body, printing_bottom, printing_inner, printing_notes,
       embossment, embossment_components, embossment_notes,
       work_orders(wo_number, company_name, project_name),
@@ -47,6 +47,8 @@ export default async function FactorySheetListPage({
   if (sheets.length === 0 && molds.length > 0) {
     const tiers = (quote.quotation_quantity_tiers ?? []) as { tier_label: string; quantity_type: string; quantity: number | null; sort_order: number }[];
     const woNumber = (quote.work_orders as { wo_number: string } | null)?.wo_number ?? "WO";
+    const quoteVersion = (quote.quote_version as number) ?? 1;
+    const quoteVersionStr = String(quoteVersion).padStart(2, "0");
 
     // Track chain letter per mold within this batch
     const chainCounts: Record<string, number> = {};
@@ -69,7 +71,7 @@ export default async function FactorySheetListPage({
       quotation_id: id,
       mold_number: moldNumber,
       chain_letter: chainLetter,
-      ref_number: `${woNumber}-${moldNumber}-${chainLetter}`,
+      ref_number: `${woNumber}-${quoteVersionStr}-${moldNumber}-${chainLetter}`,
       product_dimensions: m.size ?? null,
       steel_thickness: m.thickness ? parseFloat(m.thickness) : null,
       sheet_date: new Date().toISOString().split("T")[0],

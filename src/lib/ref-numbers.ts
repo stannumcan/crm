@@ -27,10 +27,27 @@ export async function getNextChainLetter(
 }
 
 /**
- * Build a factory sheet ref number: {wo_number}-{mold_number}-{chain_letter}
+ * Quote-level identifier: {wo_number}-{quote_version:02d}
+ * E.g. 'JP260001-01' for v1 of workorder JP260001. Shared by every factory
+ * sheet / cost calc / DDP / customer quote that descends from that quote
+ * request, so searching this string finds everything in one chain.
  */
-export function buildFactorySheetRef(woNumber: string, moldNumber: string | null, chainLetter: string): string {
-  return `${woNumber}-${moldNumber ?? "UNKNOWN"}-${chainLetter}`;
+export function buildQuoteRef(woNumber: string, quoteVersion: number): string {
+  const v = String(quoteVersion).padStart(2, "0");
+  return `${woNumber}-${v}`;
+}
+
+/**
+ * Factory sheet ref: {wo_number}-{quote_version:02d}-{mold_number}-{chain_letter}
+ * Example: 'JP260001-01-ML0599-A'
+ */
+export function buildFactorySheetRef(
+  woNumber: string,
+  quoteVersion: number,
+  moldNumber: string | null,
+  chainLetter: string,
+): string {
+  return `${buildQuoteRef(woNumber, quoteVersion)}-${moldNumber ?? "UNKNOWN"}-${chainLetter}`;
 }
 
 /**

@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
   // Assign chain letter + ref number
   const chainLetter = await getNextChainLetter(supabase, sheetData.quotation_id, moldNumber);
   const woNumber = (quotation?.work_orders as { wo_number: string } | null)?.wo_number ?? "WO";
-  const refNumber = buildFactorySheetRef(woNumber, moldNumber, chainLetter);
+  const quoteVersion = (quotation?.quote_version as number | undefined) ?? 1;
+  const refNumber = buildFactorySheetRef(woNumber, quoteVersion, moldNumber, chainLetter);
 
   const { data: sheet, error } = await db
     .from("factory_cost_sheets")
@@ -113,11 +114,12 @@ export async function PATCH(request: NextRequest) {
   if (sheetData.mold_number && sheetData.mold_number !== current.mold_number) {
     const { data: q } = await db
       .from("quotations")
-      .select("work_orders(wo_number)")
+      .select("quote_version, work_orders(wo_number)")
       .eq("id", current.quotation_id)
       .single();
     const woNumber = (q?.work_orders as { wo_number: string } | null)?.wo_number ?? "WO";
-    refNumber = buildFactorySheetRef(woNumber, mergedMold, current.chain_letter ?? "A");
+    const quoteVersion = (q?.quote_version as number | undefined) ?? 1;
+    refNumber = buildFactorySheetRef(woNumber, quoteVersion, mergedMold, current.chain_letter ?? "A");
   }
 
   const { data: newSheet, error } = await db

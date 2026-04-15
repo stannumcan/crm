@@ -10,6 +10,7 @@ export default function QuoteContextBar({
   locale,
   quoteId,
   woNumber,
+  quoteVersion,
   companyName,
   projectName,
   status,
@@ -21,6 +22,7 @@ export default function QuoteContextBar({
   locale: string;
   quoteId: string;
   woNumber: string | null;
+  quoteVersion: number | null;
   companyName: string | null;
   projectName: string | null;
   status: string | null;
@@ -29,15 +31,22 @@ export default function QuoteContextBar({
   designCount?: number | null;
   size?: string | null;
 }) {
+  // Quote request ref — JP260001-01 style — shared across every downstream
+  // artefact (factory sheets, cost calc, DDP, customer quote).
+  const quoteRef = woNumber && quoteVersion
+    ? `${woNumber}-${String(quoteVersion).padStart(2, "0")}`
+    : woNumber;
+
   return (
     <div className="px-4 md:px-6 py-2 border-b border-border bg-muted/20">
       <div className="flex items-center gap-x-4 gap-y-1 flex-wrap">
-        {/* WO number — clickable link back to overview */}
+        {/* Quote ref — clickable link back to overview */}
         <Link
           href={`/${locale}/quotes/${quoteId}`}
           className="font-mono text-xs font-semibold text-blue-700 hover:underline shrink-0"
+          title={quoteVersion && quoteVersion > 1 ? `Quote version ${quoteVersion}` : undefined}
         >
-          {woNumber ?? "—"}
+          {quoteRef ?? "—"}
         </Link>
 
         {/* Project + company */}

@@ -8,6 +8,7 @@ interface QuoteHit {
   id: string;
   status: string;
   mold_number: string | null;
+  quote_version: number | null;
   work_orders: { wo_number: string | null; company_name: string | null; project_name: string | null } | null;
 }
 interface CompanyHit { id: string; name: string; name_ja: string | null; country: string | null }
@@ -133,15 +134,20 @@ export default function GlobalSearch({ locale }: { locale: string }) {
 
           {results.quotes.length > 0 && (
             <Section title="Quotes">
-              {results.quotes.map((r) => (
-                <Hit
-                  key={r.id}
-                  icon={FileText}
-                  primary={`${r.work_orders?.wo_number ?? "—"} · ${r.work_orders?.project_name ?? "—"}`}
-                  secondary={`${r.work_orders?.company_name ?? "—"}${r.mold_number ? ` · ${r.mold_number}` : ""} · ${r.status}`}
-                  onClick={() => go(`/${locale}/quotes/${r.id}`)}
-                />
-              ))}
+              {results.quotes.map((r) => {
+                const wo = r.work_orders?.wo_number ?? "—";
+                const vv = r.quote_version ? `-${String(r.quote_version).padStart(2, "0")}` : "";
+                const ref = `${wo}${vv}`;
+                return (
+                  <Hit
+                    key={r.id}
+                    icon={FileText}
+                    primary={`${ref} · ${r.work_orders?.project_name ?? "—"}`}
+                    secondary={`${r.work_orders?.company_name ?? "—"}${r.mold_number ? ` · ${r.mold_number}` : ""} · ${r.status}`}
+                    onClick={() => go(`/${locale}/quotes/${r.id}`)}
+                  />
+                );
+              })}
             </Section>
           )}
 
