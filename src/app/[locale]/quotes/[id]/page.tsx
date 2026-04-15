@@ -180,9 +180,9 @@ export default async function QuoteDetailPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Step tracker — left 2/3 */}
-        <div className="col-span-2">
+        <div className="lg:col-span-2">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Progress</h3>
           <QuoteProgressSteps
             steps={steps}

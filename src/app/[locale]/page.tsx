@@ -50,8 +50,8 @@ export default async function DashboardPage({
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
           <MyQueue quotes={quotes} locale={locale} />
         </div>
 

@@ -50,7 +50,7 @@ export default function Sidebar({ locale }: { locale: string }) {
 
   return (
     <aside
-      className="w-56 flex flex-col shrink-0"
+      className="w-56 flex-col shrink-0 hidden md:flex"
       style={{
         background: "var(--sidebar)",
         borderRight: "1px solid var(--sidebar-border)",

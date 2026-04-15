@@ -3,6 +3,7 @@ import { getMessages, getLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import Sidebar from "@/components/layout/Sidebar";
+import MobileNav from "@/components/layout/MobileNav";
 import GlobalSearch from "@/components/layout/GlobalSearch";
 import { PermissionsProvider } from "@/lib/permissions-context";
 
@@ -28,9 +29,12 @@ export default async function LocaleLayout({
       <PermissionsProvider>
         <div className="flex h-screen bg-background">
           <Sidebar locale={locale} />
-          <main className="flex-1 overflow-auto page-enter">
-            {children}
-          </main>
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <MobileNav locale={locale} />
+            <main className="flex-1 overflow-auto page-enter">
+              {children}
+            </main>
+          </div>
           <GlobalSearch locale={locale} />
         </div>
       </PermissionsProvider>
