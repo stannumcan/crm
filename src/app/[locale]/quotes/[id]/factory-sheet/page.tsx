@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, FileText, Pencil } from "lucide-react";
+import EmptyState from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import VersionHistory from "@/components/ui/version-history";
 import { createClient } from "@/lib/supabase/server";
@@ -132,9 +133,15 @@ export default async function FactorySheetListPage({
 
       <div className="space-y-3 mb-6">
         {sorted.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 border border-dashed rounded-lg">
-            <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">No cost sheets yet</p>
+          <div className="border border-dashed rounded-lg">
+            <EmptyState
+              icon={FileText}
+              title="No cost sheets yet"
+              description="Start by creating a factory cost sheet for each mold in this quote."
+              actionLabel="Add first sheet"
+              actionHref={`/${locale}/quotes/${id}/factory-sheet/new`}
+              actionIcon={Plus}
+            />
           </div>
         ) : (
           sorted.map((sheet, i) => (

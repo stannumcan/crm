@@ -5,8 +5,9 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Search, X } from "lucide-react";
+import { ChevronRight, Search, X, FileText, Plus } from "lucide-react";
 import DeleteButton from "@/components/quotes/DeleteButton";
+import EmptyState from "@/components/ui/empty-state";
 
 const STATUS_STEPS = [
   { key: "draft",           label: "Draft" },
@@ -170,8 +171,19 @@ export default function QuoteRequestsTable({
           <tbody className="divide-y divide-border/60">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center text-muted-foreground py-10">
-                  {rows.length === 0 ? "No quote requests yet" : "No matches"}
+                <td colSpan={7}>
+                  {rows.length === 0 ? (
+                    <EmptyState
+                      icon={FileText}
+                      title="No quote requests yet"
+                      description="Create your first quote to kick off the workflow."
+                      actionLabel="New Quote Request"
+                      actionHref={`/${locale}/quotes/new`}
+                      actionIcon={Plus}
+                    />
+                  ) : (
+                    <div className="text-center text-muted-foreground py-10 text-sm">No matches</div>
+                  )}
                 </td>
               </tr>
             )}
