@@ -45,8 +45,8 @@ export default async function QuotesPage({
   if (activeTab === "requests") {
     const { data } = await db
       .from("quotations")
-      .select("*, work_orders(wo_number, company_name, project_name)")
-      .order("created_at", { ascending: false })
+      .select("*, work_orders(id, wo_number, company_id, company_name, project_name)")
+      .order("updated_at", { ascending: false })
       .limit(500);
     rows = data ?? [];
   } else if (activeTab === "factory-sheet") {
@@ -108,7 +108,7 @@ export default async function QuotesPage({
       <div className={activeTab === "requests" ? "mt-3" : "border border-t-0 rounded-b-lg overflow-hidden bg-card"}>
         {/* ── Quote Requests ──────────────────────────────────────────── */}
         {activeTab === "requests" && (
-          <QuoteRequestsTable rows={rows as QuoteRow[]} locale={locale} tVersion={t("version")} />
+          <QuoteRequestsTable rows={rows as QuoteRow[]} locale={locale} />
         )}
 
         {/* ── Factory Cost Sheets ─────────────────────────────────────── */}

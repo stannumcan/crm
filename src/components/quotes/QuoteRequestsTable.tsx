@@ -1,50 +1,38 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Search, X, FileText, Plus } from "lucide-react";
+import { Search, X, FileText, Plus } from "lucide-react";
 import DeleteButton from "@/components/quotes/DeleteButton";
 import EmptyState from "@/components/ui/empty-state";
 
-const STATUS_STEPS = [
-  { key: "draft",           label: "Draft" },
-  { key: "pending_factory", label: "Factory" },
-  { key: "pending_wilfred", label: "Cost Calc" },
-  { key: "pending_natsuki", label: "DDP" },
-  { key: "sent",            label: "Sent" },
-  { key: "approved",        label: "Approved" },
-];
+const STATUS_LABEL: Record<string, string> = {
+  draft:           "Draft",
+  pending_factory: "Factory",
+  pending_wilfred: "Cost Calc",
+  pending_natsuki: "DDP",
+  sent:            "Sent",
+  approved:        "Approved",
+  rejected:        "Rejected",
+};
 
-function QuoteProgress({ status }: { status: string }) {
-  if (status === "rejected") {
-    return (
-      <div className="flex items-center gap-1.5">
-        <div className="h-1.5 w-24 rounded-full bg-red-200 overflow-hidden">
-          <div className="h-full w-full bg-red-500 rounded-full" />
-        </div>
-        <span className="text-xs text-red-600 font-medium">Rejected</span>
-      </div>
-    );
-  }
-  const currentIdx = STATUS_STEPS.findIndex((s) => s.key === status);
-  const total = STATUS_STEPS.length - 1;
-  const pct = currentIdx <= 0 ? 4 : Math.round((currentIdx / total) * 100);
-  const label = STATUS_STEPS[currentIdx]?.label ?? status;
-  const done = status === "approved";
-  return (
-    <div className="flex items-center gap-2 min-w-[140px]">
-      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, background: done ? "oklch(0.60 0.15 145)" : "var(--primary)" }}
-        />
-      </div>
-      <span className="text-xs text-muted-foreground whitespace-nowrap">{label}</span>
-    </div>
-  );
+function statusPillStyle(status: string): { bg: string; fg: string; border: string } {
+  if (status === "rejected") return { bg: "oklch(0.97 0.02 20)", fg: "oklch(0.45 0.15 20)", border: "oklch(0.85 0.08 20)" };
+  if (status === "approved") return { bg: "oklch(0.97 0.04 145)", fg: "oklch(0.40 0.15 145)", border: "oklch(0.85 0.08 145)" };
+  if (status === "sent")     return { bg: "oklch(0.97 0.03 230)", fg: "oklch(0.40 0.15 230)", border: "oklch(0.85 0.08 230)" };
+  return { bg: "oklch(0.96 0 0)", fg: "oklch(0.35 0 0)", border: "oklch(0.88 0 0)" };
+}
+
+function daysAgo(iso: string | null): string {
+  if (!iso) return "—";
+  const ms = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
 const FILTER_CHIPS = [
@@ -61,8 +49,11 @@ export interface QuoteRow {
   status: string;
   quote_version: number | null;
   created_at: string | null;
+  updated_at: string | null;
   work_orders: {
+    id: string | null;
     wo_number: string | null;
+    company_id: string | null;
     company_name: string | null;
     project_name: string | null;
   } | null;
@@ -78,12 +69,11 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
 export default function QuoteRequestsTable({
   rows,
   locale,
-  tVersion,
 }: {
   rows: QuoteRow[];
   locale: string;
-  tVersion: string;
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -92,8 +82,12 @@ export default function QuoteRequestsTable({
     return rows.filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (!q) return true;
+      const quoteRef = r.work_orders?.wo_number && r.quote_version
+        ? `${r.work_orders.wo_number}-${String(r.quote_version).padStart(2, "0")}`
+        : "";
       const haystack = [
         r.work_orders?.wo_number,
+        quoteRef,
         r.work_orders?.company_name,
         r.work_orders?.project_name,
         r.status,
@@ -111,7 +105,7 @@ export default function QuoteRequestsTable({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter by WO, company, project..."
+            placeholder="Filter by WO, quote ref, company, project..."
             className="pl-8 pr-8 h-8 text-sm"
           />
           {search && (
@@ -147,7 +141,6 @@ export default function QuoteRequestsTable({
         </div>
       </div>
 
-      {/* Result count */}
       {(search || statusFilter !== "all") && (
         <p className="text-xs text-muted-foreground mb-2">
           Showing {filtered.length} of {rows.length}
@@ -160,18 +153,19 @@ export default function QuoteRequestsTable({
           <thead>
             <tr className="bg-muted/50 border-b border-border">
               <Th>WO #</Th>
+              <Th>Quote Request #</Th>
               <Th>Company</Th>
               <Th>Project</Th>
-              <Th>Version</Th>
               <Th>Progress</Th>
               <Th>Created</Th>
+              <Th>Last Action</Th>
               <Th className="w-10" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={8}>
                   {rows.length === 0 ? (
                     <EmptyState
                       icon={FileText}
@@ -189,24 +183,69 @@ export default function QuoteRequestsTable({
             )}
             {filtered.map((q) => {
               const wo = q.work_orders;
+              const woRef = wo?.wo_number ?? "—";
+              const version = q.quote_version ?? 1;
+              const quoteRef = wo?.wo_number ? `${wo.wo_number}-${String(version).padStart(2, "0")}` : "—";
+              const statusLabel = STATUS_LABEL[q.status] ?? q.status;
+              const pill = statusPillStyle(q.status);
+
+              // Row-level click navigates to the quote overview.
+              // Inner links (WO #, Company) stopPropagation so they take precedence.
               return (
-                <tr key={q.id} className="hover:bg-muted/30 transition-colors">
-                  <Td><span className="font-mono font-semibold text-blue-700">{wo?.wo_number ?? "—"}</span></Td>
-                  <Td className="font-medium">{wo?.company_name ?? "—"}</Td>
-                  <Td className="text-muted-foreground">{wo?.project_name ?? "—"}</Td>
-                  <Td className="text-muted-foreground">
-                    <Badge variant="outline" className="text-[10px]">{tVersion} {q.quote_version ?? 1}</Badge>
-                  </Td>
-                  <Td><QuoteProgress status={q.status} /></Td>
-                  <Td className="text-muted-foreground">{q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"}</Td>
+                <tr
+                  key={q.id}
+                  onClick={() => router.push(`/${locale}/quotes/${q.id}`)}
+                  className="hover:bg-muted/30 transition-colors cursor-pointer"
+                >
                   <Td>
-                    <div className="flex items-center gap-0.5 justify-end">
-                      <Link href={`/${locale}/quotes/${q.id}`}>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
+                    {wo?.id ? (
+                      <Link
+                        href={`/${locale}/workorders/${wo.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-mono font-semibold text-blue-700 hover:underline"
+                      >
+                        {woRef}
                       </Link>
-                      <DeleteButton endpoint={`/api/quotes/${q.id}`} label={`quote ${wo?.wo_number ?? q.id}`} />
+                    ) : (
+                      <span className="font-mono font-semibold text-blue-700">{woRef}</span>
+                    )}
+                  </Td>
+                  <Td>
+                    <span className="font-mono font-semibold text-foreground">{quoteRef}</span>
+                  </Td>
+                  <Td className="font-medium">
+                    {wo?.company_id ? (
+                      <Link
+                        href={`/${locale}/companies/${wo.company_id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:underline hover:text-blue-700 transition-colors"
+                      >
+                        {wo.company_name ?? "—"}
+                      </Link>
+                    ) : (
+                      wo?.company_name ?? "—"
+                    )}
+                  </Td>
+                  <Td className="text-muted-foreground">{wo?.project_name ?? "—"}</Td>
+                  <Td>
+                    <span
+                      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border"
+                      style={{ background: pill.bg, color: pill.fg, borderColor: pill.border }}
+                    >
+                      {statusLabel}
+                    </span>
+                  </Td>
+                  <Td className="text-muted-foreground text-xs">
+                    {q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"}
+                  </Td>
+                  <Td className="text-muted-foreground text-xs">
+                    <span title={q.updated_at ? new Date(q.updated_at).toLocaleString() : undefined}>
+                      {daysAgo(q.updated_at)}
+                    </span>
+                  </Td>
+                  <Td>
+                    <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                      <DeleteButton endpoint={`/api/quotes/${q.id}`} label={`quote ${quoteRef}`} />
                     </div>
                   </Td>
                 </tr>
