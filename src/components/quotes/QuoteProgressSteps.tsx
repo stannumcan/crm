@@ -2,9 +2,19 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Circle, Clock, ChevronRight } from "lucide-react";
+import { CheckCircle2, Circle, Clock, ChevronRight, Users } from "lucide-react";
 import { usePermissions } from "@/lib/permissions-context";
 import type { PageKey } from "@/lib/permissions";
+
+function daysSince(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  if (days === 0) return "today";
+  if (days === 1) return "since yesterday";
+  if (days < 7) return `for ${days} days`;
+  if (days < 30) return `for ${Math.floor(days / 7)} weeks`;
+  return `for ${Math.floor(days / 30)} months`;
+}
 
 type QuoteStatus =
   | "draft"
@@ -44,9 +54,13 @@ export interface ProgressStep {
 export default function QuoteProgressSteps({
   steps,
   currentStatus,
+  waitingOnNames,
+  waitingSince,
 }: {
   steps: ProgressStep[];
   currentStatus: QuoteStatus;
+  waitingOnNames?: string[];
+  waitingSince?: string;
 }) {
   const { canView, loading } = usePermissions();
 
@@ -99,6 +113,15 @@ export default function QuoteProgressSteps({
                 {step.label}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">{step.sublabel}</p>
+              {state === "current" && waitingOnNames && waitingOnNames.length > 0 && (
+                <p className="text-xs text-blue-700 mt-1 flex items-center gap-1.5">
+                  <Users className="h-3 w-3 shrink-0" />
+                  <span>
+                    Waiting on <strong>{waitingOnNames.join(", ")}</strong>
+                    {waitingSince ? <span className="text-blue-600/70"> · {daysSince(waitingSince)}</span> : null}
+                  </span>
+                </p>
+              )}
             </div>
             {isAccessible && (
               <Link href={step.href}>

@@ -55,6 +55,33 @@ export default async function QuoteDetailPage({
 
   if (quoteError || !quote) notFound();
 
+  // Look up the current workflow step's assignees so we can show "Waiting on: ..."
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: currentStep } = await (supabase as any)
+    .from("workflow_steps")
+    .select("assignee_emails")
+    .eq("step_key", quote.status)
+    .maybeSingle();
+
+  const assigneeEmails = (currentStep?.assignee_emails as string[] | null) ?? [];
+  let waitingOnNames: string[] = [];
+  if (assigneeEmails.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: profiles } = await (supabase as any)
+      .from("user_profiles")
+      .select("email, display_name")
+      .in("email", assigneeEmails);
+    waitingOnNames = (profiles as { email: string; display_name: string | null }[] | null ?? [])
+      .map((p) => p.display_name || p.email)
+      .filter(Boolean);
+    // Fallback: any email without a profile row still shows as raw email
+    for (const email of assigneeEmails) {
+      if (!waitingOnNames.some((n) => n === email || (profiles as { email: string }[] | null ?? []).some((p) => p.email === email))) {
+        waitingOnNames.push(email);
+      }
+    }
+  }
+
   const wo = quote.work_orders as { id: string; wo_number: string; company_name: string; project_name: string } | null;
   const tiers = (quote.quotation_quantity_tiers as { id: string; tier_label: string; quantity_type: string; quantity: number | null; sort_order: number }[] | null) ?? [];
 
@@ -157,7 +184,12 @@ export default async function QuoteDetailPage({
         {/* Step tracker — left 2/3 */}
         <div className="col-span-2">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Progress</h3>
-          <QuoteProgressSteps steps={steps} currentStatus={currentStatus} />
+          <QuoteProgressSteps
+            steps={steps}
+            currentStatus={currentStatus}
+            waitingOnNames={waitingOnNames}
+            waitingSince={quote.updated_at}
+          />
         </div>
 
         {/* Spec summary — right 1/3 */}
