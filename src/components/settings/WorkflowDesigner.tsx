@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import {
   Loader2, Mail, MailX, Pencil, Plus, X, ArrowDown, Check,
-  FileText, Factory, Calculator, Truck, Send, ThumbsUp,
+  FileText, Factory, Calculator, Truck, Send, ThumbsUp, MessageSquare,
 } from "lucide-react";
 
 interface WorkflowStep {
@@ -21,6 +21,8 @@ interface WorkflowStep {
   send_email: boolean;
   task_description: string | null;
   subject_template: string | null;
+  send_dingtalk: boolean;
+  assignee_dingtalk_userids: string[];
 }
 
 const STEP_COLORS: Record<string, string> = {
@@ -53,6 +55,9 @@ export default function WorkflowDesigner() {
   const [editSendEmail, setEditSendEmail] = useState(true);
   const [editTask, setEditTask] = useState("");
   const [editSubject, setEditSubject] = useState("");
+  const [editSendDingtalk, setEditSendDingtalk] = useState(false);
+  const [editDingtalkIds, setEditDingtalkIds] = useState<string[]>([]);
+  const [editNewDingtalkId, setEditNewDingtalkId] = useState("");
 
   const fetchSteps = useCallback(async () => {
     setLoading(true);
@@ -71,6 +76,9 @@ export default function WorkflowDesigner() {
     setEditTask(step.task_description ?? "");
     setEditSubject(step.subject_template ?? "");
     setEditNewEmail("");
+    setEditSendDingtalk(step.send_dingtalk ?? false);
+    setEditDingtalkIds([...(step.assignee_dingtalk_userids ?? [])]);
+    setEditNewDingtalkId("");
   };
 
   const addEmail = () => {
@@ -82,6 +90,17 @@ export default function WorkflowDesigner() {
 
   const removeEmail = (email: string) => {
     setEditEmails(editEmails.filter((e) => e !== email));
+  };
+
+  const addDingtalkId = () => {
+    const id = editNewDingtalkId.trim();
+    if (!id || editDingtalkIds.includes(id)) return;
+    setEditDingtalkIds([...editDingtalkIds, id]);
+    setEditNewDingtalkId("");
+  };
+
+  const removeDingtalkId = (id: string) => {
+    setEditDingtalkIds(editDingtalkIds.filter((x) => x !== id));
   };
 
   const handleSave = async () => {
@@ -96,6 +115,8 @@ export default function WorkflowDesigner() {
         send_email: editSendEmail,
         task_description: editTask.trim() || null,
         subject_template: editSubject.trim() || null,
+        send_dingtalk: editSendDingtalk,
+        assignee_dingtalk_userids: editDingtalkIds,
       }),
     });
     setEditStep(null);
@@ -191,6 +212,15 @@ export default function WorkflowDesigner() {
                       ) : (
                         <Badge variant="outline" className="text-xs text-muted-foreground gap-1">
                           <MailX className="h-3 w-3" /> Off
+                        </Badge>
+                      )}
+                      {step.send_dingtalk && step.assignee_dingtalk_userids?.length > 0 && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs gap-1 border-blue-200 bg-blue-50 text-blue-700"
+                          title={`DingTalk: ${step.assignee_dingtalk_userids.length} user(s)`}
+                        >
+                          <MessageSquare className="h-3 w-3" /> DT
                         </Badge>
                       )}
                       <Button
@@ -305,6 +335,62 @@ export default function WorkflowDesigner() {
               className="w-full rounded-md border px-3 py-2 text-sm min-h-[80px] resize-y"
               style={{ borderColor: "var(--border)", background: "var(--background)" }}
             />
+          </div>
+
+          {/* DingTalk section */}
+          <div className="space-y-3 rounded-lg border p-3" style={{ borderColor: "oklch(0.88 0.04 230)", background: "oklch(0.98 0.01 230)" }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+                  DingTalk Work Notification (工作通知)
+                </Label>
+                <p className="text-xs text-muted-foreground">Direct DM to specific DingTalk users when this step fires</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditSendDingtalk(!editSendDingtalk)}
+                className="relative w-10 h-5 rounded-full transition-colors shrink-0"
+                style={{ background: editSendDingtalk ? "var(--primary)" : "oklch(0.85 0 0)" }}
+              >
+                <div
+                  className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform"
+                  style={{ left: editSendDingtalk ? "calc(100% - 18px)" : "2px" }}
+                />
+              </button>
+            </div>
+            {editSendDingtalk && (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Recipient DingTalk userIds</Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Find in DingTalk admin console: 员工管理 → click employee → copy userid (e.g. <code>manager8848</code>)
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Add DingTalk userid..."
+                    value={editNewDingtalkId}
+                    onChange={(e) => setEditNewDingtalkId(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDingtalkId(); } }}
+                    className="flex-1 h-8 text-sm font-mono"
+                  />
+                  <Button size="sm" variant="outline" onClick={addDingtalkId} className="shrink-0 h-8">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {editDingtalkIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {editDingtalkIds.map((id) => (
+                      <Badge key={id} variant="secondary" className="gap-1 text-xs pr-1 font-mono">
+                        {id}
+                        <button onClick={() => removeDingtalkId(id)} className="hover:text-red-600 transition-colors">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 justify-end pt-1">

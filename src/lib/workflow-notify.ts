@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getResend, EMAIL_FROM, EMAIL_REPLY_TO } from "@/lib/email";
 import { buildQuoteEmail } from "@/lib/email-template";
+import { sendWorkNotification, isDingTalkConfigured } from "@/lib/dingtalk";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://japan-crm.vercel.app";
 
@@ -119,6 +120,25 @@ export async function notifyWorkflowStep(quotationId: string, newStatus: string)
         recipient_email: email,
         subject,
       });
+    }
+
+    // ── DingTalk work notification (fires in parallel with email) ──
+    if (step.send_dingtalk && step.assignee_dingtalk_userids?.length > 0 && isDingTalkConfigured()) {
+      const ctaUrl = `${APP_URL}/en/quotes/${quotationId}/request`;
+      const mdText = buildDingTalkQuoteMarkdown({
+        title: subject,
+        taskDescription: step.task_description,
+        woNumber, companyName, projectName,
+        ctaUrl,
+        pricingChanged: isPricingChanged,
+      });
+      const result = await sendWorkNotification(step.assignee_dingtalk_userids, {
+        title: subject,
+        text: mdText,
+      });
+      if (!result.success) {
+        console.error(`[workflow-notify] DingTalk send failed: ${result.errmsg}`);
+      }
     }
   } catch (err) {
     console.error(`[workflow-notify] Failed for ${quotationId} → ${newStatus}:`, err);
@@ -331,9 +351,63 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string, p
         subject,
       });
     }
+
+    // ── DingTalk work notification for factory sheet ──
+    if (step.send_dingtalk && step.assignee_dingtalk_userids?.length > 0 && isDingTalkConfigured()) {
+      const ctaUrl = `${APP_URL}/en/quotes/${quotationId}/factory-sheet/${sheetId}`;
+      const mdText = buildDingTalkQuoteMarkdown({
+        title: subject,
+        taskDescription: step.task_description,
+        woNumber, companyName, projectName,
+        moldNumber,
+        refNumber,
+        ctaUrl,
+        pricingChanged,
+      });
+      const result = await sendWorkNotification(step.assignee_dingtalk_userids, {
+        title: subject,
+        text: mdText,
+      });
+      if (!result.success) {
+        console.error(`[workflow-notify] Factory sheet DingTalk send failed: ${result.errmsg}`);
+      }
+    }
   } catch (err) {
     console.error(`[workflow-notify] Factory sheet notify failed for ${sheetId}:`, err);
   }
+}
+
+// ── DingTalk markdown builder ────────────────────────────────────────────
+function buildDingTalkQuoteMarkdown(opts: {
+  title: string;
+  taskDescription?: string | null;
+  woNumber: string;
+  companyName: string;
+  projectName: string;
+  moldNumber?: string;
+  refNumber?: string | null;
+  ctaUrl: string;
+  pricingChanged?: boolean;
+}): string {
+  const lines: string[] = [];
+  if (opts.pricingChanged) {
+    lines.push("> ⚠ **PRICING CHANGED** — please re-review");
+    lines.push("");
+  }
+  lines.push(`### ${opts.title}`);
+  lines.push("");
+  lines.push(`**Workorder:** ${opts.woNumber}  `);
+  lines.push(`**Company:** ${opts.companyName}  `);
+  lines.push(`**Project:** ${opts.projectName}  `);
+  if (opts.moldNumber) lines.push(`**Mold:** ${opts.moldNumber}  `);
+  if (opts.refNumber) lines.push(`**Ref:** ${opts.refNumber}  `);
+  if (opts.taskDescription) {
+    lines.push("");
+    lines.push(opts.taskDescription);
+  }
+  lines.push("");
+  lines.push(`[Open in CRM](${opts.ctaUrl})`);
+  return lines.join("\n");
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

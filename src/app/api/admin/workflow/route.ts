@@ -14,10 +14,13 @@ export async function GET() {
   return NextResponse.json(data);
 }
 
-// PATCH — update a single step's assignees, send_email, task_description
+// PATCH — update a single step's assignees, send_email, task_description, DingTalk config
 export async function PATCH(request: Request) {
   const body = await request.json();
-  const { id, assignee_emails, send_email, task_description, subject_template } = body;
+  const {
+    id, assignee_emails, send_email, task_description, subject_template,
+    send_dingtalk, assignee_dingtalk_userids,
+  } = body;
 
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
@@ -30,6 +33,8 @@ export async function PATCH(request: Request) {
       send_email: send_email ?? false,
       task_description: task_description ?? null,
       subject_template: subject_template ?? null,
+      send_dingtalk: send_dingtalk ?? false,
+      assignee_dingtalk_userids: assignee_dingtalk_userids ?? [],
     })
     .eq("id", id)
     .select()
