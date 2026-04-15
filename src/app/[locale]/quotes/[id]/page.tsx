@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import AuditTrail from "@/components/quotes/AuditTrail";
 import QuoteProgressSteps, { type ProgressStep } from "@/components/quotes/QuoteProgressSteps";
+import QuoteLineItems from "@/components/quotes/QuoteLineItems";
 
 type QuoteStatus =
   | "draft"
@@ -182,14 +183,37 @@ export default async function QuoteDetailPage({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Step tracker — left 2/3 */}
-        <div className="lg:col-span-2">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Progress</h3>
-          <QuoteProgressSteps
-            steps={steps}
-            currentStatus={currentStatus}
-            waitingOnNames={waitingOnNames}
-            waitingSince={quote.updated_at}
-          />
+        <div className="lg:col-span-2 space-y-6">
+          {/* Line items — what's being quoted */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Request</h3>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            <QuoteLineItems
+              molds={(quote.molds ?? null) as any}
+              legacy={{
+                mold_number: quote.mold_number as string | null,
+                size_dimensions: quote.size_dimensions as string | null,
+                printing_lid: quote.printing_lid as string | null,
+                printing_body: quote.printing_body as string | null,
+                printing_bottom: quote.printing_bottom as string | null,
+                printing_inner: quote.printing_inner as string | null,
+                embossment: quote.embossment as boolean | null,
+                embossment_components: quote.embossment_components as string | null,
+                embossment_notes: quote.embossment_notes as string | null,
+              }}
+            />
+          </div>
+
+          {/* Progress steps */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Progress</h3>
+            <QuoteProgressSteps
+              steps={steps}
+              currentStatus={currentStatus}
+              waitingOnNames={waitingOnNames}
+              waitingSince={quote.updated_at}
+            />
+          </div>
         </div>
 
         {/* Spec summary — right 1/3 */}
