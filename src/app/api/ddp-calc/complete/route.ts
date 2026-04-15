@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
     .update({ status: "sent" })
     .eq("id", quotation_id);
 
-  await notifyWorkflowStep(quotation_id, "sent");
+  // Notify the step that JUST COMPLETED: "DDP Calculation" (pending_natsuki's work)
+  await notifyWorkflowStep(quotation_id, "pending_natsuki");
 
   return NextResponse.json({ completed: true });
 }

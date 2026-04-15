@@ -257,11 +257,12 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string, p
   try {
     const supabase = createAdminClient();
 
-    // Get workflow step config for pending_wilfred
+    // Factory sheet was just submitted — fire the step that JUST COMPLETED
+    // ("Factory Cost Sheet" = pending_factory step).
     const { data: step } = await supabase
       .from("workflow_steps")
       .select("*")
-      .eq("step_key", "pending_wilfred")
+      .eq("step_key", "pending_factory")
       .single();
 
     if (!step || !step.send_email || !step.assignee_emails?.length) return;
@@ -372,7 +373,7 @@ export async function notifyFactorySheet(sheetId: string, quotationId: string, p
 
       await supabase.from("workflow_email_log").insert({
         quotation_id: quotationId,
-        step_key: "pending_wilfred",
+        step_key: "pending_factory",
         recipient_email: email,
         subject,
       });

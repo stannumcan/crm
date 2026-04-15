@@ -128,7 +128,8 @@ export async function PATCH(request: NextRequest) {
 
       if (sheetRow) {
         await db.from("quotations").update({ status: "pending_natsuki" }).eq("id", sheetRow.quotation_id);
-        await notifyWorkflowStep(sheetRow.quotation_id, "pending_natsuki");
+        // Notify the step that JUST COMPLETED: "Cost Calc" (pending_wilfred step was the work)
+        await notifyWorkflowStep(sheetRow.quotation_id, "pending_wilfred");
       }
     }
   }

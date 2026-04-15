@@ -57,8 +57,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Notify workflow — new quote starts at pending_factory
-  await notifyWorkflowStep(quotation.id, "pending_factory");
+  // Notification fires for the step that JUST COMPLETED: "Quote Request" (the quote
+  // was just submitted). Status itself advances to pending_factory.
+  await notifyWorkflowStep(quotation.id, "draft");
 
   return NextResponse.json(quotation, { status: 201 });
 }
