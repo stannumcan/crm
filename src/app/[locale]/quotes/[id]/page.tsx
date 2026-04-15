@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import CollapsibleCard from "@/components/ui/collapsible-card";
 import { ArrowLeft, CheckCircle2, AlertCircle, Paperclip } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
@@ -193,10 +193,9 @@ export default async function QuoteDetailPage({
         </div>
 
         {/* Spec summary — right 1/3 */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm">Spec Summary</CardTitle></CardHeader>
-            <CardContent className="space-y-2 text-sm">
+        <div className="space-y-3">
+          <CollapsibleCard title="Spec Summary" defaultOpen>
+            <div className="space-y-2 text-sm">
               {quote.mold_number && (
                 <div>
                   <span className="text-gray-500 text-xs">Mold</span>
@@ -233,82 +232,75 @@ export default async function QuoteDetailPage({
                   <span className="text-blue-700 text-xs font-medium">Shipping info req.</span>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </CollapsibleCard>
 
-          {/* Quantity tiers */}
           {tiers.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-sm">{t("quantityTiers")}</CardTitle></CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {tiers.sort((a, b) => a.sort_order - b.sort_order).map((tier) => (
-                    <div key={tier.id} className="flex items-center justify-between">
-                      <span className="flex items-center justify-center h-6 w-6 rounded text-xs font-bold bg-gray-100 text-gray-600">
-                        {tier.tier_label}
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        {tier.quantity_type === "units"
-                          ? (tier.quantity ? tier.quantity.toLocaleString() + " pcs" : "—")
-                          : tier.quantity_type === "fcl_20ft" ? "20ft FCL"
-                          : "40ft FCL"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <CollapsibleCard
+              title={t("quantityTiers")}
+              defaultOpen
+              summary={`${tiers.length} tier${tiers.length > 1 ? "s" : ""}`}
+            >
+              <div className="space-y-2">
+                {tiers.sort((a, b) => a.sort_order - b.sort_order).map((tier) => (
+                  <div key={tier.id} className="flex items-center justify-between">
+                    <span className="flex items-center justify-center h-6 w-6 rounded text-xs font-bold bg-gray-100 text-gray-600">
+                      {tier.tier_label}
+                    </span>
+                    <span className="text-sm text-gray-600">
+                      {tier.quantity_type === "units"
+                        ? (tier.quantity ? tier.quantity.toLocaleString() + " pcs" : "—")
+                        : tier.quantity_type === "fcl_20ft" ? "20ft FCL"
+                        : "40ft FCL"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleCard>
           )}
 
-          {/* Printing */}
           {(quote.printing_lid || quote.printing_body || quote.printing_bottom || quote.printing_inner) && (
-            <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-sm">{t("printing")}</CardTitle></CardHeader>
-              <CardContent className="space-y-1.5 text-xs">
+            <CollapsibleCard title={t("printing")} defaultOpen={false}>
+              <div className="space-y-1.5 text-xs">
                 {quote.printing_lid && <div><span className="text-gray-400">{t("printing_lid")}: </span><span>{quote.printing_lid}</span></div>}
                 {quote.printing_body && <div><span className="text-gray-400">{t("printing_body")}: </span><span>{quote.printing_body}</span></div>}
                 {quote.printing_bottom && <div><span className="text-gray-400">{t("printing_bottom")}: </span><span>{quote.printing_bottom}</span></div>}
                 {quote.printing_inner && <div><span className="text-gray-400">{t("printing_inner")}: </span><span>{quote.printing_inner}</span></div>}
-              </CardContent>
-            </Card>
+              </div>
+            </CollapsibleCard>
           )}
 
           {quote.internal_notes && (
-            <Card className="border-amber-200">
-              <CardHeader className="pb-2"><CardTitle className="text-sm text-amber-700">Internal Notes</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-xs text-gray-600 whitespace-pre-wrap">{quote.internal_notes}</p>
-              </CardContent>
-            </Card>
+            <CollapsibleCard
+              title={<span className="text-amber-700">Internal Notes</span>}
+              defaultOpen={false}
+            >
+              <p className="text-xs text-gray-600 whitespace-pre-wrap">{quote.internal_notes}</p>
+            </CollapsibleCard>
           )}
 
-          {/* Attachments */}
           {Array.isArray(quote.attachments) && quote.attachments.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-1.5">
-                  <Paperclip className="h-3.5 w-3.5 text-gray-400" />
-                  Attachments
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-1.5">
-                  {(quote.attachments as { name: string; url: string; size: number; type: string }[]).map((f, i) => (
-                    <li key={i}>
-                      <a
-                        href={f.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-xs text-blue-700 hover:underline truncate"
-                      >
-                        <Paperclip className="h-3 w-3 flex-shrink-0 text-gray-400" />
-                        <span className="truncate">{f.name}</span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+            <CollapsibleCard
+              title={<span className="flex items-center gap-1.5"><Paperclip className="h-3.5 w-3.5 text-gray-400" />Attachments</span>}
+              defaultOpen={false}
+              summary={`${(quote.attachments as unknown[]).length}`}
+            >
+              <ul className="space-y-1.5">
+                {(quote.attachments as { name: string; url: string; size: number; type: string }[]).map((f, i) => (
+                  <li key={i}>
+                    <a
+                      href={f.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-xs text-blue-700 hover:underline truncate"
+                    >
+                      <Paperclip className="h-3 w-3 flex-shrink-0 text-gray-400" />
+                      <span className="truncate">{f.name}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </CollapsibleCard>
           )}
         </div>
       </div>
