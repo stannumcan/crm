@@ -69,9 +69,20 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
 export default function QuoteRequestsTable({
   rows,
   locale,
+  rowHrefSuffix = "",
+  emptyTitle,
+  emptyDescription,
+  emptyActionLabel,
+  emptyActionHref,
 }: {
   rows: QuoteRow[];
   locale: string;
+  /** Appended to /quotes/{id} when a row is clicked. Default: overview. */
+  rowHrefSuffix?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  emptyActionLabel?: string;
+  emptyActionHref?: string;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -169,11 +180,11 @@ export default function QuoteRequestsTable({
                   {rows.length === 0 ? (
                     <EmptyState
                       icon={FileText}
-                      title="No quote requests yet"
-                      description="Create your first quote to kick off the workflow."
-                      actionLabel="New Quote Request"
-                      actionHref={`/${locale}/quotes/new`}
-                      actionIcon={Plus}
+                      title={emptyTitle ?? "No quote requests yet"}
+                      description={emptyDescription ?? "Create your first quote to kick off the workflow."}
+                      actionLabel={emptyActionLabel ?? "New Quote Request"}
+                      actionHref={emptyActionHref ?? `/${locale}/quotes/new`}
+                      actionIcon={emptyActionLabel ? undefined : Plus}
                     />
                   ) : (
                     <div className="text-center text-muted-foreground py-10 text-sm">No matches</div>
@@ -189,12 +200,12 @@ export default function QuoteRequestsTable({
               const statusLabel = STATUS_LABEL[q.status] ?? q.status;
               const pill = statusPillStyle(q.status);
 
-              // Row-level click navigates to the quote overview.
+              // Row-level click navigates to the quote overview (or a step page).
               // Inner links (WO #, Company) stopPropagation so they take precedence.
               return (
                 <tr
                   key={q.id}
-                  onClick={() => router.push(`/${locale}/quotes/${q.id}`)}
+                  onClick={() => router.push(`/${locale}/quotes/${q.id}${rowHrefSuffix}`)}
                   className="hover:bg-muted/30 transition-colors cursor-pointer"
                 >
                   <Td>
