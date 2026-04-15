@@ -50,9 +50,15 @@ export async function POST(request: NextRequest) {
   await db.from("factory_cost_sheets").update({ sheet_group_id: sheet.id }).eq("id", sheet.id);
 
   if (tiers?.length) {
-    await db.from("factory_cost_tiers").insert(
+    const { error: tierErr } = await db.from("factory_cost_tiers").insert(
       tiers.map((t: object) => ({ ...t, cost_sheet_id: sheet.id }))
     );
+    if (tierErr) {
+      // Tier insert failing silently was the root cause of cost data showing as 0
+      // after save. Surface any failure so the client can show a real error instead.
+      console.error("[factory-sheets] tier insert failed:", tierErr);
+      return NextResponse.json({ error: `Failed to save tier costs: ${tierErr.message}` }, { status: 500 });
+    }
   }
 
   await logChange(supabase, "factory_cost_sheet", sheet.id, 1, "created", null, sheet);
@@ -132,9 +138,13 @@ export async function PATCH(request: NextRequest) {
 
   // Insert new tier rows
   if (tiers?.length) {
-    await db.from("factory_cost_tiers").insert(
+    const { error: tierErr } = await db.from("factory_cost_tiers").insert(
       tiers.map((t: object) => ({ ...t, cost_sheet_id: newSheet.id }))
     );
+    if (tierErr) {
+      console.error("[factory-sheets] tier insert failed on update:", tierErr);
+      return NextResponse.json({ error: `Failed to save tier costs: ${tierErr.message}` }, { status: 500 });
+    }
   }
 
   // Detect price changes — only flag if EXISTING price was changed, not initial entry
