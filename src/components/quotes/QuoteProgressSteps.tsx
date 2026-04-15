@@ -70,6 +70,7 @@ export default function QuoteProgressSteps({
   }
 
   const visibleSteps = steps.filter((s) => canView(s.pageKey));
+  const hiddenCount = steps.length - visibleSteps.length;
 
   if (visibleSteps.length === 0) {
     return (
@@ -81,6 +82,17 @@ export default function QuoteProgressSteps({
 
   return (
     <div className="space-y-3">
+      {hiddenCount > 0 && (
+        <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground flex items-start gap-2">
+          <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Showing your {visibleSteps.length} step{visibleSteps.length > 1 ? "s" : ""} of this workflow.{" "}
+            <span className="opacity-75">
+              {hiddenCount} step{hiddenCount > 1 ? "s are" : " is"} handled by other teams and hidden from your view.
+            </span>
+          </span>
+        </div>
+      )}
       {visibleSteps.map((step) => {
         const state = step.done ? "done" : getStepState(step.status, currentStatus);
         const isAccessible = step.done || state === "current";
