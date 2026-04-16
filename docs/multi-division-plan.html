@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Division Architecture Plan — Japan CRM</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --blue: #2563eb;
+    --blue-light: #eff6ff;
+    --green: #16a34a;
+    --green-light: #f0fdf4;
+    --amber: #d97706;
+    --amber-light: #fffbeb;
+    --red: #dc2626;
+    --red-light: #fef2f2;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-500: #6b7280;
+    --gray-700: #374151;
+    --gray-900: #111827;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--gray-900);
+    line-height: 1.6;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 32px;
+    background: #fff;
+  }
+
+  .cover {
+    text-align: center;
+    padding: 60px 0 40px;
+    border-bottom: 3px solid var(--blue);
+    margin-bottom: 40px;
+  }
+
+  .cover h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+  }
+
+  .cover .subtitle {
+    font-size: 18px;
+    color: var(--gray-500);
+    margin-bottom: 24px;
+  }
+
+  .cover .meta {
+    font-size: 14px;
+    color: var(--gray-500);
+  }
+
+  .cover .meta span { margin: 0 12px; }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 48px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--gray-200);
+  }
+
+  h2 .num {
+    color: var(--blue);
+    margin-right: 8px;
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin: 28px 0 12px;
+  }
+
+  p, li { font-size: 15px; color: var(--gray-700); }
+  p { margin-bottom: 12px; }
+
+  ul, ol { margin: 0 0 16px 24px; }
+  li { margin-bottom: 6px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 14px;
+  }
+
+  th {
+    background: var(--gray-50);
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+    border: 1px solid var(--gray-200);
+    color: var(--gray-700);
+  }
+
+  td {
+    padding: 10px 14px;
+    border: 1px solid var(--gray-200);
+    color: var(--gray-700);
+  }
+
+  tr:nth-child(even) td { background: var(--gray-50); }
+
+  .callout {
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+
+  .callout-blue { background: var(--blue-light); border-left: 4px solid var(--blue); }
+  .callout-green { background: var(--green-light); border-left: 4px solid var(--green); }
+  .callout-amber { background: var(--amber-light); border-left: 4px solid var(--amber); }
+  .callout-red { background: var(--red-light); border-left: 4px solid var(--red); }
+
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 12px;
+    margin-right: 6px;
+  }
+
+  .tag-blue { background: var(--blue-light); color: var(--blue); }
+  .tag-green { background: var(--green-light); color: var(--green); }
+  .tag-amber { background: var(--amber-light); color: var(--amber); }
+  .tag-red { background: var(--red-light); color: var(--red); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 16px 0;
+  }
+
+  .card {
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .card h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--gray-900);
+  }
+
+  .card p, .card li { font-size: 14px; }
+
+  code {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    background: var(--gray-100);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .phase {
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .phase-num {
+    background: var(--blue);
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .phase-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--gray-900);
+  }
+
+  .checklist { list-style: none; margin-left: 0; }
+  .checklist li { padding: 4px 0; }
+  .checklist li::before { content: "☐ "; color: var(--gray-500); }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--gray-200);
+    margin: 32px 0;
+  }
+
+  .toc {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin: 24px 0 40px;
+  }
+
+  .toc h3 { margin-top: 0; }
+
+  .toc ol { margin-bottom: 0; }
+  .toc li { margin-bottom: 4px; }
+  .toc a { color: var(--blue); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  @media print {
+    body { padding: 20px; }
+    .cover { padding: 30px 0 20px; }
+    h2 { break-before: auto; }
+    .phase { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Multi-Division Architecture Plan</h1>
+  <p class="subtitle">Adding Stannum Can (Canada) alongside Winhoop (Japan)</p>
+  <p class="meta">
+    <span>Project: Japan CRM</span> &middot;
+    <span>Updated: April 16, 2026</span> &middot;
+    <span>Status: Planning — Open Questions Resolved</span>
+  </p>
+</div>
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#context">Context &amp; Decision</a></li>
+    <li><a href="#divisions">The Two Divisions</a></li>
+    <li><a href="#architecture">Architecture: Single Repo, Single Database</a></li>
+    <li><a href="#currency">Currency Architecture</a></li>
+    <li><a href="#isolation">Data Isolation Model</a></li>
+    <li><a href="#schema">Schema Changes</a></li>
+    <li><a href="#rls">Row-Level Security</a></li>
+    <li><a href="#auth">Authentication &amp; User Context</a></li>
+    <li><a href="#modules">Impact on Existing Modules</a></li>
+    <li><a href="#financial">Impact on Planned Financial Module</a></li>
+    <li><a href="#planned">Impact on Other Planned Features</a></li>
+    <li><a href="#ui">Frontend / UI Changes</a></li>
+    <li><a href="#build">Build Phases</a></li>
+    <li><a href="#rules">Build Rules &amp; Constraints</a></li>
+    <li><a href="#open">Resolved Decisions</a></li>
+    <li><a href="#team">Team Roster</a></li>
+  </ol>
+</div>
+
+<!-- ============================== -->
+<h2 id="context"><span class="num">1.</span> Context &amp; Decision</h2>
+
+<p>The CRM currently serves one division — <strong>Winhoop</strong> (Japan). A second division, <strong>Stannum Can</strong> (Canada), needs to use the same system with the same operational workflows but fully separate customer data.</p>
+
+<p>Three approaches were evaluated:</p>
+
+<table>
+  <tr>
+    <th>Approach</th>
+    <th>Pros</th>
+    <th>Cons</th>
+    <th>Verdict</th>
+  </tr>
+  <tr>
+    <td>Two separate repositories</td>
+    <td>Complete isolation</td>
+    <td>Every bug fix = two PRs; codebases will diverge; double maintenance</td>
+    <td><span class="tag tag-red">Rejected</span></td>
+  </tr>
+  <tr>
+    <td>One repo, two Supabase projects</td>
+    <td>Database-level isolation</td>
+    <td>Env-var switching; shared data (molds) needs syncing; no cross-division reporting</td>
+    <td><span class="tag tag-red">Rejected</span></td>
+  </tr>
+  <tr>
+    <td>One repo, one database, multi-tenant</td>
+    <td>Single codebase; shared resources; RLS isolation; cross-division admin</td>
+    <td>Requires careful RLS design</td>
+    <td><span class="tag tag-green">Selected</span></td>
+  </tr>
+</table>
+
+<!-- ============================== -->
+<h2 id="divisions"><span class="num">2.</span> The Two Divisions</h2>
+
+<div class="two-col">
+  <div class="card">
+    <h4>Winhoop — Japan</h4>
+    <ul>
+      <li><strong>Region code:</strong> JP</li>
+      <li><strong>Customer currency:</strong> JPY</li>
+      <li><strong>Factory currency:</strong> CNY</li>
+      <li><strong>Wire currency:</strong> CNY</li>
+      <li><strong>WO prefix:</strong> JP (e.g., JP260045)</li>
+      <li><strong>Status:</strong> Live, all existing data</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Stannum Can — Canada</h4>
+    <ul>
+      <li><strong>Region code:</strong> CA</li>
+      <li><strong>Customer currency:</strong> USD (sometimes CAD)</li>
+      <li><strong>Factory currency:</strong> USD and CNY</li>
+      <li><strong>Wire currency:</strong> USD</li>
+      <li><strong>WO prefix:</strong> CA (all WOs start with CA — no prior prefix existed)</li>
+      <li><strong>Status:</strong> New, starting clean</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Confirmed Shared Characteristics</h3>
+<ul>
+  <li><strong>Same factory</strong> — separate monthly statements per division, same format</li>
+  <li><strong>Same quotation pipeline</strong> — factory sheet &rarr; cost calc &rarr; DDP &rarr; customer quote</li>
+  <li><strong>Completely separate customers</strong> — no customer buys from both divisions</li>
+  <li><strong>DingTalk notifications</strong> for both divisions</li>
+  <li><strong>Shared mold catalog</strong> — same products available to both</li>
+</ul>
+
+<!-- ============================== -->
+<h2 id="architecture"><span class="num">3.</span> Architecture: Single Repo, Single Database</h2>
+
+<div class="callout callout-blue">
+  <strong>Core principle</strong>
+  Because operations are identical and customers are fully separate, the division is purely a <strong>filter column</strong> on existing tables. No structural schema differences, no conditional workflows, no per-division code paths.
+</div>
+
+<p>The isolation strategy has three layers:</p>
+<ol>
+  <li><strong>Database layer</strong> — Row-Level Security (RLS) policies filter every query by the user's division. Even if the frontend has a bug, the database won't return data from the wrong division.</li>
+  <li><strong>API layer</strong> — Server-side routes read the user's division from their session and pass it to queries. Defense-in-depth alongside RLS.</li>
+  <li><strong>Frontend layer</strong> — UI only displays data for the active division. Admin users get a division switcher.</li>
+</ol>
+
+<!-- ============================== -->
+<h2 id="currency"><span class="num">4.</span> Currency Architecture</h2>
+
+<p>This is the main structural difference between the two divisions.</p>
+
+<table>
+  <tr>
+    <th></th>
+    <th>Winhoop (Japan)</th>
+    <th>Stannum Can (Canada)</th>
+  </tr>
+  <tr>
+    <td><strong>Customer billing</strong></td>
+    <td>Always JPY</td>
+    <td>USD or CAD (per quote/PO)</td>
+  </tr>
+  <tr>
+    <td><strong>Factory billing</strong></td>
+    <td>Always CNY</td>
+    <td>USD or CNY (per statement)</td>
+  </tr>
+  <tr>
+    <td><strong>Wire to factory</strong></td>
+    <td>CNY</td>
+    <td>USD</td>
+  </tr>
+  <tr>
+    <td><strong>FX handling</strong></td>
+    <td>Bank rate on wire date</td>
+    <td>Factory-provided rate for CNY &rarr; USD conversion</td>
+  </tr>
+</table>
+
+<div class="callout callout-amber">
+  <strong>Design implication</strong>
+  All financial tables need a <code>currency</code> field per record rather than assuming a fixed currency per division/track. Stannum Can is multi-currency on <strong>both</strong> the customer side (USD/CAD) and factory side (USD/CNY). The factory-provided exchange rate must also be stored as a field on CNY-denominated factory statements.
+</div>
+
+<!-- ============================== -->
+<h2 id="isolation"><span class="num">5.</span> Data Isolation Model</h2>
+
+<h3>Tables that get <code>division_id</code> (division-scoped)</h3>
+<table>
+  <tr><th>Table</th><th>Notes</th></tr>
+  <tr><td><code>work_orders</code></td><td>Existing <code>region</code> field maps to division. Backfill as JP.</td></tr>
+  <tr><td><code>quotations</code></td><td>Inherits division from parent work order</td></tr>
+  <tr><td><code>companies</code></td><td>Fully separate customer bases per division</td></tr>
+  <tr><td><code>company_contacts</code></td><td>Inherits from parent company</td></tr>
+  <tr><td><code>factory_cost_sheets</code></td><td>Inherits from parent quotation</td></tr>
+  <tr><td><code>wilfred_calculations</code></td><td>Inherits from parent cost sheet</td></tr>
+  <tr><td><code>natsuki_ddp_calculations</code></td><td>Inherits from parent quotation</td></tr>
+  <tr><td><code>customer_quotes</code></td><td>Inherits from parent quotation</td></tr>
+  <tr><td><code>workorder_milestones</code></td><td>Inherits from parent work order</td></tr>
+  <tr><td><code>workflow_steps</code></td><td>Division-scoped workflow configs</td></tr>
+  <tr><td><code>user_profiles</code></td><td>Stores <code>active_division_id</code> (UI preference). Division memberships stored in <code>user_divisions</code> junction table to support cross-division users like accounting.</td></tr>
+  <tr><td><code>quotation_quantity_tiers</code></td><td>Inherits from parent quotation</td></tr>
+  <tr><td><code>quotation_attachments</code></td><td>Inherits from parent quotation</td></tr>
+</table>
+
+<h3>Future financial tables (also division-scoped)</h3>
+<table>
+  <tr><th>Table</th><th>Notes</th></tr>
+  <tr><td><code>customer_pos</code></td><td>Per-WO, customer currency (JPY / USD / CAD)</td></tr>
+  <tr><td><code>factory_pos</code></td><td>Per-WO, factory currency (CNY / USD)</td></tr>
+  <tr><td><code>customer_invoices</code></td><td>Per-delivery, customer currency</td></tr>
+  <tr><td><code>factory_statements</code></td><td>Monthly, per division — separate statements from same factory</td></tr>
+  <tr><td><code>wire_transfers</code></td><td>Division determines wire currency (CNY vs USD)</td></tr>
+  <tr><td><code>customer_payments</code></td><td>Customer currency</td></tr>
+</table>
+
+<h3>Tables that stay global (no <code>division_id</code>)</h3>
+<table>
+  <tr><th>Table</th><th>Reason</th></tr>
+  <tr><td><code>molds</code></td><td>Shared catalog — same products available to both divisions</td></tr>
+  <tr><td><code>permission_profiles</code></td><td>Role definitions are division-agnostic (e.g., "Sales Rep" is the same role)</td></tr>
+  <tr><td><code>divisions</code></td><td>The lookup table itself</td></tr>
+</table>
+
+<h3>Tables that need per-division config</h3>
+<table>
+  <tr><th>Table</th><th>Change Needed</th></tr>
+  <tr><td><code>app_settings</code></td><td>Settings like <code>wo_sequence_start</code> need to be per-division (JP starts at current sequence, CA starts at 1)</td></tr>
+</table>
+
+<!-- ============================== -->
+<h2 id="schema"><span class="num">6.</span> Schema Changes</h2>
+
+<h3>New table: <code>divisions</code></h3>
+<table>
+  <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td>uuid, PK</td><td>Primary key</td></tr>
+  <tr><td><code>code</code></td><td>text, unique</td><td>'JP', 'CA'</td></tr>
+  <tr><td><code>name</code></td><td>text</td><td>'Winhoop', 'Stannum Can'</td></tr>
+  <tr><td><code>country</code></td><td>text</td><td>'JP', 'CA'</td></tr>
+  <tr><td><code>default_customer_currency</code></td><td>text</td><td>'JPY', 'USD'</td></tr>
+  <tr><td><code>default_factory_currency</code></td><td>text</td><td>'CNY', 'USD'</td></tr>
+  <tr><td><code>wire_currency</code></td><td>text</td><td>'CNY', 'USD'</td></tr>
+  <tr><td><code>created_at</code></td><td>timestamptz</td><td></td></tr>
+</table>
+
+<h3>New junction table: <code>user_divisions</code></h3>
+<p>Supports users who access multiple divisions (accounting team, admin):</p>
+<table>
+  <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>user_id</code></td><td>uuid, FK auth.users</td><td>Member user</td></tr>
+  <tr><td><code>division_id</code></td><td>uuid, FK divisions</td><td>Division the user can access</td></tr>
+  <tr><td><code>is_primary</code></td><td>boolean</td><td>Their home division (for default UI state)</td></tr>
+  <tr><td><code>created_at</code></td><td>timestamptz</td><td></td></tr>
+  <tr><td colspan="3"><strong>Unique constraint:</strong> <code>(user_id, division_id)</code></td></tr>
+</table>
+
+<h3>Altered tables</h3>
+<p>Add <code>division_id uuid REFERENCES divisions(id) NOT NULL</code> to all division-scoped tables (denormalized onto children for faster RLS queries — decided 2026-04-16). Key tables:</p>
+<ul>
+  <li><code>work_orders</code></li>
+  <li><code>quotations</code>, <code>quotation_quantity_tiers</code>, <code>quotation_attachments</code></li>
+  <li><code>factory_cost_sheets</code>, <code>factory_cost_components</code>, <code>factory_cost_tiers</code></li>
+  <li><code>wilfred_calculations</code>, <code>natsuki_ddp_calculations</code>, <code>customer_quotes</code></li>
+  <li><code>companies</code>, <code>company_contacts</code></li>
+  <li><code>workorder_milestones</code>, <code>workflow_steps</code></li>
+</ul>
+<p>Add to <code>user_profiles</code>:</p>
+<ul>
+  <li><code>active_division_id uuid REFERENCES divisions(id)</code> — currently-selected division for UI</li>
+  <li><code>is_super_admin boolean DEFAULT false</code> — unlocks combined cross-division view (Wilfred)</li>
+</ul>
+
+<h3>Migration strategy</h3>
+<ol>
+  <li>Create <code>divisions</code> table and seed with JP + CA rows</li>
+  <li>Add <code>division_id</code> columns (nullable initially)</li>
+  <li>Backfill all existing rows with the Winhoop/JP division ID</li>
+  <li>Set columns to <code>NOT NULL</code></li>
+  <li>Add RLS policies</li>
+  <li>Update <code>app_settings</code> to support per-division keys (e.g., <code>wo_sequence_start:JP</code>, <code>wo_sequence_start:CA</code>)</li>
+</ol>
+
+<!-- ============================== -->
+<h2 id="rls"><span class="num">7.</span> Row-Level Security</h2>
+
+<p>Current RLS enforces <strong>page-level permissions</strong> (can this user view quotes?). Division adds a second layer: <strong>can this user see this division's data?</strong></p>
+
+<h3>New RLS helper functions</h3>
+<ul>
+  <li><code>user_can_access_division(target_division_id uuid)</code> — returns true if the current user has a matching row in <code>user_divisions</code>, or is a super-admin.</li>
+  <li><code>user_is_super_admin()</code> — returns true if current user has <code>is_super_admin = true</code>.</li>
+</ul>
+
+<h3>Policy pattern</h3>
+<p>For each division-scoped table:</p>
+<ul>
+  <li><strong>SELECT:</strong> existing page permission check <strong>AND</strong> <code>user_can_access_division(division_id)</code></li>
+  <li><strong>INSERT:</strong> same — user can only insert rows for a division they belong to</li>
+  <li><strong>UPDATE / DELETE:</strong> same pattern</li>
+</ul>
+
+<p>Because <code>division_id</code> is denormalized onto every scoped table, RLS policies don't need joins — single-column comparison only. Performance stays fast as data grows.</p>
+
+<div class="callout callout-green">
+  <strong>Why RLS matters here</strong>
+  RLS is enforced at the database level, below the application. Even if an API route has a bug or someone crafts a direct request, the database will not return rows from the wrong division. This is the strongest guarantee against data contamination.
+</div>
+
+<h3>Admin override</h3>
+<p>Super-admin users (Wilfred) need to query across divisions for the combined dashboard. The <code>user_can_access_division()</code> function returns <strong>true for all divisions</strong> if <code>is_super_admin = true</code>. This also covers cross-division users like accounting — although they'll normally only have two divisions in <code>user_divisions</code> rather than the super-admin flag.</p>
+
+<!-- ============================== -->
+<h2 id="auth"><span class="num">8.</span> Authentication &amp; User Context</h2>
+
+<h3>Current flow</h3>
+<p>User logs in &rarr; session stored in cookies &rarr; <code>user_profiles</code> looked up for permissions &rarr; no division concept.</p>
+
+<h3>Updated flow</h3>
+<ol>
+  <li>User logs in &rarr; session stored in cookies</li>
+  <li><code>user_profiles</code> looked up &rarr; includes <code>active_division_id</code>, <code>is_super_admin</code></li>
+  <li><code>user_divisions</code> looked up &rarr; returns list of divisions this user can access</li>
+  <li>Division context loaded into a React context provider (alongside existing permissions context)</li>
+  <li>All API routes read the user's accessible divisions from session</li>
+  <li>RLS automatically enforces at database level via <code>user_can_access_division()</code></li>
+</ol>
+
+<h3>User assignment patterns</h3>
+<table>
+  <tr><th>User Type</th><th><code>user_divisions</code> rows</th><th>Super-admin flag</th><th>UI behavior</th></tr>
+  <tr><td>Single-division (Natsuki, Annie, Justin, Janice, Eileen)</td><td>One row</td><td>false</td><td>No switcher; just their one division</td></tr>
+  <tr><td>Cross-division (Lynn, LY Zhang)</td><td>Two rows — JP + CA</td><td>false</td><td>Division switcher in header to toggle active division</td></tr>
+  <tr><td>Super-admin (Wilfred)</td><td>Two rows — JP + CA</td><td>true</td><td>Combined dashboard showing both divisions merged; can filter to single division if desired</td></tr>
+</table>
+
+<p>Division assignment managed via admin panel (Settings &rarr; Users).</p>
+
+<!-- ============================== -->
+<h2 id="scope-note"><span class="num">9a.</span> Build Scope &amp; Placeholders</h2>
+
+<div class="callout callout-amber">
+  <strong>Initial preview build scope (decided 2026-04-16)</strong>
+  Only the <strong>existing modules</strong> get built into the multi-division preview. The financial module is deferred (still blocked on factory statement sample + accounting team).
+</div>
+
+<div class="callout callout-blue">
+  <strong>DDP Calc &amp; Customer Quote — placeholder for Stannum Can</strong>
+  These two modules work differently for Stannum Can than for Winhoop (different currencies, shipping logic, document format).
+  <ul>
+    <li><strong>Winhoop users:</strong> See the existing DDP calc + customer quote unchanged.</li>
+    <li><strong>Stannum Can users:</strong> See a placeholder page ("Stannum Can DDP calculator — coming soon") at those steps.</li>
+    <li>The actual Stannum Can versions of these modules will be built in a follow-up after the multi-division foundation is live.</li>
+  </ul>
+  Implementation: branching UI logic on those two routes — render Winhoop component if active division is JP, render placeholder if active division is CA.
+</div>
+
+<div class="callout callout-green">
+  <strong>Going-live note</strong>
+  When the preview is approved and merged to production, change the deployment subdomain from <code>japan-crm.vercel.app</code> to <strong><code>crm.stannumcan.ca</code></strong>.
+</div>
+
+<h2 id="modules"><span class="num">9.</span> Impact on Existing Modules</h2>
+
+<table>
+  <tr>
+    <th>Module</th>
+    <th>Change Needed</th>
+    <th>Complexity</th>
+  </tr>
+  <tr>
+    <td><strong>Work Orders</strong></td>
+    <td>Add <code>division_id</code>. Existing <code>region</code> field already aligns. WO numbering (JP/CA prefix) already works.</td>
+    <td><span class="tag tag-green">Low</span></td>
+  </tr>
+  <tr>
+    <td><strong>Quotation Pipeline</strong></td>
+    <td>Inherits division from WO. All sub-tables (factory sheet, cost calc, DDP, customer quote) follow the parent chain.</td>
+    <td><span class="tag tag-green">Low</span></td>
+  </tr>
+  <tr>
+    <td><strong>Companies &amp; Contacts</strong></td>
+    <td>Add <code>division_id</code>. Customers are fully separate — no cross-division sharing needed.</td>
+    <td><span class="tag tag-green">Low</span></td>
+  </tr>
+  <tr>
+    <td><strong>Mold Catalog</strong></td>
+    <td>None — stays global, shared across divisions.</td>
+    <td><span class="tag tag-blue">None</span></td>
+  </tr>
+  <tr>
+    <td><strong>Milestones</strong></td>
+    <td>Inherits from WO. No direct changes needed.</td>
+    <td><span class="tag tag-green">Low</span></td>
+  </tr>
+  <tr>
+    <td><strong>Permissions</strong></td>
+    <td>Permission profiles stay global. RLS adds division filtering as a second layer.</td>
+    <td><span class="tag tag-green">Low</span></td>
+  </tr>
+  <tr>
+    <td><strong>Workflow &amp; Notifications</strong></td>
+    <td>Workflow configs scoped by division. DingTalk notifications may need separate bot configs per division.</td>
+    <td><span class="tag tag-amber">Medium</span></td>
+  </tr>
+  <tr>
+    <td><strong>Dashboard</strong></td>
+    <td>Filter all widgets by active division. Admin view may optionally show cross-division summary.</td>
+    <td><span class="tag tag-green">Low</span></td>
+  </tr>
+  <tr>
+    <td><strong>Settings</strong></td>
+    <td><code>app_settings</code> needs per-division support (e.g., WO sequence numbers).</td>
+    <td><span class="tag tag-green">Low</span></td>
+  </tr>
+</table>
+
+<!-- ============================== -->
+<h2 id="financial"><span class="num">10.</span> Impact on Planned Financial Module</h2>
+
+<div class="callout callout-amber">
+  <strong>This is the highest-complexity area</strong>
+  The financial module (not yet built) must be designed multi-currency from the start. Retrofitting currency support later would be painful.
+</div>
+
+<h3>Existing design (Winhoop-only)</h3>
+<p>Two-track model designed around fixed currencies:</p>
+<ul>
+  <li>Track 1: Customer &rarr; Winhoop (JPY)</li>
+  <li>Track 2: Winhoop &rarr; Factory (CNY)</li>
+</ul>
+
+<h3>Updated design (multi-division)</h3>
+<p>Same two-track model, but currency is per-record, not per-track:</p>
+
+<table>
+  <tr>
+    <th>Table</th>
+    <th>Currency Field</th>
+    <th>Winhoop Values</th>
+    <th>Stannum Can Values</th>
+  </tr>
+  <tr>
+    <td><code>customer_pos</code></td>
+    <td><code>currency</code></td>
+    <td>JPY</td>
+    <td>USD or CAD</td>
+  </tr>
+  <tr>
+    <td><code>customer_invoices</code></td>
+    <td><code>currency</code></td>
+    <td>JPY</td>
+    <td>USD or CAD</td>
+  </tr>
+  <tr>
+    <td><code>customer_payments</code></td>
+    <td><code>currency</code></td>
+    <td>JPY</td>
+    <td>USD or CAD</td>
+  </tr>
+  <tr>
+    <td><code>factory_pos</code></td>
+    <td><code>currency</code></td>
+    <td>CNY</td>
+    <td>USD or CNY</td>
+  </tr>
+  <tr>
+    <td><code>factory_statements</code></td>
+    <td><code>currency</code></td>
+    <td>CNY</td>
+    <td>USD or CNY</td>
+  </tr>
+  <tr>
+    <td><code>wire_transfers</code></td>
+    <td><code>currency</code></td>
+    <td>CNY</td>
+    <td>USD</td>
+  </tr>
+</table>
+
+<h3>Additional fields for Stannum Can</h3>
+<ul>
+  <li><code>factory_statements.fx_rate</code> — factory-provided USD/CNY exchange rate (only when statement is in CNY)</li>
+  <li><code>factory_statements.fx_amount_usd</code> — converted USD amount using factory's rate</li>
+  <li>All monetary amount fields should be <code>numeric</code> with the <code>currency</code> field indicating the denomination</li>
+</ul>
+
+<h3>Blockers (unchanged)</h3>
+<ol>
+  <li>Awaiting real factory statement sample</li>
+  <li>Accounting team (Lynn Yip + LY Zhang) needs to be involved</li>
+</ol>
+
+<!-- ============================== -->
+<h2 id="planned"><span class="num">11.</span> Impact on Other Planned Features</h2>
+
+<table>
+  <tr>
+    <th>Planned Feature</th>
+    <th>Division Impact</th>
+    <th>Notes</th>
+  </tr>
+  <tr>
+    <td><strong>Milestone Notifications</strong></td>
+    <td><span class="tag tag-green">Low</span></td>
+    <td>Notifications already scoped to WO &rarr; inherits division. May need separate DingTalk bot config per division.</td>
+  </tr>
+  <tr>
+    <td><strong>Notification Test Mode</strong></td>
+    <td><span class="tag tag-green">Low</span></td>
+    <td>Test mode should be per-division so enabling test mode for Stannum Can doesn't suppress real Winhoop notifications.</td>
+  </tr>
+  <tr>
+    <td><strong>Full i18n Sweep</strong></td>
+    <td><span class="tag tag-blue">None</span></td>
+    <td>Locale is user preference, not division-bound. All three locales (EN/JA/ZH) stay available regardless of division.</td>
+  </tr>
+  <tr>
+    <td><strong>Financial Tracking on WOs</strong></td>
+    <td><span class="tag tag-amber">Medium</span></td>
+    <td>Currency display on WO cards needs to respect the division's currency. Total values formatted as ¥1,234,567 vs $12,345.67.</td>
+  </tr>
+</table>
+
+<!-- ============================== -->
+<h2 id="ui"><span class="num">12.</span> Frontend / UI Changes</h2>
+
+<h3>Division context provider</h3>
+<p>New React context (alongside existing <code>PermissionsProvider</code>) that provides:</p>
+<ul>
+  <li><code>accessibleDivisions</code> — array of divisions this user can access (from <code>user_divisions</code>)</li>
+  <li><code>activeDivision</code> — currently-selected division, or <code>"all"</code> for super-admin combined view</li>
+  <li><code>isSuperAdmin</code> — flag controlling combined dashboard access</li>
+  <li><code>switchDivision(id | "all")</code> — available when user has multiple divisions</li>
+</ul>
+
+<h3>Visual changes per user type</h3>
+<table>
+  <tr><th>User Type</th><th>Header</th><th>Dashboard</th><th>Lists &amp; Forms</th></tr>
+  <tr>
+    <td>Single-division users</td>
+    <td>Division name shown, no switcher</td>
+    <td>Their division's data only</td>
+    <td>Auto-scoped by RLS</td>
+  </tr>
+  <tr>
+    <td>Cross-division users (accounting)</td>
+    <td>Division switcher dropdown</td>
+    <td>Active division's data</td>
+    <td>Auto-scoped by active division</td>
+  </tr>
+  <tr>
+    <td>Super-admin (Wilfred)</td>
+    <td>Division dropdown with &quot;All Divisions&quot; option (default)</td>
+    <td><strong>Combined view by default</strong> — merges JP + CA data with division badges on each row</td>
+    <td>Lists show rows from all divisions with a division-badge column; can filter to one division if desired</td>
+  </tr>
+</table>
+
+<h3>Combined dashboard design (super-admin)</h3>
+<ul>
+  <li><strong>Default view</strong> is combined — no extra clicks needed</li>
+  <li>Each row in lists (work orders, quotes, etc.) has a small division badge (JP blue, CA red)</li>
+  <li>Dashboard widgets show merged counts with a breakdown tooltip (e.g., "Active WOs: 47 total — 32 JP, 15 CA")</li>
+  <li>Currency totals displayed per-currency (cannot merge JPY and USD into one number)</li>
+  <li>Quick filter in header to scope to single division when needed</li>
+</ul>
+
+<h3>General UI rules</h3>
+<ul>
+  <li><strong>All list views:</strong> Automatically filtered by RLS — no frontend filtering needed.</li>
+  <li><strong>Forms:</strong> Currency fields default to the active division's default currency but allow override where applicable (Stannum Can customer quotes can be USD or CAD).</li>
+  <li><strong>WO creation:</strong> Region/prefix auto-set from active division (JP or CA). Super-admin picks which division when creating.</li>
+</ul>
+
+<h3>No structural UI changes needed</h3>
+<p>Since both divisions use the same pipeline, all pages, forms, and workflows remain identical. The only differences are data filtering, currency display, and the division badge on list rows for admin.</p>
+
+<!-- ============================== -->
+<h2 id="build"><span class="num">13.</span> Build Phases</h2>
+
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">1</div>
+    <div class="phase-title">Database Foundation</div>
+  </div>
+  <ul class="checklist">
+    <li>Create Supabase preview branch</li>
+    <li>Create <code>divisions</code> table and seed JP (Winhoop) + CA (Stannum Can)</li>
+    <li>Create <code>user_divisions</code> junction table</li>
+    <li>Add denormalized <code>division_id</code> to all scoped tables (WOs, quotations, companies, cost sheets, milestones, etc.)</li>
+    <li>Add <code>active_division_id</code> and <code>is_super_admin</code> to <code>user_profiles</code></li>
+    <li>Backfill existing data as Winhoop/JP</li>
+    <li>Set <code>NOT NULL</code> constraints</li>
+    <li>Update <code>app_settings</code> to support per-division keys</li>
+    <li>Seed CA WO sequence starting at 1 (producing CA260001)</li>
+  </ul>
+</div>
+
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">2</div>
+    <div class="phase-title">Row-Level Security</div>
+  </div>
+  <ul class="checklist">
+    <li>Create <code>user_can_access_division(division_id)</code> helper function</li>
+    <li>Create <code>user_is_super_admin()</code> helper function</li>
+    <li>Add division-scoped RLS policies to all affected tables</li>
+    <li>Update existing page-permission policies to include division check</li>
+    <li>Super-admin bypass built into <code>user_can_access_division()</code></li>
+    <li>Test isolation: JP user cannot see CA data and vice versa</li>
+    <li>Test accounting user sees both divisions</li>
+    <li>Test super-admin sees combined view</li>
+  </ul>
+</div>
+
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">3</div>
+    <div class="phase-title">API &amp; Auth Layer</div>
+  </div>
+  <ul class="checklist">
+    <li>Update <code>/api/me/permissions</code> to return division context</li>
+    <li>Review all API routes — ensure division filtering is in place (RLS handles most, but verify)</li>
+    <li>Update WO creation to pull division from user context</li>
+    <li>Update <code>/api/admin/users</code> to support division assignment</li>
+  </ul>
+</div>
+
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">4</div>
+    <div class="phase-title">Frontend Integration</div>
+  </div>
+  <ul class="checklist">
+    <li>Create <code>DivisionProvider</code> context</li>
+    <li>Header shows active division or "All Divisions" for super-admin</li>
+    <li>Division switcher for multi-division users (admin, accounting)</li>
+    <li>Combined dashboard for super-admin with division badges on rows</li>
+    <li>Update user management: assign divisions via <code>user_divisions</code> checkboxes, not single-value dropdown</li>
+    <li>Update WO creation form: auto-set region from active division; super-admin picks manually</li>
+    <li>Currency fields default to active division's currency</li>
+    <li>Verify all list views work correctly with RLS filtering</li>
+  </ul>
+</div>
+
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">5</div>
+    <div class="phase-title">Testing &amp; Verification</div>
+  </div>
+  <ul class="checklist">
+    <li>Create test user per division (Natsuki style JP, Justin style CA)</li>
+    <li>Create accounting-style test user (Lynn: both divisions, no super-admin)</li>
+    <li>Verify JP-only user cannot see CA data</li>
+    <li>Verify CA-only user cannot see JP data</li>
+    <li>Verify accounting user sees both divisions via switcher</li>
+    <li>Verify super-admin (Wilfred) sees combined dashboard by default</li>
+    <li>Verify WO numbering: JP continues existing sequence; CA starts at CA260001</li>
+    <li>Verify mold catalog accessible to both divisions</li>
+    <li>Verify DingTalk notifications route to correct users (same bot, per-division routing)</li>
+    <li>Verify per-division test mode (test mode on CA doesn't suppress JP notifications)</li>
+    <li>Verify currency display per division (JPY for JP quotes, USD for CA quotes)</li>
+    <li>Merge preview branch to production after approval</li>
+  </ul>
+</div>
+
+<!-- ============================== -->
+<h2 id="rules"><span class="num">14.</span> Build Rules &amp; Constraints</h2>
+
+<div class="callout callout-red">
+  <strong>Do not touch the live database</strong>
+  All schema changes must be built on a Supabase preview branch. Only merge to production after explicit approval.
+</div>
+
+<ul>
+  <li><strong>Planning mode only</strong> until explicitly told to start building</li>
+  <li><strong>Preview branch required</strong> — create before any migration or schema change</li>
+  <li><strong>Backfill existing data</strong> as Winhoop/JP — no data loss</li>
+  <li><strong>No breaking changes</strong> to existing functionality during migration</li>
+  <li><strong>Financial tables</strong> must include <code>currency</code> field from day one — do not hardcode currencies</li>
+</ul>
+
+<!-- ============================== -->
+<h2 id="open"><span class="num">15.</span> Resolved Decisions</h2>
+
+<p>All open questions from the initial plan have been answered (2026-04-16):</p>
+
+<table>
+  <tr>
+    <th>#</th>
+    <th>Question</th>
+    <th>Decision</th>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td><strong>WO sequence for Stannum Can</strong></td>
+    <td><span class="tag tag-green">Resolved</span> All CA work orders start with <code>CA</code> prefix (e.g., CA260001). No prior prefix existed — clean start.</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><strong>Admin view</strong></td>
+    <td><span class="tag tag-green">Resolved</span> <strong>Combined dashboard</strong> for admin. Switching between divisions constantly would cause too many keystrokes. Admin sees both divisions' data merged in one view.</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><strong>Stannum Can users</strong></td>
+    <td><span class="tag tag-green">Resolved</span> See Team Roster (section 16) below.</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><strong>Denormalize division_id?</strong></td>
+    <td><span class="tag tag-green">Resolved</span> <strong>Denormalize</strong> — because <code>division_id</code> is enforced automatically via RLS and never entered by users (invisible to them). Users don't search or filter by division_id manually. Faster queries + simpler RLS wins.</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td><strong>DingTalk bot config</strong></td>
+    <td><span class="tag tag-green">Resolved</span> <strong>Same bot</strong> — both divisions are in the same DingTalk organization.</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td><strong>Notification test mode scope</strong></td>
+    <td><span class="tag tag-green">Resolved</span> <strong>Per-division</strong> — enabling test mode for one division should not affect the other.</td>
+  </tr>
+</table>
+
+<!-- ============================== -->
+<h2 id="team"><span class="num">16.</span> Team Roster</h2>
+
+<h3>Winhoop (Japan division)</h3>
+<table>
+  <tr><th>Name</th><th>Role</th><th>Notes</th></tr>
+  <tr><td>Natsuki Wada</td><td>Sales / DDP Pricing / Customer Quotes</td><td>Osaka, Japan. Handles customer POs (JPY) + factory POs (to Annie). Pays CNY wires.</td></tr>
+  <tr><td>Annie Li</td><td>Factory (Huizhou) — Winhoop side</td><td>Factory cost sheets + monthly statements in CNY. Needs XLS export.</td></tr>
+</table>
+
+<h3>Stannum Can (Canada division)</h3>
+<table>
+  <tr><th>Name</th><th>Role</th><th>Notes</th></tr>
+  <tr><td>Justin Pergolas</td><td>Sales</td><td>Stannum Can sales lead</td></tr>
+  <tr><td>Janice Lai</td><td>Customer Service</td><td>Stannum Can customer service</td></tr>
+  <tr><td>Eileen Lin</td><td>Factory (Huizhou) — Stannum Can side</td><td>Annie's equivalent. Factory cost sheets + monthly statements in USD or CNY (with factory-provided FX rate).</td></tr>
+</table>
+
+<h3>Shared across both divisions</h3>
+<table>
+  <tr><th>Name</th><th>Role</th><th>Notes</th></tr>
+  <tr><td>Wilfred</td><td>Super-Admin</td><td>Oversees both divisions. Combined dashboard view. Final approval authority.</td></tr>
+  <tr><td>Lynn Yip</td><td>Accounting</td><td>Handles books for both divisions. Involved when financial modules are built.</td></tr>
+  <tr><td>LY Zhang</td><td>Accounting</td><td>Handles books for both divisions. Involved when financial modules are built.</td></tr>
+</table>
+
+<div class="callout callout-blue">
+  <strong>Accounting user model</strong>
+  Lynn Yip and LY Zhang need access to <strong>both</strong> divisions' financial data. This is the first case where a user needs cross-division access. Options:
+  <ul>
+    <li><strong>Option A:</strong> Give accounting users a special role flag (e.g., <code>user_profiles.cross_division = true</code>) that bypasses the division filter for read access.</li>
+    <li><strong>Option B:</strong> Use a <code>user_divisions</code> junction table — allow users to belong to multiple divisions. More flexible for future cases.</li>
+  </ul>
+  <strong>Recommendation:</strong> Option B is more flexible and future-proof. Each user has an array of divisions they belong to, with an "active division" preference for UI filtering. Admin and accounting users simply have both divisions in their list.
+</div>
+
+<h3>Updated data model for user-division relationship</h3>
+<p>Replace <code>user_profiles.division_id</code> with a junction table:</p>
+<table>
+  <tr><th>Table</th><th>Purpose</th></tr>
+  <tr><td><code>user_divisions</code> (new)</td><td>Junction: <code>user_id</code>, <code>division_id</code>, <code>is_primary</code></td></tr>
+  <tr><td><code>user_profiles.active_division_id</code></td><td>User's currently-selected division (for UI)</td></tr>
+</table>
+
+<p>RLS helper function becomes:</p>
+<p><code>user_can_access_division(division_id)</code> — returns true if the user has a row in <code>user_divisions</code> for that division.</p>
+
+<p>Typical user memberships:</p>
+<ul>
+  <li><strong>Natsuki, Annie:</strong> Winhoop only</li>
+  <li><strong>Justin, Janice, Eileen:</strong> Stannum Can only</li>
+  <li><strong>Lynn, LY Zhang:</strong> Both divisions</li>
+  <li><strong>Wilfred:</strong> Both divisions + super-admin flag</li>
+</ul>
+
+<hr class="divider">
+
+<p style="text-align: center; color: var(--gray-500); font-size: 13px; margin-top: 40px;">
+  Generated April 15, 2026 &middot; Japan CRM Multi-Division Architecture Plan &middot; Planning Phase
+</p>
+
+</body>
+</html>

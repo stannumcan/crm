@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Status Dashboard — Stannum / Winhoop</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --blue: #2563eb;
+    --blue-light: #eff6ff;
+    --green: #16a34a;
+    --green-light: #f0fdf4;
+    --amber: #d97706;
+    --amber-light: #fffbeb;
+    --red: #dc2626;
+    --red-light: #fef2f2;
+    --purple: #7c3aed;
+    --purple-light: #f5f3ff;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-500: #6b7280;
+    --gray-700: #374151;
+    --gray-900: #111827;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--gray-900);
+    line-height: 1.6;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 32px;
+    background: #fff;
+  }
+
+  .cover {
+    text-align: center;
+    padding: 40px 0 32px;
+    border-bottom: 3px solid var(--blue);
+    margin-bottom: 40px;
+  }
+
+  .cover h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+  }
+
+  .cover .subtitle {
+    color: var(--gray-500);
+    font-size: 16px;
+    margin-bottom: 20px;
+  }
+
+  .cover .meta {
+    display: inline-flex;
+    gap: 24px;
+    font-size: 13px;
+    color: var(--gray-700);
+    background: var(--gray-50);
+    padding: 10px 20px;
+    border-radius: 999px;
+    border: 1px solid var(--gray-200);
+  }
+
+  .cover .meta strong { color: var(--gray-900); }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  .stat {
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--gray-200);
+    background: #fff;
+  }
+
+  .stat.shipped { border-color: #bbf7d0; background: var(--green-light); }
+  .stat.inprogress { border-color: #fde68a; background: var(--amber-light); }
+  .stat.planned { border-color: #bfdbfe; background: var(--blue-light); }
+  .stat.deferred { border-color: #e9d5ff; background: var(--purple-light); }
+
+  .stat .label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+    margin-bottom: 6px;
+  }
+
+  .stat .count {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--gray-900);
+  }
+
+  .stat .desc {
+    font-size: 12px;
+    color: var(--gray-700);
+    margin-top: 4px;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-top: 48px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--gray-200);
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-top: 24px;
+    margin-bottom: 12px;
+  }
+
+  .module-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .module {
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--gray-200);
+    background: #fff;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .module .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  .dot.green { background: var(--green); }
+  .dot.amber { background: var(--amber); }
+  .dot.blue { background: var(--blue); }
+  .dot.purple { background: var(--purple); }
+
+  .module .body { flex: 1; }
+
+  .module .title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--gray-900);
+    margin-bottom: 2px;
+  }
+
+  .module .note {
+    font-size: 12px;
+    color: var(--gray-500);
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: 6px;
+    letter-spacing: 0.03em;
+  }
+
+  .tag.jp { background: #fee2e2; color: #991b1b; }
+  .tag.ca { background: #dbeafe; color: #1e40af; }
+  .tag.both { background: #e5e7eb; color: #374151; }
+
+  .timeline {
+    margin-top: 16px;
+    border-left: 3px solid var(--gray-200);
+    padding-left: 24px;
+  }
+
+  .timeline .entry {
+    position: relative;
+    padding-bottom: 20px;
+  }
+
+  .timeline .entry:last-child { padding-bottom: 0; }
+
+  .timeline .entry::before {
+    content: '';
+    position: absolute;
+    left: -30px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--blue);
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px var(--blue);
+  }
+
+  .timeline .entry.done::before { background: var(--green); box-shadow: 0 0 0 2px var(--green); }
+  .timeline .entry.current::before { background: var(--amber); box-shadow: 0 0 0 2px var(--amber); }
+  .timeline .entry.future::before { background: #fff; box-shadow: 0 0 0 2px var(--gray-300); }
+
+  .timeline .date {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-500);
+    margin-bottom: 2px;
+  }
+
+  .timeline .title {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--gray-900);
+    margin-bottom: 4px;
+  }
+
+  .timeline .desc {
+    font-size: 13px;
+    color: var(--gray-700);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--gray-200);
+  }
+
+  th {
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    letter-spacing: 0.05em;
+    background: var(--gray-50);
+  }
+
+  .status-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+
+  .status-badge.shipped { background: var(--green-light); color: #14532d; }
+  .status-badge.inprogress { background: var(--amber-light); color: #78350f; }
+  .status-badge.planned { background: var(--blue-light); color: #1e3a8a; }
+  .status-badge.blocked { background: var(--red-light); color: #7f1d1d; }
+  .status-badge.deferred { background: var(--purple-light); color: #581c87; }
+
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+
+  .progress-bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--blue), var(--green));
+    border-radius: 4px;
+  }
+
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .stack-item {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    font-size: 13px;
+  }
+
+  .stack-item strong {
+    display: block;
+    font-size: 11px;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+    letter-spacing: 0.03em;
+  }
+
+  .callout {
+    background: var(--amber-light);
+    border-left: 4px solid var(--amber);
+    padding: 14px 18px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+
+  .callout strong { color: #78350f; }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--gray-200);
+    color: var(--gray-500);
+    font-size: 12px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>CRM Status Dashboard</h1>
+  <div class="subtitle">Stannum Can (Canada) &middot; Winhoop (Japan) &middot; unified platform</div>
+  <div class="meta">
+    <span>Last updated: <strong>2026-04-16</strong></span>
+    <span>Branch: <strong>feat/multi-division</strong></span>
+    <span>Live: <strong>japan-crm.vercel.app</strong></span>
+  </div>
+</div>
+
+<div class="summary-grid">
+  <div class="stat shipped">
+    <div class="label">Shipped</div>
+    <div class="count">14</div>
+    <div class="desc">modules live in production</div>
+  </div>
+  <div class="stat inprogress">
+    <div class="label">In Progress</div>
+    <div class="count">1</div>
+    <div class="desc">multi-division foundation</div>
+  </div>
+  <div class="stat planned">
+    <div class="label">Planned</div>
+    <div class="count">5</div>
+    <div class="desc">scoped and ready to build</div>
+  </div>
+  <div class="stat deferred">
+    <div class="label">Blocked / Deferred</div>
+    <div class="count">3</div>
+    <div class="desc">waiting on inputs</div>
+  </div>
+</div>
+
+<h2>Shipped &mdash; live in production</h2>
+
+<h3>Core quote workflow</h3>
+<div class="module-list">
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Quote Request <span class="tag both">Both</span></div>
+      <div class="note">Entry point, design count field, versioned</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Factory Cost Sheet <span class="tag both">Both</span></div>
+      <div class="note">Anchor for pricing chain, FCL tier support</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Wilfred Cost Calc <span class="tag both">Both</span></div>
+      <div class="note">Error boundary, null-tier handling</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">DDP Calc <span class="tag jp">JP only</span></div>
+      <div class="note">Auto shipping method picker (LCL/GP/HQ)</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Customer Quote <span class="tag jp">JP only</span></div>
+      <div class="note">Email dispatch, versioned ref numbers</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Workflow Versioning <span class="tag both">Both</span></div>
+      <div class="note">Immutable versions, cascade detection, stale warnings</div>
+    </div>
+  </div>
+</div>
+
+<h3>Workorders &amp; production tracking</h3>
+<div class="module-list">
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Workorder list + details <span class="tag both">Both</span></div>
+      <div class="note">Modernized list, free-text notes, auto-sync</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Milestone lifecycle tracking <span class="tag both">Both</span></div>
+      <div class="note">Visual timeline, collapsible groups, two-column grid, sticky notes</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Mould flow selector <span class="tag both">Both</span></div>
+      <div class="note">Different milestone sets per mould path</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Dashboard stuck-items view <span class="tag both">Both</span></div>
+      <div class="note">Surfaces WOs idle too long at current stage</div>
+    </div>
+  </div>
+</div>
+
+<h3>Platform &amp; UX</h3>
+<div class="module-list">
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Auth + invites <span class="tag both">Both</span></div>
+      <div class="note">Magic links, admin-set passwords, user profiles</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Permissions + RLS <span class="tag both">Both</span></div>
+      <div class="note">Page-level DB enforcement, per-step gating</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Notifications (email + DingTalk) <span class="tag both">Both</span></div>
+      <div class="note">Per-user channel prefs, user-based assignees, step-accurate firing</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Global search (Ctrl+K) <span class="tag both">Both</span></div>
+      <div class="note">Command palette, deep-linked results</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Role-based dashboard <span class="tag both">Both</span></div>
+      <div class="note">"Waiting on you" queue per user</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Mobile responsive <span class="tag both">Both</span></div>
+      <div class="note">Drawer nav, stacking grids</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">i18n scaffold (EN/JA/ZH) <span class="tag both">Both</span></div>
+      <div class="note">Dashboard + workflow labels translated; form labels pending</div>
+    </div>
+  </div>
+  <div class="module">
+    <div class="dot green"></div>
+    <div class="body">
+      <div class="title">Reference number system <span class="tag both">Both</span></div>
+      <div class="note">{wo}-{vv}-{mold}-{chain} with step suffixes (fc/cc/dc/cq)</div>
+    </div>
+  </div>
+</div>
+
+<h2>In progress</h2>
+
+<div class="module-list">
+  <div class="module" style="grid-column: 1 / -1;">
+    <div class="dot amber"></div>
+    <div class="body">
+      <div class="title">Multi-Division Foundation <span class="tag both">Both</span></div>
+      <div class="note">
+        Adding Stannum Can (CA) alongside Winhoop (JP) in one codebase + one database with RLS isolation.
+        Branch: <strong>feat/multi-division</strong>. Code complete 2026-04-16 &mdash; 4 migrations
+        (divisions/junction, denormalized division_id, RLS policies, inheritance triggers), DivisionProvider
+        + sidebar switcher, division-aware WO numbering (CA260001), Stannum Can placeholders for DDP calc
+        + customer quote, handoff doc. Awaiting Supabase preview branch creation + seed data.
+        <br>
+        <div class="progress-bar"><div class="fill" style="width: 70%"></div></div>
+        <span style="font-size: 11px; color: var(--gray-500); margin-top: 4px; display: inline-block;">
+          Code + migrations done &middot; Preview branch creation + test seeding + verification next
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>Planned &mdash; scoped, ready to build</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Status</th>
+      <th>Scope</th>
+      <th>Estimate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Email Module</strong><br><span style="color: var(--gray-500); font-size: 12px;">Graph API ingest + AI extract/summarize/translate</span></td>
+      <td><span class="status-badge planned">Planned</span></td>
+      <td>Both</td>
+      <td>2&ndash;3 weeks</td>
+    </tr>
+    <tr>
+      <td><strong>Stannum Can DDP Calc</strong><br><span style="color: var(--gray-500); font-size: 12px;">USD/CAD pricing, different shipping/tax logic</span></td>
+      <td><span class="status-badge planned">Planned</span></td>
+      <td>CA only</td>
+      <td>After multi-division live</td>
+    </tr>
+    <tr>
+      <td><strong>Stannum Can Customer Quote</strong><br><span style="color: var(--gray-500); font-size: 12px;">Different output format from Winhoop</span></td>
+      <td><span class="status-badge planned">Planned</span></td>
+      <td>CA only</td>
+      <td>After multi-division live</td>
+    </tr>
+    <tr>
+      <td><strong>Milestone Notifications</strong><br><span style="color: var(--gray-500); font-size: 12px;">DingTalk/email on WO milestone completion</span></td>
+      <td><span class="status-badge planned">Planned</span></td>
+      <td>Both</td>
+      <td>3&ndash;5 days</td>
+    </tr>
+    <tr>
+      <td><strong>Notification Test Mode</strong><br><span style="color: var(--gray-500); font-size: 12px;">Admin-toggle redirect to test email+DingTalk</span></td>
+      <td><span class="status-badge planned">Planned</span></td>
+      <td>Per-division</td>
+      <td>2&ndash;3 days</td>
+    </tr>
+    <tr>
+      <td><strong>Full i18n Sweep</strong><br><span style="color: var(--gray-500); font-size: 12px;">Form labels on Cost Calc, DDP, CQ, Factory Sheet, Settings</span></td>
+      <td><span class="status-badge planned">Planned</span></td>
+      <td>Both</td>
+      <td>1 week dedicated pass</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Blocked / Deferred</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Status</th>
+      <th>Blocker</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Financial System (two-track PO/invoicing)</strong><br><span style="color: var(--gray-500); font-size: 12px;">Customer&harr;Winhoop (JPY) + Winhoop&harr;Factory (CNY). Multi-currency from day one for CA.</span></td>
+      <td><span class="status-badge blocked">Blocked</span></td>
+      <td>Factory statement sample + accounting team (Lynn Yip, LY Zhang) involvement</td>
+    </tr>
+    <tr>
+      <td><strong>Production Subdomain Cutover</strong><br><span style="color: var(--gray-500); font-size: 12px;">japan-crm.vercel.app &rarr; crm.stannumcan.ca</span></td>
+      <td><span class="status-badge deferred">Deferred</span></td>
+      <td>Trigger: multi-division merge to production</td>
+    </tr>
+    <tr>
+      <td><strong>Winhoop Email Setup</strong><br><span style="color: var(--gray-500); font-size: 12px;">No proper email server currently &mdash; part of Email Module rollout</span></td>
+      <td><span class="status-badge deferred">Deferred</span></td>
+      <td>Bundled with Email Module kickoff</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Schedule &amp; milestones</h2>
+
+<div class="timeline">
+  <div class="entry done">
+    <div class="date">2026-04 (completed)</div>
+    <div class="title">Quote workflow + workorders + milestones</div>
+    <div class="desc">Full JP pipeline live. Workorders with milestone lifecycle tracking, mobile-responsive UI, notifications, permissions.</div>
+  </div>
+  <div class="entry done">
+    <div class="date">2026-04-16 (today)</div>
+    <div class="title">Multi-division planning finalized</div>
+    <div class="desc">All open questions resolved. Email module planned (Microsoft Graph API on existing GoDaddy M365).</div>
+  </div>
+  <div class="entry current">
+    <div class="date">Next up</div>
+    <div class="title">Multi-division foundation build</div>
+    <div class="desc">Supabase preview branch, schema migration, divisions table, RLS policies, denormalized division_id. Backfill existing data as Winhoop/JP.</div>
+  </div>
+  <div class="entry future">
+    <div class="date">After foundation</div>
+    <div class="title">Stannum Can pricing modules</div>
+    <div class="desc">DDP calc + customer quote tailored to USD/CAD workflow. Placeholder pages shipped with foundation; real modules built after.</div>
+  </div>
+  <div class="entry future">
+    <div class="date">Parallel / independent</div>
+    <div class="title">Email module</div>
+    <div class="desc">Graph API adapter, AI extract/summarize/translate pipeline, workorder auto-linking. 2&ndash;3 weeks focused work.</div>
+  </div>
+  <div class="entry future">
+    <div class="date">When unblocked</div>
+    <div class="title">Financial system</div>
+    <div class="desc">Waiting on factory statement sample + accounting team input. Build simpler milestone modules first.</div>
+  </div>
+  <div class="entry future">
+    <div class="date">On cutover</div>
+    <div class="title">Production subdomain migration</div>
+    <div class="desc">DNS, Vercel custom domain, Supabase redirect URLs, team comms.</div>
+  </div>
+</div>
+
+<h2>Tech stack &amp; services</h2>
+
+<div class="stack-grid">
+  <div class="stack-item"><strong>Framework</strong>Next.js 16 (App Router)</div>
+  <div class="stack-item"><strong>Language</strong>TypeScript</div>
+  <div class="stack-item"><strong>Styling</strong>Tailwind CSS + shadcn/ui</div>
+  <div class="stack-item"><strong>Database</strong>Supabase (Postgres + RLS)</div>
+  <div class="stack-item"><strong>Auth</strong>Supabase Auth (magic link + password)</div>
+  <div class="stack-item"><strong>i18n</strong>next-intl (EN / JA / ZH)</div>
+  <div class="stack-item"><strong>Hosting</strong>Vercel (auto-deploy from master)</div>
+  <div class="stack-item"><strong>Email (tx)</strong>Resend / similar</div>
+  <div class="stack-item"><strong>Messaging</strong>DingTalk bot (both divisions)</div>
+</div>
+
+<h3 style="margin-top: 20px;">Planned additions</h3>
+<div class="stack-grid">
+  <div class="stack-item"><strong>Email ingest</strong>Microsoft Graph API (GoDaddy M365)</div>
+  <div class="stack-item"><strong>AI processing</strong>Claude Haiku 4.5 (extract/summarize/translate)</div>
+  <div class="stack-item"><strong>Production domain</strong>crm.stannumcan.ca (on multi-division cutover)</div>
+</div>
+
+<h2>Cost snapshot</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Item</th>
+      <th>Current / yr</th>
+      <th>After Email Module / yr</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>GoDaddy M365 email (9 addresses, Stannum)</td>
+      <td>$389 USD</td>
+      <td>$389 USD</td>
+    </tr>
+    <tr>
+      <td>Winhoop email (3&ndash;5 addresses, to be added)</td>
+      <td>&mdash;</td>
+      <td>~$150&ndash;215 USD</td>
+    </tr>
+    <tr>
+      <td>Claude Haiku AI processing (~100 emails/day)</td>
+      <td>&mdash;</td>
+      <td>~$60&ndash;120 USD</td>
+    </tr>
+    <tr>
+      <td>Supabase</td>
+      <td>(current plan)</td>
+      <td>(current plan)</td>
+    </tr>
+    <tr>
+      <td>Vercel</td>
+      <td>(current plan)</td>
+      <td>(current plan)</td>
+    </tr>
+    <tr>
+      <td><strong>Email module delta</strong></td>
+      <td><strong>&mdash;</strong></td>
+      <td><strong>~$210&ndash;335 USD / yr added</strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Team &amp; ownership</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Person</th>
+      <th>Division</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Wilfred</td><td>Both (super-admin)</td><td>System admin, final approval, cost calc</td></tr>
+    <tr><td>Natsuki Wada</td><td>Winhoop (JP)</td><td>Japan sales, DDP pricing, customer + factory POs</td></tr>
+    <tr><td>Justin Pergolas</td><td>Stannum Can (CA)</td><td>Sales</td></tr>
+    <tr><td>Janice Lai</td><td>Stannum Can (CA)</td><td>Customer service</td></tr>
+    <tr><td>Annie Li</td><td>Factory (serves JP)</td><td>Factory cost sheets + monthly statements (Winhoop)</td></tr>
+    <tr><td>Eileen Lin</td><td>Factory (serves CA)</td><td>Factory cost sheets + monthly statements (Stannum Can)</td></tr>
+    <tr><td>Lynn Yip</td><td>Accounting (both)</td><td>Books &mdash; to be engaged for financial module</td></tr>
+    <tr><td>LY Zhang</td><td>Accounting (both)</td><td>Books &mdash; to be engaged for financial module</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>Open questions to resolve:</strong>
+  <ul style="margin-top: 6px; padding-left: 20px;">
+    <li>Factory statement sample from Annie (needed to unblock financial module)</li>
+    <li>Accounting team (Lynn / LY Zhang) intro to the CRM conversation</li>
+    <li>Winhoop email addresses: how many needed? Which names?</li>
+    <li>Stannum Can DDP rules: shipping/margin/tax formulas for USD/CAD</li>
+  </ul>
+</div>
+
+<footer>
+  This document is maintained by Claude and updated whenever modules ship, plans change, or new features are scoped.
+  <br>Last updated: 2026-04-16 &middot; Source: <code>docs/crm-status.html</code>
+</footer>
+
+</body>
+</html>
