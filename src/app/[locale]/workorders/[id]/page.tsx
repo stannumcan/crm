@@ -80,22 +80,18 @@ export default async function WorkOrderDetailPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Timeline — left 2/3 */}
-        <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Progress</h3>
-            <MouldFlowSelector workorderId={wo.id} currentFlow={wo.mould_flow as string ?? "existing"} />
-          </div>
-          <WorkorderTimeline workorderId={wo.id} />
+      {/* Progress — two-column milestone grid */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Progress</h3>
+          <MouldFlowSelector workorderId={wo.id} currentFlow={wo.mould_flow as string ?? "existing"} />
         </div>
+        <WorkorderTimeline workorderId={wo.id} />
+      </div>
 
-        {/* Sidebar — right 1/3 (sticky so it stays visible) */}
-        <div className="space-y-4">
-          <div className="lg:sticky lg:top-6">
-            <WorkorderNotes workorderId={wo.id} initialNotes={(wo.notes as string | null) ?? null} />
-          </div>
-        </div>
+      {/* Notes */}
+      <div className="mb-6">
+        <WorkorderNotes workorderId={wo.id} initialNotes={(wo.notes as string | null) ?? null} />
       </div>
 
       {/* Quotations */}

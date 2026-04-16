@@ -193,7 +193,7 @@ export default function WorkorderTimeline({ workorderId }: { workorderId: string
         </div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
         {grouped.map((grp) => {
           const GrpIcon = grp.icon;
           const completedCount = grp.items.filter((m) => m.status === "completed" || m.status === "skipped").length;
