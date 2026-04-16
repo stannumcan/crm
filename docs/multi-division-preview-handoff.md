@@ -115,7 +115,7 @@ update public.user_profiles up
    - `SUPABASE_SERVICE_ROLE_KEY` → branch service role key
 4. Redeploy the preview so it picks up the new env vars
 
-The preview URL stays separate from `japan-crm.vercel.app` (which keeps
+The preview URL stays separate from production (which keeps
 talking to live Supabase). Live and preview never share a database.
 
 ### Step 5 — Test the isolation

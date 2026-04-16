@@ -24,8 +24,8 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WINHOOP CRM",
-  description: "Sales CRM for Japan team",
+  title: "CRM",
+  description: "Stannum / Winhoop Sales CRM",
 };
 
 export default function RootLayout({
