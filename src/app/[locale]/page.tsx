@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import MyQueue, { type DashboardQuote } from "@/components/dashboard/MyQueue";
 import { Card, CardContent } from "@/components/ui/card";
-import { ClipboardList, FileText, Building2, Package } from "lucide-react";
+import { ClipboardList, FileText, Building2, Package, CreditCard } from "lucide-react";
 import Link from "next/link";
 
 export default async function DashboardPage({
@@ -13,6 +13,7 @@ export default async function DashboardPage({
   const { locale } = await params;
   const t = await getTranslations("dashboard");
   const tn = await getTranslations("nav");
+  const ts = await getTranslations("subscriptions");
   const supabase = await createClient();
 
   // Fetch active quotes the user can see (RLS filters automatically)
@@ -25,6 +26,22 @@ export default async function DashboardPage({
     `)
     .in("status", ["pending_factory", "pending_wilfred", "pending_natsuki", "sent", "draft"])
     .order("updated_at", { ascending: false });
+
+  // Subscriptions renewing in the next 30 days. RLS hides all rows from
+  // non-admins, so the card renders empty and we skip it below.
+  const today = new Date();
+  const horizon = new Date(today);
+  horizon.setDate(horizon.getDate() + 30);
+  const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: subRows } = await (supabase as any)
+    .from("subscriptions")
+    .select("id, service_name, cost_amount, cost_currency, next_renewal_on")
+    .eq("status", "active")
+    .gte("next_renewal_on", toISODate(today))
+    .lte("next_renewal_on", toISODate(horizon))
+    .order("next_renewal_on", { ascending: true });
+  const upcomingSubs: { id: string; service_name: string; cost_amount: number; cost_currency: string; next_renewal_on: string }[] = subRows ?? [];
 
   const quotes: DashboardQuote[] = (rows ?? []).map((q: {
     id: string; status: string; updated_at: string; pricing_changed: boolean | null; urgency: boolean | null;
@@ -76,6 +93,23 @@ export default async function DashboardPage({
               <p className="text-[10px] text-muted-foreground mt-0.5">{t("activeQuotesDesc")}</p>
             </CardContent>
           </Card>
+
+          {upcomingSubs.length > 0 && (
+            <Link href={`/${locale}/subscriptions`} className="block">
+              <Card className="hover:bg-muted/40 transition-colors">
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {ts("dashUpcoming")}
+                    </p>
+                  </div>
+                  <p className="text-3xl font-bold tabular-nums text-amber-700">{upcomingSubs.length}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{ts("dashUpcomingDesc")}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
         </div>
       </div>
     </div>
