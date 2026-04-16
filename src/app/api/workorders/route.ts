@@ -37,7 +37,17 @@ export async function POST(request: NextRequest) {
     .limit(1)
     .single();
 
-  const nextSeq = (lastWO?.sequence_number ?? 0) + 1;
+  // Optional floor set via app_settings.wo_sequence_start, keyed by "{region}-{yearCode}".
+  // Lets us resume numbering from an imported historical counter without inserting placeholder rows.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: startSetting } = await (supabase as any)
+    .from("app_settings")
+    .select("value")
+    .eq("key", "wo_sequence_start")
+    .single();
+  const floor = Number(startSetting?.value?.[`${region}-${yearCode}`] ?? 0) || 0;
+
+  const nextSeq = Math.max((lastWO?.sequence_number ?? 0) + 1, floor);
   const woNumber = formatWONumber(region, yearCode, nextSeq);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

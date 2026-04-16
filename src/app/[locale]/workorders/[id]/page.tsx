@@ -7,6 +7,7 @@ import { ArrowLeft, Plus, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import WorkorderNotes from "@/components/workorders/WorkorderNotes";
+import WorkorderTimeline from "@/components/workorders/WorkorderTimeline";
 
 const QUOTE_STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   draft: "secondary",
@@ -78,9 +79,22 @@ export default async function WorkOrderDetailPage({
         </div>
       </div>
 
-      {/* Notes */}
-      <div className="mb-6">
-        <WorkorderNotes workorderId={wo.id} initialNotes={(wo.notes as string | null) ?? null} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Timeline — left 2/3 */}
+        <div className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Progress</h3>
+            <Badge variant="outline" className="text-xs font-mono">
+              {wo.mould_flow === "new" ? "New Mould" : wo.mould_flow === "modification" ? "Modification" : "Existing Mould"}
+            </Badge>
+          </div>
+          <WorkorderTimeline workorderId={wo.id} />
+        </div>
+
+        {/* Notes — right 1/3 */}
+        <div>
+          <WorkorderNotes workorderId={wo.id} initialNotes={(wo.notes as string | null) ?? null} />
+        </div>
       </div>
 
       {/* Quotations */}
