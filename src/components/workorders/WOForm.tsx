@@ -10,8 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { Modal } from "@/components/ui/modal";
-
-const REGIONS = [{ code: "JP", label: "Japan (JP)" }];
+import { useDivision } from "@/lib/division-context";
 
 // Quick-create company form inside the modal
 function QuickCompanyForm({
@@ -110,11 +109,23 @@ export default function WOForm({
   const t = useTranslations("workorders");
   const tc = useTranslations("common");
   const router = useRouter();
+  const { accessible_divisions, active_division, is_super_admin } = useDivision();
 
   const [loading, setLoading] = useState(false);
   const [projectName, setProjectName] = useState("");
-  const [region, setRegion] = useState("JP");
+  // For super-admins in combined view (active=null), they must explicitly pick.
+  // For everyone else, division is fixed by their context — selector is hidden.
+  const [selectedDivisionId, setSelectedDivisionId] = useState<string>(active_division?.id ?? "");
   const [error, setError] = useState("");
+
+  // Keep the selector in sync if active_division changes via the sidebar switcher
+  useEffect(() => {
+    if (active_division?.id) setSelectedDivisionId(active_division.id);
+  }, [active_division?.id]);
+
+  // Show the division picker only when there's a real choice — super-admin
+  // in "All Divisions" mode, or any user with multiple divisions.
+  const needsDivisionPicker = is_super_admin && !active_division;
 
   // Company combobox state
   const [companyOptions, setCompanyOptions] = useState<ComboboxOption[]>([]);
@@ -181,6 +192,10 @@ export default function WOForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCompanyId) { setError("Please select or create a company."); return; }
+    if (needsDivisionPicker && !selectedDivisionId) {
+      setError("Please pick which division this work order belongs to.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -192,7 +207,9 @@ export default function WOForm({
           company_name: selectedCompanyName,
           company_id: selectedCompanyId,
           project_name: projectName,
-          region,
+          // Send division_id explicitly when super-admin is creating from combined view.
+          // Otherwise the API derives it from the user's active_division_id.
+          division_id: needsDivisionPicker ? selectedDivisionId : undefined,
         }),
       });
 
@@ -217,19 +234,40 @@ export default function WOForm({
             <CardTitle className="text-base">{t("details")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t("region")}</Label>
-              <Select value={region} onValueChange={(v) => { if (v) setRegion(v); }}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REGIONS.map((r) => (
-                    <SelectItem key={r.code} value={r.code}>{r.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {needsDivisionPicker ? (
+              // Super-admin in combined view must pick which division this WO belongs to.
+              // The active division is null in that mode, so there's no implicit default.
+              <div className="space-y-2">
+                <Label>Division</Label>
+                <Select value={selectedDivisionId} onValueChange={(v) => { if (v) setSelectedDivisionId(v); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pick a division" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accessible_divisions.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.code} — {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  WO number prefix will be {accessible_divisions.find((d) => d.id === selectedDivisionId)?.wo_prefix ?? "—"} (e.g.{" "}
+                  {accessible_divisions.find((d) => d.id === selectedDivisionId)?.wo_prefix ?? "JP"}260001)
+                </p>
+              </div>
+            ) : (
+              // Single division (or active division set): show as read-only context
+              active_division && (
+                <div className="space-y-2">
+                  <Label>Division</Label>
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm flex items-center gap-2">
+                    <span className="font-mono font-semibold">{active_division.code}</span>
+                    <span className="text-muted-foreground">— {active_division.name}</span>
+                  </div>
+                </div>
+              )
+            )}
 
             <div className="space-y-2">
               <Label>{t("company")}</Label>

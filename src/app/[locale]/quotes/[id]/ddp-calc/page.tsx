@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import DDPCalcWrapper from "@/components/calculator/DDPCalcWrapper";
+import StannumPlaceholder from "@/components/division/StannumPlaceholder";
 
 export default async function DDPCalcPage({
   params,
@@ -37,7 +38,8 @@ export default async function DDPCalcPage({
   const { data: quote, error: queryError } = await (supabase as any)
     .from("quotations")
     .select(`
-      id, status, mold_number, size_dimensions, molds,
+      id, status, mold_number, size_dimensions, molds, division_id,
+      division:divisions(code, name),
       work_orders(wo_number, company_name, project_name),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order),
       factory_cost_sheets(
@@ -67,6 +69,22 @@ export default async function DDPCalcPage({
   if (!quote) notFound();
 
   const wo = quote.work_orders as { wo_number: string; company_name: string; project_name: string } | null;
+
+  // Stannum Can DDP module is not built yet — show placeholder. Winhoop's
+  // DDP form ahead is JPY-specific (FX rate RMB→JPY, JPY duty/tax, etc.)
+  // and would produce wrong numbers for USD/CAD billing.
+  const division = quote.division as { code: string; name: string } | null;
+  if (division?.code === "CA") {
+    return (
+      <StannumPlaceholder
+        moduleName="DDP Calculator"
+        locale={locale}
+        quoteId={id}
+        woNumber={wo?.wo_number}
+        companyName={wo?.company_name}
+      />
+    );
+  }
   const quoteTiers = ((quote.quotation_quantity_tiers ?? []) as { tier_label: string; quantity_type: string; quantity: number | null; sort_order: number }[])
     .sort((a, b) => a.sort_order - b.sort_order);
 

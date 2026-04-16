@@ -7,6 +7,7 @@ import { FileText, ClipboardList, Building2, Settings, Package, LogOut, FlaskCon
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { usePermissions } from "@/lib/permissions-context";
+import { useDivision } from "@/lib/division-context";
 import type { PageKey } from "@/lib/permissions";
 
 const LOCALES = [
@@ -20,6 +21,21 @@ export default function Sidebar({ locale }: { locale: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const { canView, isAdmin, testProfileId, testProfileName, setTestProfile, allProfiles } = usePermissions();
+  const {
+    accessible_divisions,
+    active_division,
+    is_super_admin,
+    switchDivision,
+  } = useDivision();
+
+  // Branding adapts to active division. Super-admin in combined view shows
+  // "All Divisions". Single-division users see their division's name.
+  const brandName = active_division?.name?.toUpperCase() ?? (is_super_admin ? "ALL DIVISIONS" : "WINHOOP");
+  const brandLetter = active_division?.code?.[0] ?? (is_super_admin ? "★" : "W");
+
+  // Show the switcher only when there's actually a choice to make
+  const showDivisionSwitcher =
+    accessible_divisions.length > 1 || is_super_admin;
 
   // Dashboard is always visible to authenticated users — no permission gate needed.
   const dashboardItem = { href: `/${locale}`, label: t("dashboard"), icon: Home };
@@ -70,14 +86,14 @@ export default function Sidebar({ locale }: { locale: string }) {
               className="text-white leading-none select-none"
               style={{ fontSize: "9px", fontFamily: "var(--font-display), Georgia, serif", fontWeight: 700 }}
             >
-              W
+              {brandLetter}
             </span>
           </div>
           <span
             className="tracking-wide text-sm font-semibold"
             style={{ color: "var(--sidebar-foreground)", letterSpacing: "0.08em" }}
           >
-            WINHOOP
+            {brandName}
           </span>
         </div>
         <p
@@ -87,6 +103,42 @@ export default function Sidebar({ locale }: { locale: string }) {
           Sales CRM
         </p>
       </div>
+
+      {/* Division switcher (only when user has more than one division
+          OR is super-admin with the "All" combined option) */}
+      {showDivisionSwitcher && (
+        <div
+          className="px-3 py-2"
+          style={{ borderBottom: "1px solid var(--sidebar-border)" }}
+        >
+          <p
+            className="mb-1 px-1 uppercase"
+            style={{ color: "oklch(0.40 0.01 52)", fontSize: "9px", letterSpacing: "0.14em" }}
+          >
+            Division
+          </p>
+          <select
+            value={active_division?.id ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              switchDivision(v === "" ? null : v).then(() => router.refresh());
+            }}
+            className="w-full rounded text-xs px-2 py-1.5 border outline-none flex items-center gap-1.5"
+            style={{
+              background: "var(--sidebar-accent)",
+              borderColor: "var(--sidebar-border)",
+              color: "var(--sidebar-foreground)",
+            }}
+          >
+            {is_super_admin && <option value="">★ All Divisions (combined)</option>}
+            {accessible_divisions.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.code} — {d.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Test profile banner */}
       {isAdmin && testProfileId && (

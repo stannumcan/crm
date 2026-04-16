@@ -8,6 +8,7 @@ import CustomerQuoteForm from "@/components/customer/CustomerQuoteForm";
 import CustomerQuoteMoldBar from "@/components/customer/CustomerQuoteMoldBar";
 import CustomerQuoteSidebar from "@/components/customer/CustomerQuoteSidebar";
 import StaleCheck from "@/components/ui/stale-check";
+import StannumPlaceholder from "@/components/division/StannumPlaceholder";
 
 export default async function CustomerQuotePage({
   params,
@@ -28,7 +29,8 @@ export default async function CustomerQuotePage({
     .from("quotations")
     .select(`
       id, status, mold_type, mold_number, size_dimensions, embossment,
-      design_count, shipping_info_required, molds,
+      design_count, shipping_info_required, molds, division_id,
+      division:divisions(code, name),
       printing_lid, printing_body, printing_bottom, printing_inner, printing_notes,
       work_orders(id, wo_number, company_name, project_name, company_id),
       quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order),
@@ -55,6 +57,22 @@ export default async function CustomerQuotePage({
   const wo = quote.work_orders as {
     id: string; wo_number: string; company_name: string; project_name: string; company_id: string | null;
   } | null;
+
+  // Stannum Can customer quote document differs from Winhoop's 御見積書 format
+  // (different language, currency, payment terms). Show placeholder until the
+  // CA-specific implementation lands.
+  const division = quote.division as { code: string; name: string } | null;
+  if (division?.code === "CA") {
+    return (
+      <StannumPlaceholder
+        moduleName="Customer Quote"
+        locale={locale}
+        quoteId={id}
+        woNumber={wo?.wo_number}
+        companyName={wo?.company_name}
+      />
+    );
+  }
 
   // Fetch contacts
   type Contact = { id: string; name: string; department: string | null; phone: string | null; phone_direct: string | null };
