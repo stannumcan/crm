@@ -34,7 +34,24 @@ export interface MilestoneDef {
 }
 
 export const MILESTONE_DEFS: MilestoneDef[] = [
-  // ── Quoting (auto from quote system) ──────────────────────
+  // ── Quoting ────────────────────────────────────────────────
+  {
+    key: "customer_contacted",
+    label: "Customer Contacted",
+    labelJa: "顧客連絡済",
+    group: "quoting",
+    flows: ["new", "existing", "modification"],
+    sortOrder: 5,
+  },
+  {
+    key: "quote_requested",
+    label: "Quote Requested",
+    labelJa: "見積依頼",
+    group: "quoting",
+    flows: ["new", "existing", "modification"],
+    auto: true,
+    sortOrder: 10,
+  },
   {
     key: "quote_sent",
     label: "Customer Quote Sent",
@@ -42,7 +59,7 @@ export const MILESTONE_DEFS: MilestoneDef[] = [
     group: "quoting",
     flows: ["new", "existing", "modification"],
     auto: true,
-    sortOrder: 10,
+    sortOrder: 15,
   },
   {
     key: "price_accepted",

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { notifyWorkflowStep } from "@/lib/workflow-notify";
 import { getNextVersion, supersedeCurrent, logChange } from "@/lib/versioning";
+import { syncMilestonesFromQuote } from "@/lib/milestone-sync";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -61,6 +62,9 @@ export async function POST(request: NextRequest) {
   // Clear pricing_changed flag — the chain is complete
   await db.from("quotations").update({ status: "sent", pricing_changed: false }).eq("id", body.quotation_id);
   await notifyWorkflowStep(body.quotation_id, "sent");
+
+  // Auto-mark WO milestones: "Customer Quote Sent"
+  await syncMilestonesFromQuote(body.quotation_id).catch(console.error);
 
   return NextResponse.json(data, { status: 201 });
 }

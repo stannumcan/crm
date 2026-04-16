@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertTriangle, ArrowRight, Clock, Factory, Calculator,
-  Truck, FileSignature, Inbox, CheckCircle2,
+  Truck, FileSignature, Inbox, CheckCircle2, Timer,
 } from "lucide-react";
 import { usePermissions } from "@/lib/permissions-context";
 import type { PageKey } from "@/lib/permissions";
@@ -61,6 +61,14 @@ export default function MyQueue({ quotes, locale }: { quotes: DashboardQuote[]; 
 
   const pricingAlerts = quotes.filter((q) => q.pricing_changed);
 
+  // Stuck: quotes idle for 7+ days in an active workflow status
+  const IDLE_DAYS = 7;
+  const stuckQuotes = quotes.filter((q) => {
+    const ms = Date.now() - new Date(q.updated_at).getTime();
+    const days = Math.floor(ms / 86400000);
+    return days >= IDLE_DAYS && STATUS_ACTION[q.status];
+  });
+
   // Recent activity: 5 most recently updated (not gated — shows what user can see by RLS)
   const recent = [...quotes]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
@@ -96,6 +104,39 @@ export default function MyQueue({ quotes, locale }: { quotes: DashboardQuote[]; 
                 +{pricingAlerts.length - 3} more — <Link href={`/${locale}/quotes`} className="underline">view all</Link>
               </p>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stuck items — idle for 7+ days */}
+      {stuckQuotes.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2 text-amber-800">
+              <Timer className="h-4 w-4" />
+              Idle for 7+ days — {stuckQuotes.length} quote{stuckQuotes.length > 1 ? "s" : ""}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-1 space-y-1.5">
+            {stuckQuotes.slice(0, 5).map((q) => {
+              const action = STATUS_ACTION[q.status];
+              return (
+                <Link
+                  key={q.id}
+                  href={`/${locale}/quotes/${q.id}`}
+                  className="flex items-center justify-between rounded-md px-3 py-2 bg-white border border-amber-100 hover:border-amber-300 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-mono text-xs font-semibold text-amber-700">{q.wo_number ?? "—"}</span>
+                    <span className="text-sm truncate">{q.project_name ?? "—"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      stuck at {action?.label ?? q.status} · {daysAgo(q.updated_at)}
+                    </span>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-amber-600 shrink-0" />
+                </Link>
+              );
+            })}
           </CardContent>
         </Card>
       )}

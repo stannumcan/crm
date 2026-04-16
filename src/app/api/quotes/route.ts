@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { notifyWorkflowStep } from "@/lib/workflow-notify";
+import { syncMilestonesFromQuote } from "@/lib/milestone-sync";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -60,6 +61,9 @@ export async function POST(request: NextRequest) {
   // Notification fires for the step that JUST COMPLETED: "Quote Request" (the quote
   // was just submitted). Status itself advances to pending_factory.
   await notifyWorkflowStep(quotation.id, "draft");
+
+  // Auto-mark WO milestones: "Quote Requested"
+  await syncMilestonesFromQuote(quotation.id).catch(console.error);
 
   return NextResponse.json(quotation, { status: 201 });
 }
