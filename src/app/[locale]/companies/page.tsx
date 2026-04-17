@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getListDivisionFilter } from "@/lib/divisions-server";
 
 export default async function CompaniesPage({
   params,
@@ -16,11 +17,15 @@ export default async function CompaniesPage({
   const tc = await getTranslations("common");
 
   const supabase = await createClient();
+  const divFilter = await getListDivisionFilter();
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: companies } = await (supabase as any)
+  let companyQuery = (supabase as any)
     .from("companies")
     .select("id, name, name_ja, country, city, prefecture, phone, is_active, company_contacts(id, name, is_primary)")
     .order("name");
+  if (divFilter) companyQuery = companyQuery.eq("division_id", divFilter);
+  const { data: companies } = await companyQuery;
 
   return (
     <div className="p-6">

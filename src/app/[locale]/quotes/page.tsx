@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getListDivisionFilter } from "@/lib/divisions-server";
 import QuoteTabNav from "@/components/quotes/QuoteTabNav";
 import QuoteRequestsTable, { type QuoteRow } from "@/components/quotes/QuoteRequestsTable";
 
@@ -100,13 +101,12 @@ export default async function QuotesPage({
   const tc = await getTranslations("common");
 
   const supabase = await createClient();
+  const divFilter = await getListDivisionFilter();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 
-  // Each tab's predicate checks the quote's status against the step's position
-  // in STATUS_ORDER, so we only need the flat quotation row + its WO.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await db
+  let quotesQuery = db
     .from("quotations")
     .select(`
       id, status, quote_version, created_at, updated_at,
@@ -114,6 +114,8 @@ export default async function QuotesPage({
     `)
     .order("updated_at", { ascending: false })
     .limit(500);
+  if (divFilter) quotesQuery = quotesQuery.eq("division_id", divFilter);
+  const { data } = await quotesQuery;
 
   const enriched: QuotationWithRollup[] = (data ?? []) as QuotationWithRollup[];
 

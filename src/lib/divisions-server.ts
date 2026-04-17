@@ -67,3 +67,24 @@ export async function pickDivisionId(
   const { divisionId } = await resolveActiveDivision(supabase, userId);
   return divisionId;
 }
+
+/**
+ * For Server Components: get the active division_id to use as a list
+ * filter. Returns null when the user is super-admin in combined view
+ * (meaning: show all divisions, no filter). Returns the division_id
+ * string otherwise.
+ *
+ * Usage in a page:
+ *   const divFilter = await getListDivisionFilter();
+ *   let query = supabase.from("work_orders").select("*");
+ *   if (divFilter) query = query.eq("division_id", divFilter);
+ */
+export async function getListDivisionFilter(): Promise<string | null> {
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: { user } } = await (supabase as any).auth.getUser();
+  if (!user) return null;
+
+  const { divisionId } = await resolveActiveDivision(supabase, user.id);
+  return divisionId;
+}

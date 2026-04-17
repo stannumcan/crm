@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
+import { getListDivisionFilter } from "@/lib/divisions-server";
 import MyQueue, { type DashboardQuote } from "@/components/dashboard/MyQueue";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClipboardList, FileText, Building2, Package, CreditCard } from "lucide-react";
@@ -15,10 +16,10 @@ export default async function DashboardPage({
   const tn = await getTranslations("nav");
   const ts = await getTranslations("subscriptions");
   const supabase = await createClient();
+  const divFilter = await getListDivisionFilter();
 
-  // Fetch active quotes the user can see (RLS filters automatically)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: rows } = await (supabase as any)
+  let dashQuery = (supabase as any)
     .from("quotations")
     .select(`
       id, status, updated_at, pricing_changed, urgency,
@@ -26,6 +27,8 @@ export default async function DashboardPage({
     `)
     .in("status", ["pending_factory", "pending_wilfred", "pending_natsuki", "sent", "draft"])
     .order("updated_at", { ascending: false });
+  if (divFilter) dashQuery = dashQuery.eq("division_id", divFilter);
+  const { data: rows } = await dashQuery;
 
   // Subscriptions renewing in the next 30 days. RLS hides all rows from
   // non-admins, so the card renders empty and we skip it below.

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getListDivisionFilter } from "@/lib/divisions-server";
 import WorkorderList from "@/components/workorders/WorkorderList";
 
 export default async function WorkOrdersPage({
@@ -14,11 +15,15 @@ export default async function WorkOrdersPage({
   const t = await getTranslations("workorders");
 
   const supabase = await createClient();
+  const divFilter = await getListDivisionFilter();
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: workOrders } = await (supabase as any)
+  let query = (supabase as any)
     .from("work_orders")
     .select("id, wo_number, company_name, company_id, project_name, status, mould_flow, notes, created_at, updated_at, quotations(id)")
     .order("updated_at", { ascending: false });
+  if (divFilter) query = query.eq("division_id", divFilter);
+  const { data: workOrders } = await query;
 
   const rows = (workOrders ?? []).map((wo: {
     id: string; wo_number: string; company_name: string; company_id: string | null;
