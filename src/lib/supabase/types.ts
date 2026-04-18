@@ -15,6 +15,36 @@ export type ShippingType = "auto" | "lcl" | "fcl_20gp" | "fcl_40gp" | "fcl_40hq"
 export type Component = "lid" | "body" | "bottom" | "inner_lid";
 export type WOStatus = "active" | "completed" | "cancelled";
 
+// Sales module types
+export type PipelineStage =
+  | "new"
+  | "researching"
+  | "contacted"
+  | "responded"
+  | "meeting_booked"
+  | "sample_sent"
+  | "quoting"
+  | "negotiating"
+  | "won"
+  | "lost"
+  | "nurture";
+
+export type ActivityType =
+  | "email_sent"
+  | "email_received"
+  | "call"
+  | "meeting"
+  | "note"
+  | "sample_sent"
+  | "linkedin_message";
+
+export type ActivityOutcome = "positive" | "neutral" | "negative" | "no_response";
+export type DraftStatus = "draft" | "approved" | "sent" | "rejected";
+export type EnrichmentStatus = "none" | "pending" | "enriched" | "skipped";
+export type EmailConfidence = "high" | "medium" | "low";
+export type LeadSource = "apollo" | "importyeti" | "referral" | "inbound" | "website" | "tradeshow" | "manual";
+export type AuditAction = "insert" | "update" | "delete" | "revert";
+
 export interface Database {
   public: {
     Tables: {
@@ -82,6 +112,42 @@ export interface Database {
         Row: CustomerQuote;
         Insert: Omit<CustomerQuote, "id" | "created_at">;
         Update: Partial<Omit<CustomerQuote, "id">>;
+        Relationships: [];
+      };
+      sales_deals: {
+        Row: SalesDeal;
+        Insert: Omit<SalesDeal, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<SalesDeal, "id">>;
+        Relationships: [];
+      };
+      sales_activities: {
+        Row: SalesActivity;
+        Insert: Omit<SalesActivity, "id" | "created_at">;
+        Update: Partial<Omit<SalesActivity, "id">>;
+        Relationships: [];
+      };
+      sales_email_drafts: {
+        Row: SalesEmailDraft;
+        Insert: Omit<SalesEmailDraft, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<SalesEmailDraft, "id">>;
+        Relationships: [];
+      };
+      sales_company_news: {
+        Row: SalesCompanyNews;
+        Insert: Omit<SalesCompanyNews, "id" | "created_at">;
+        Update: Partial<Omit<SalesCompanyNews, "id">>;
+        Relationships: [];
+      };
+      sales_competitors: {
+        Row: SalesCompetitor;
+        Insert: Omit<SalesCompetitor, "id" | "created_at">;
+        Update: Partial<Omit<SalesCompetitor, "id">>;
+        Relationships: [];
+      };
+      sales_audit_log: {
+        Row: SalesAuditLog;
+        Insert: Omit<SalesAuditLog, "id" | "changed_at">;
+        Update: never;
         Relationships: [];
       };
     };
@@ -279,6 +345,100 @@ export interface CustomerQuote {
   notes: string | null;
   file_url: string | null;
   created_at: string;
+}
+
+// ── Sales module interfaces ──────────────────────────────────────────────────
+
+export interface SalesDeal {
+  id: string;
+  division_id: string;
+  company_id: string;
+  contact_id: string | null;
+  stage: PipelineStage;
+  product_interest: string | null;
+  estimated_volume: string | null;
+  estimated_value: number | null;
+  next_action: string | null;
+  next_action_date: string | null;
+  close_date: string | null;
+  loss_reason: string | null;
+  notes: string | null;
+  owner_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalesActivity {
+  id: string;
+  division_id: string;
+  company_id: string;
+  contact_id: string | null;
+  deal_id: string | null;
+  type: ActivityType;
+  subject: string | null;
+  body: string | null;
+  outcome: ActivityOutcome | null;
+  follow_up_date: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface SalesEmailDraft {
+  id: string;
+  division_id: string;
+  company_id: string;
+  contact_id: string | null;
+  subject: string | null;
+  body: string | null;
+  status: DraftStatus;
+  personalization_note: string | null;
+  ai_generated: boolean;
+  prompt_template: string | null;
+  created_by: string | null;
+  approved_by: string | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalesCompanyNews {
+  id: string;
+  division_id: string;
+  company_id: string;
+  headline: string;
+  url: string | null;
+  news_source: string | null;
+  published_date: string | null;
+  summary: string | null;
+  added_by: string | null;
+  created_at: string;
+}
+
+export interface SalesCompetitor {
+  id: string;
+  division_id: string;
+  name: string;
+  country: string | null;
+  mention_count: number;
+  first_seen: string;
+  last_seen: string;
+  prospect_names: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface SalesAuditLog {
+  id: string;
+  division_id: string;
+  table_name: string;
+  row_id: string;
+  action: AuditAction;
+  before_json: Json | null;
+  after_json: Json | null;
+  changed_by: string | null;
+  changed_at: string;
+  reverted_audit_id: string | null;
+  transaction_id: string | null;
 }
 
 // Extended types with joins

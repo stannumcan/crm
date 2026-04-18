@@ -1,0 +1,12 @@
+{
+  "name": "@crm/pipeline-mcp",
+  "version": "3.0.0",
+  "type": "module",
+  "description": "Sales pipeline MCP server — rewired from Turso to Supabase",
+  "main": "index.js",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@supabase/supabase-js": "^2.103.0",
+    "dotenv": "^16.4.0"
+  }
+}

@@ -8,6 +8,7 @@ export const PAGE_PERMISSIONS = {
   quotes_customer_quote:  { label: "Customer Quote",           group: "Quotes",      actions: ["view", "edit"] as const },
   products:               { label: "Products / Molds",         group: "Catalog",     actions: ["view", "create", "edit", "delete"] as const },
   customers:              { label: "Customers & Companies",    group: "Catalog",     actions: ["view", "create", "edit", "delete"] as const },
+  sales_pipeline:         { label: "Sales Pipeline",            group: "Sales",       actions: ["view", "create", "edit", "delete"] as const },
   subscriptions:          { label: "Subscriptions",            group: "Admin",       actions: ["view", "create", "edit", "delete"] as const },
   settings:               { label: "Settings",                 group: "Admin",       actions: ["view"] as const },
 } as const;

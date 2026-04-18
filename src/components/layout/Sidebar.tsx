@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { FileText, ClipboardList, Building2, Settings, Package, LogOut, FlaskConical, X, Home, CreditCard } from "lucide-react";
+import { FileText, ClipboardList, Building2, Settings, Package, LogOut, FlaskConical, X, Home, CreditCard, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { usePermissions } from "@/lib/permissions-context";
@@ -44,6 +44,7 @@ export default function Sidebar({ locale }: { locale: string }) {
     { href: `/${locale}/workorders`, label: t("workorders"), icon: ClipboardList, pageKey: "workorders" },
     { href: `/${locale}/quotes`,     label: t("quotes"),     icon: FileText,      pageKey: "quotes_requests" },
     { href: `/${locale}/companies`,  label: t("companies"),  icon: Building2,     pageKey: "customers" },
+    { href: `/${locale}/sales`,      label: t("sales"),      icon: Target,        pageKey: "sales_pipeline" },
     { href: `/${locale}/products`,   label: t("products"),   icon: Package,       pageKey: "products" },
     { href: `/${locale}/subscriptions`, label: t("subscriptions"), icon: CreditCard, pageKey: "subscriptions" },
     { href: `/${locale}/settings`,   label: t("settings"),   icon: Settings,      pageKey: "settings" },

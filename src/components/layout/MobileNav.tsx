@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Menu, X, FileText, ClipboardList, Building2, Settings, Package, Home } from "lucide-react";
+import { Menu, X, FileText, ClipboardList, Building2, Settings, Package, Home, Target } from "lucide-react";
 import { usePermissions } from "@/lib/permissions-context";
 import type { PageKey } from "@/lib/permissions";
 
@@ -20,6 +20,7 @@ export default function MobileNav({ locale }: { locale: string }) {
     { href: `/${locale}/workorders`, label: t("workorders"),  icon: ClipboardList, pageKey: "workorders" },
     { href: `/${locale}/quotes`,     label: t("quotes"),      icon: FileText,      pageKey: "quotes_requests" },
     { href: `/${locale}/companies`,  label: t("companies"),   icon: Building2,     pageKey: "customers" },
+    { href: `/${locale}/sales`,      label: t("sales"),       icon: Target,        pageKey: "sales_pipeline" },
     { href: `/${locale}/products`,   label: t("products"),    icon: Package,       pageKey: "products" },
     { href: `/${locale}/settings`,   label: t("settings"),    icon: Settings,      pageKey: "settings" },
   ];
