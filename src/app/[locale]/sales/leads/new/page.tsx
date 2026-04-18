@@ -53,7 +53,7 @@ export default function NewLeadPage() {
   };
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="p-6 max-w-lg mx-auto space-y-4">
       <Link href={`/${locale}/sales/leads`} className="text-xs text-muted-foreground hover:underline">
         &larr; Back to Leads
       </Link>

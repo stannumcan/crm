@@ -42,7 +42,7 @@ export default async function LeadDetailPage({
   const news = newsRes.data ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <Link href={`/${locale}/sales/leads`} className="text-xs text-muted-foreground hover:underline">

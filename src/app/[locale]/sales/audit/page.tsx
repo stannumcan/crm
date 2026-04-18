@@ -33,7 +33,7 @@ export default async function SalesAuditPage({
   const entries = data ?? [];
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Sales Audit Log</h1>
         <Link href={`/${locale}/sales`} className="text-sm text-primary hover:underline">
