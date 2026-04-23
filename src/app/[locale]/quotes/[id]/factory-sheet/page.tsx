@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import VersionHistory from "@/components/ui/version-history";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+import QuoteLineItems from "@/components/quotes/QuoteLineItems";
 
 export default async function FactorySheetListPage({
   params,
@@ -132,6 +133,27 @@ export default async function FactorySheetListPage({
           )}
         </div>
       </div>
+
+      {/* What's being requested — visible up front so the factory team knows
+          what they're being asked to quote without bouncing back to the overview. */}
+      <div className="mb-6">
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        <QuoteLineItems
+          molds={(quote.molds ?? null) as any}
+          legacy={{
+            mold_number: quote.mold_number as string | null,
+            printing_lid: quote.printing_lid as string | null,
+            printing_body: quote.printing_body as string | null,
+            printing_bottom: quote.printing_bottom as string | null,
+            printing_inner: quote.printing_inner as string | null,
+            embossment: quote.embossment as boolean | null,
+            embossment_components: quote.embossment_components as string | null,
+            embossment_notes: quote.embossment_notes as string | null,
+          }}
+        />
+      </div>
+
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Cost Sheets</h2>
 
       <div className="space-y-3 mb-6">
         {sorted.length === 0 ? (

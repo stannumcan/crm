@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import FactorySheetForm from "@/components/factory/FactorySheetForm";
+import QuoteLineItems from "@/components/quotes/QuoteLineItems";
 
 export default async function EditFactorySheetPage({
   params,
@@ -22,6 +23,8 @@ export default async function EditFactorySheetPage({
       .from("quotations")
       .select(`
         id, mold_number, size_dimensions, molds,
+        printing_lid, printing_body, printing_bottom, printing_inner,
+        embossment, embossment_components, embossment_notes,
         work_orders(wo_number, company_name, project_name),
         quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order)
       `)
@@ -83,6 +86,25 @@ export default async function EditFactorySheetPage({
             <p className="text-xs font-mono text-blue-700 mt-0.5">{sheet.ref_number}</p>
           )}
         </div>
+      </div>
+
+      {/* What's being requested — visible while editing the sheet */}
+      <div className="mb-6">
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        <QuoteLineItems
+          molds={(quote.molds ?? null) as any}
+          legacy={{
+            mold_number: quote.mold_number as string | null,
+            size_dimensions: quote.size_dimensions as string | null,
+            printing_lid: quote.printing_lid as string | null,
+            printing_body: quote.printing_body as string | null,
+            printing_bottom: quote.printing_bottom as string | null,
+            printing_inner: quote.printing_inner as string | null,
+            embossment: quote.embossment as boolean | null,
+            embossment_components: quote.embossment_components as string | null,
+            embossment_notes: quote.embossment_notes as string | null,
+          }}
+        />
       </div>
 
       <FactorySheetForm

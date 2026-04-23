@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import FactorySheetForm from "@/components/factory/FactorySheetForm";
+import QuoteLineItems from "@/components/quotes/QuoteLineItems";
 
 export default async function NewFactorySheetPage({
   params,
@@ -65,6 +66,25 @@ export default async function NewFactorySheetPage({
             <p className="text-sm text-gray-500">{wo.wo_number} · {wo.project_name} · {wo.company_name}</p>
           )}
         </div>
+      </div>
+
+      {/* What's being requested — visible while filling in costs */}
+      <div className="mb-6">
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        <QuoteLineItems
+          molds={(quote.molds ?? null) as any}
+          legacy={{
+            mold_number: quote.mold_number as string | null,
+            size_dimensions: quote.size_dimensions as string | null,
+            printing_lid: quote.printing_lid as string | null,
+            printing_body: quote.printing_body as string | null,
+            printing_bottom: quote.printing_bottom as string | null,
+            printing_inner: quote.printing_inner as string | null,
+            embossment: quote.embossment as boolean | null,
+            embossment_components: quote.embossment_components as string | null,
+            embossment_notes: quote.embossment_notes as string | null,
+          }}
+        />
       </div>
 
       <FactorySheetForm
