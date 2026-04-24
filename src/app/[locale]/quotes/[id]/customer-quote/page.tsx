@@ -74,18 +74,31 @@ export default async function CustomerQuotePage({
     );
   }
 
-  // Fetch contacts
+  // Fetch contacts + company name_ja (customer quote prefers Japanese name)
   type Contact = { id: string; name: string; department: string | null; phone: string | null; phone_direct: string | null };
   let contacts: Contact[] = [];
+  let companyNameJa: string | null = null;
   if (wo?.company_id) {
-    const { data: contactRows } = await db
-      .from("company_contacts")
-      .select("id, name, department, phone, phone_direct")
-      .eq("company_id", wo.company_id)
-      .order("is_primary", { ascending: false })
-      .order("name");
+    const [{ data: contactRows }, { data: companyRow }] = await Promise.all([
+      db
+        .from("company_contacts")
+        .select("id, name, department, phone, phone_direct")
+        .eq("company_id", wo.company_id)
+        .order("is_primary", { ascending: false })
+        .order("name"),
+      db
+        .from("companies")
+        .select("name_ja")
+        .eq("id", wo.company_id)
+        .maybeSingle(),
+    ]);
     contacts = (contactRows as Contact[]) ?? [];
+    companyNameJa = (companyRow?.name_ja as string | null) ?? null;
   }
+
+  // Customer quote (御見積書) is a Japanese document — default to Japanese
+  // company name, fall back to the English/default name when no name_ja.
+  const preferredCompanyName = companyNameJa?.trim() || wo?.company_name || "";
 
   // Fetch quote images
   const { data: attachmentRows } = await db
@@ -306,7 +319,7 @@ export default async function CustomerQuotePage({
             moldNumber={activeTab.moldNumber ?? undefined}
             defaultQuoteNumber={activeTab.defaultQuoteNumber}
             woNumber={wo?.wo_number ?? ""}
-            companyName={wo?.company_name ?? ""}
+            companyName={preferredCompanyName}
             companyId={wo?.company_id ?? null}
             contacts={contacts}
             projectName={wo?.project_name ?? ""}
