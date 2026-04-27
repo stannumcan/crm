@@ -128,10 +128,11 @@ function pickShippingMethod({
 }): { cost: number; method: string } {
   const hq = fcl40hqCost > 0 && pcs40HQ > 0;
 
-  // LCL cost: minimum 1 CBM, rate depends on tier (≤5 CBM vs >5 CBM)
+  // LCL cost: minimum 1 CBM, rate depends on tier (≤5 CBM vs >5 CBM).
+  // Round the rate × CBM portion, then add the flat base fee on top.
   const cbmForLcl = Math.max(1, totalCBM);
   const lclRate = cbmForLcl <= 5 ? lclRatePerCbmLe5 : lclRatePerCbmGt5;
-  const lclCost = Math.round(cbmForLcl * lclRate + lclBaseFee);
+  const lclCost = Math.round(cbmForLcl * lclRate) + lclBaseFee;
 
   // Single 20GP fits?
   const fitsOne20GP = pcs20GP > 0 && pcsOrdered <= pcs20GP;
@@ -275,7 +276,7 @@ export function calculateDDP(inputs: DDPInputs): DDPResult {
   } else if (shippingType === "lcl") {
     const cbmForLcl = Math.max(1, totalCBM);
     const rate = cbmForLcl <= 5 ? lclRateLe5 : lclRateGt5;
-    shippingCostJpy = Math.round(cbmForLcl * rate + lclBaseFee);
+    shippingCostJpy = Math.round(cbmForLcl * rate) + lclBaseFee;
     shippingMethod = "LCL";
   } else if (shippingType === "fcl_20gp") {
     shippingCostJpy = fcl20gpCost;
