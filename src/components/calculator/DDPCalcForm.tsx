@@ -50,12 +50,20 @@ interface ApprovedCalc {
 }
 
 interface DDPSettings {
-  lcl_rate_per_cbm: number;
+  // LCL is split by CBM tier — small (<=5 CBM) typically priced higher per cubic meter.
+  lcl_rate_per_cbm_le5: number;
+  lcl_rate_per_cbm_gt5: number;
+  /** Legacy single rate. Falls through to both tiers if the split values aren't set. */
+  lcl_rate_per_cbm?: number;
   lcl_base_fee: number;
   fcl_20gp_jpy: number;
   fcl_40gp_jpy: number;
   fcl_40hq_jpy: number;
   margin_values: number[];
+  // Persisted shared rates (previously hardcoded defaults that reset every load).
+  fx_rate: number;             // 1 RMB = X JPY
+  import_duty_pct: number;     // %, e.g. 4
+  consumption_tax_pct: number; // %, e.g. 0
 }
 
 interface TierState {
@@ -166,13 +174,18 @@ export default function DDPCalcForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Shared settings
-  const [fxRate, setFxRate] = useState("20");
-  const [importDutyRate, setImportDutyRate] = useState("4");
-  const [consumptionTaxRate, setConsumptionTaxRate] = useState("0");
+  // Shared settings (now persisted globally — used to reset to hardcoded defaults)
+  const [fxRate, setFxRate] = useState(String(defaultSettings.fx_rate ?? 20));
+  const [importDutyRate, setImportDutyRate] = useState(String(defaultSettings.import_duty_pct ?? 4));
+  const [consumptionTaxRate, setConsumptionTaxRate] = useState(String(defaultSettings.consumption_tax_pct ?? 0));
 
   // Shipping rates + margin values (editable, persisted globally on save)
-  const [lclRatePerCbm, setLclRatePerCbm] = useState(String(defaultSettings.lcl_rate_per_cbm));
+  const [lclRatePerCbmLe5, setLclRatePerCbmLe5] = useState(
+    String(defaultSettings.lcl_rate_per_cbm_le5 ?? defaultSettings.lcl_rate_per_cbm ?? 23000),
+  );
+  const [lclRatePerCbmGt5, setLclRatePerCbmGt5] = useState(
+    String(defaultSettings.lcl_rate_per_cbm_gt5 ?? defaultSettings.lcl_rate_per_cbm ?? 18000),
+  );
   const [lclBaseFee, setLclBaseFee] = useState(String(defaultSettings.lcl_base_fee));
   const [fcl20gpCost, setFcl20gpCost] = useState(String(defaultSettings.fcl_20gp_jpy));
   const [fcl40gpCost, setFcl40gpCost] = useState(String(defaultSettings.fcl_40gp_jpy));
@@ -232,7 +245,8 @@ export default function DDPCalcForm({
       bufferPct: parseFloat(tier.bufferPct) / 100 || 0.05,
       shippingType: tier.shippingType,
       manualShippingCostJpy: tier.manualShippingCostJpy ? parseInt(tier.manualShippingCostJpy) : undefined,
-      lclRatePerCbm: parseFloat(lclRatePerCbm) || 23000,
+      lclRatePerCbmLe5: parseFloat(lclRatePerCbmLe5) || 23000,
+      lclRatePerCbmGt5: parseFloat(lclRatePerCbmGt5) || 18000,
       lclBaseFee: parseFloat(lclBaseFee) || 0,
       fcl20gpCost: parseFloat(fcl20gpCost) || 250000,
       fcl40gpCost: parseFloat(fcl40gpCost) || 400000,
@@ -266,7 +280,7 @@ export default function DDPCalcForm({
     }
     onLivePricesChange(prices);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tiers, fxRate, pkg, marginValues, lclRatePerCbm, lclBaseFee, fcl20gpCost, fcl40gpCost, fcl40hqCost, importDutyRate, consumptionTaxRate]);
+  }, [tiers, fxRate, pkg, marginValues, lclRatePerCbmLe5, lclRatePerCbmGt5, lclBaseFee, fcl20gpCost, fcl40gpCost, fcl40hqCost, importDutyRate, consumptionTaxRate]);
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -302,7 +316,8 @@ export default function DDPCalcForm({
           bufferPct: parseFloat(tier.bufferPct) / 100 || 0.05,
           shippingType: tier.shippingType,
           manualShippingCostJpy: tier.manualShippingCostJpy ? parseInt(tier.manualShippingCostJpy) : undefined,
-          lclRatePerCbm: parseFloat(lclRatePerCbm) || 23000,
+          lclRatePerCbmLe5: parseFloat(lclRatePerCbmLe5) || 23000,
+          lclRatePerCbmGt5: parseFloat(lclRatePerCbmGt5) || 18000,
           lclBaseFee: parseFloat(lclBaseFee) || 0,
           fcl20gpCost: parseFloat(fcl20gpCost) || 250000,
           fcl40gpCost: parseFloat(fcl40gpCost) || 400000,
@@ -328,13 +343,17 @@ export default function DDPCalcForm({
           body: JSON.stringify({
             key: "ddp_shipping",
             value: {
-              lcl_rate_per_cbm: parseFloat(lclRatePerCbm) || 23000,
+              lcl_rate_per_cbm_le5: parseFloat(lclRatePerCbmLe5) || 23000,
+              lcl_rate_per_cbm_gt5: parseFloat(lclRatePerCbmGt5) || 18000,
               lcl_base_fee: parseFloat(lclBaseFee) || 0,
               fcl_20gp_jpy: parseFloat(fcl20gpCost) || 250000,
               fcl_40gp_jpy: parseFloat(fcl40gpCost) || 400000,
               // 40HQ: 0 disables this container in the auto algorithm
               fcl_40hq_jpy: parseFloat(fcl40hqCost) || 0,
               margin_values: marginValues.map((m) => parseFloat(m)).filter((m) => !isNaN(m) && m >= 0),
+              fx_rate: parseFloat(fxRate) || 20,
+              import_duty_pct: parseFloat(importDutyRate) || 0,
+              consumption_tax_pct: parseFloat(consumptionTaxRate) || 0,
             },
           }),
         }),
@@ -423,8 +442,12 @@ export default function DDPCalcForm({
               <p className="text-xs font-medium text-gray-500 mb-2">Shipping Rates (JPY)</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">LCL Rate per CBM (¥)</Label>
-                  <Input type="number" value={lclRatePerCbm} onChange={(e) => setLclRatePerCbm(e.target.value)} className="h-8 font-mono" />
+                  <Label className="text-xs">LCL Rate per CBM — ≤5 CBM (¥)</Label>
+                  <Input type="number" value={lclRatePerCbmLe5} onChange={(e) => setLclRatePerCbmLe5(e.target.value)} className="h-8 font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">LCL Rate per CBM — &gt;5 CBM (¥)</Label>
+                  <Input type="number" value={lclRatePerCbmGt5} onChange={(e) => setLclRatePerCbmGt5(e.target.value)} className="h-8 font-mono" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">LCL Base Fee (¥)</Label>

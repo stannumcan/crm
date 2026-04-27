@@ -35,12 +35,18 @@ interface SheetData {
 }
 
 interface DDPSettings {
-  lcl_rate_per_cbm: number;
+  lcl_rate_per_cbm_le5: number;
+  lcl_rate_per_cbm_gt5: number;
+  /** Legacy single rate. Falls through to both tiers if the split values aren't set. */
+  lcl_rate_per_cbm?: number;
   lcl_base_fee: number;
   fcl_20gp_jpy: number;
   fcl_40gp_jpy: number;
   fcl_40hq_jpy: number;
   margin_values: number[];
+  fx_rate: number;
+  import_duty_pct: number;
+  consumption_tax_pct: number;
 }
 
 export default function DDPCalcWrapper({

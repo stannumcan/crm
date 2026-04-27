@@ -25,13 +25,22 @@ export default async function DDPCalcPage({
     .eq("key", "ddp_shipping")
     .single();
 
+  // Legacy single-rate fallback: older saved settings only had lcl_rate_per_cbm.
+  // New schema splits it into le5/gt5 tiers; if those aren't present, fall through
+  // to the legacy value so previously-saved configs keep working.
+  const legacyLclRate = settingsRow?.value?.lcl_rate_per_cbm;
   const shippingRates = {
-    lcl_rate_per_cbm: settingsRow?.value?.lcl_rate_per_cbm ?? 23000,
+    lcl_rate_per_cbm_le5: settingsRow?.value?.lcl_rate_per_cbm_le5 ?? legacyLclRate ?? 23000,
+    lcl_rate_per_cbm_gt5: settingsRow?.value?.lcl_rate_per_cbm_gt5 ?? legacyLclRate ?? 18000,
+    lcl_rate_per_cbm: legacyLclRate, // pass through for the form's fallback chain
     lcl_base_fee: settingsRow?.value?.lcl_base_fee ?? 10000,
     fcl_20gp_jpy: settingsRow?.value?.fcl_20gp_jpy ?? 250000,
     fcl_40gp_jpy: settingsRow?.value?.fcl_40gp_jpy ?? 400000,
     fcl_40hq_jpy: settingsRow?.value?.fcl_40hq_jpy ?? 450000,
     margin_values: (settingsRow?.value?.margin_values as number[] | undefined) ?? [60, 55, 50, 45, 40, 35, 30, 25],
+    fx_rate: settingsRow?.value?.fx_rate ?? 20,
+    import_duty_pct: settingsRow?.value?.import_duty_pct ?? 4,
+    consumption_tax_pct: settingsRow?.value?.consumption_tax_pct ?? 0,
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

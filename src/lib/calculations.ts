@@ -50,7 +50,13 @@ export interface DDPInputs {
   // Buffer for production order (default 5%)
   bufferPct?: number;      // default 0.05
   // Configurable shipping rates (fall back to defaults if not provided)
-  lclRatePerCbm?: number;  // default 23000
+  // LCL is split by CBM tier: <=5 CBM uses one rate (typically higher per-cbm),
+  // >5 CBM uses another. If only the legacy lclRatePerCbm is provided, both
+  // tiers use it.
+  lclRatePerCbmLe5?: number; // rate per CBM when total CBM <= 5
+  lclRatePerCbmGt5?: number; // rate per CBM when total CBM > 5
+  /** @deprecated use lclRatePerCbmLe5 + lclRatePerCbmGt5 */
+  lclRatePerCbm?: number;  // legacy single rate
   lclBaseFee?: number;     // default 10000
   fcl20gpCost?: number;    // default 250000
   fcl40gpCost?: number;    // default 400000
@@ -100,7 +106,8 @@ function pickShippingMethod({
   pcs20GP,
   pcs40GP,
   pcs40HQ,
-  lclRatePerCbm,
+  lclRatePerCbmLe5,
+  lclRatePerCbmGt5,
   lclBaseFee,
   fcl20gpCost,
   fcl40gpCost,
@@ -112,21 +119,19 @@ function pickShippingMethod({
   pcs20GP: number;
   pcs40GP: number;
   pcs40HQ: number;
-  lclRatePerCbm: number;
+  lclRatePerCbmLe5: number;
+  lclRatePerCbmGt5: number;
   lclBaseFee: number;
   fcl20gpCost: number;
   fcl40gpCost: number;
   fcl40hqCost: number;
 }): { cost: number; method: string } {
-  // Derive pallet capacity per container from tins-per-container ÷ pcs-per-pallet.
-  // pcsPerPallet we can back-compute: totalCBM is based on pallets; instead we'll
-  // compute capacity directly in tins. We'll express "fits" as pcsOrdered ≤ container capacity.
-  // (This is equivalent to pallet-count comparisons and avoids rounding issues.)
   const hq = fcl40hqCost > 0 && pcs40HQ > 0;
 
-  // LCL cost with minimum of 1 CBM
+  // LCL cost: minimum 1 CBM, rate depends on tier (≤5 CBM vs >5 CBM)
   const cbmForLcl = Math.max(1, totalCBM);
-  const lclCost = Math.round(cbmForLcl * lclRatePerCbm + lclBaseFee);
+  const lclRate = cbmForLcl <= 5 ? lclRatePerCbmLe5 : lclRatePerCbmGt5;
+  const lclCost = Math.round(cbmForLcl * lclRate + lclBaseFee);
 
   // Single 20GP fits?
   const fitsOne20GP = pcs20GP > 0 && pcsOrdered <= pcs20GP;
@@ -194,9 +199,6 @@ export function calculateDDP(inputs: DDPInputs): DDPResult {
     rmbUnitPrice,
     fxRate,
     pcsPerCarton,
-    boxLmm,
-    boxWmm,
-    boxHmm,
     palletLmm,
     palletWmm,
     palletHmm,
@@ -207,7 +209,9 @@ export function calculateDDP(inputs: DDPInputs): DDPResult {
     shippingType,
     manualShippingCostJpy,
     bufferPct = 0.05,
-    lclRatePerCbm = 23000,
+    lclRatePerCbm,                      // legacy fallback
+    lclRatePerCbmLe5: lclLe5In,
+    lclRatePerCbmGt5: lclGt5In,
     lclBaseFee = 10000,
     fcl20gpCost = 250000,
     fcl40gpCost = 400000,
@@ -218,18 +222,29 @@ export function calculateDDP(inputs: DDPInputs): DDPResult {
     selectedMargin,
   } = inputs;
 
-  // Box and pallet volumes (m³)
-  const boxCBM = (boxLmm * boxWmm * boxHmm) / 1_000_000_000;
-  const palletBaseCBM = (palletLmm * palletWmm * palletHmm) / 1_000_000_000;
-  const palletCBM = boxCBM * boxesPerPallet + palletBaseCBM;
+  // Resolve LCL rates with legacy fallback (lclRatePerCbm used for both tiers
+  // when the new split values aren't supplied).
+  const lclRateLe5 = lclLe5In ?? lclRatePerCbm ?? 23000;
+  const lclRateGt5 = lclGt5In ?? lclRatePerCbm ?? 18000;
 
-  // Production qty (customer qty + buffer%, rounded DOWN to full cartons)
-  const cartonsOrdered = Math.floor((customerOrderQty * (1 + bufferPct)) / pcsPerCarton);
+  // Pallet CBM = the boxed pallet's L×W×H (factory-sheet pallet dimensions
+  // already include the boxes stacked on top, so we don't add box volumes
+  // separately — that would double-count).
+  const palletCBM = (palletLmm * palletWmm * palletHmm) / 1_000_000_000;
+
+  // Tins to ship = customer qty + buffer% (kept whole-tin for the cartons calc).
+  const tinsToShip = Math.ceil(customerOrderQty * (1 + bufferPct));
+
+  // Cartons = ceil(tins / pcs_per_carton). The factory will produce enough
+  // cartons to cover all tins, rounding UP to the next whole carton.
+  const cartonsOrdered = Math.ceil(tinsToShip / pcsPerCarton);
   const factoryProductionQty = cartonsOrdered * pcsPerCarton;
 
-  // Pallets and total CBM
+  // Pallets = ceil(cartons / boxes_per_pallet).
   const pallets = Math.ceil(cartonsOrdered / boxesPerPallet);
-  const totalCBM = Math.ceil(palletCBM * pallets);
+
+  // Total CBM = pallet CBM × pallet count, rounded to 2 decimals for display.
+  const totalCBM = Math.round(palletCBM * pallets * 100) / 100;
 
   // Manufacturing cost (JPY)
   const manufacturingCostJpy = Math.round(factoryProductionQty * rmbUnitPrice * fxRate);
@@ -245,7 +260,8 @@ export function calculateDDP(inputs: DDPInputs): DDPResult {
       pcs20GP,
       pcs40GP,
       pcs40HQ,
-      lclRatePerCbm,
+      lclRatePerCbmLe5: lclRateLe5,
+      lclRatePerCbmGt5: lclRateGt5,
       lclBaseFee,
       fcl20gpCost,
       fcl40gpCost,
@@ -258,7 +274,8 @@ export function calculateDDP(inputs: DDPInputs): DDPResult {
     shippingMethod = "Multi-container (manual)";
   } else if (shippingType === "lcl") {
     const cbmForLcl = Math.max(1, totalCBM);
-    shippingCostJpy = Math.round(cbmForLcl * lclRatePerCbm + lclBaseFee);
+    const rate = cbmForLcl <= 5 ? lclRateLe5 : lclRateGt5;
+    shippingCostJpy = Math.round(cbmForLcl * rate + lclBaseFee);
     shippingMethod = "LCL";
   } else if (shippingType === "fcl_20gp") {
     shippingCostJpy = fcl20gpCost;
