@@ -721,7 +721,7 @@ export default function FactorySheetForm({
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-10">Tier</th>
-                <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-24">Qty</th>
+                <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-32">Qty</th>
                 <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-28 text-blue-700">总成本合计</th>
                 <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-24">Labour</th>
                 <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-24">Accessories</th>
