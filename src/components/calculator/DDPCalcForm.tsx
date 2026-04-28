@@ -173,6 +173,9 @@ export default function DDPCalcForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Brief banner after a successful save so the user can see it actually fired.
+  // Cleared after a few seconds, or when they navigate.
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   // Shared settings (now persisted globally — used to reset to hardcoded defaults)
   const [fxRate, setFxRate] = useState(String(defaultSettings.fx_rate ?? 20));
@@ -331,7 +334,7 @@ export default function DDPCalcForm({
       });
 
       // Save DDP records and shipping settings in parallel
-      const [res] = await Promise.all([
+      const [ddpRes, settingsRes] = await Promise.all([
         fetch("/api/ddp-calc", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -358,8 +361,17 @@ export default function DDPCalcForm({
           }),
         }),
       ]);
-      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to save");
+      if (!ddpRes.ok) throw new Error((await ddpRes.json()).error ?? "Failed to save DDP records");
+      // Settings save was previously silently ignored — surface its failure too,
+      // since users were reporting "settings not saving" with no error shown.
+      if (!settingsRes.ok) throw new Error((await settingsRes.json()).error ?? "Failed to save shared settings");
       setLoading(false);
+      setSavedAt(Date.now());
+      // Re-fetch the parent server component so the next mount of THIS form
+      // (or any sibling sheet's form) picks up the freshly-saved settings.
+      // Without this, switching to another mould's tab would re-mount the form
+      // with the stale shippingRates prop and look like the save was reverted.
+      router.refresh();
       if (onSaved) onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -771,6 +783,11 @@ export default function DDPCalcForm({
 
       {error && (
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
+      {savedAt && !error && (
+        <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+          Saved at {new Date(savedAt).toLocaleTimeString()}. Shared settings updated globally.
+        </div>
       )}
 
       <div className="flex gap-3 justify-end">
