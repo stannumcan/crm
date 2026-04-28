@@ -168,6 +168,8 @@
     "submitRequest": "提交报价申请",
     "quoteNumber": "报价编号",
     "customer": "客户",
+    "company": "公司",
+    "companyPlaceholder": "搜索公司...",
     "date": "日期",
     "validUntil": "有效期至",
     "amount": "金额",

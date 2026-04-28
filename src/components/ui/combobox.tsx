@@ -71,7 +71,10 @@ export function Combobox({
   useEffect(() => { setMounted(true); }, []);
 
   const selectedOption = options.find((o) => o.value === value);
-  const displayValue = open ? query : (selectedOption?.label ?? "");
+  // When a value is set but no matching option exists in the dropdown (e.g. the
+  // user typed an "Add new" value), fall back to the raw value so the field
+  // still reflects the saved state instead of appearing empty.
+  const displayValue = open ? query : (selectedOption?.label ?? value ?? "");
 
   const filtered = onSearch
     ? options

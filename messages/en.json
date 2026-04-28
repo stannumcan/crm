@@ -172,6 +172,8 @@
     "submitRequest": "Submit Quote Request",
     "quoteNumber": "Quote #",
     "customer": "Customer",
+    "company": "Company",
+    "companyPlaceholder": "Search company...",
     "date": "Date",
     "validUntil": "Valid Until",
     "amount": "Amount",

@@ -172,6 +172,8 @@
     "submitRequest": "見積依頼を送信",
     "quoteNumber": "見積番号",
     "customer": "顧客",
+    "company": "会社名",
+    "companyPlaceholder": "会社を検索...",
     "date": "日付",
     "validUntil": "有効期限",
     "amount": "金額",
