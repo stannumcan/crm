@@ -159,6 +159,7 @@ export default function CustomerQuoteForm({
   const lang = (locale === "ja" || locale === "zh") ? "ja" : "en";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const [printing, setPrinting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -487,7 +488,12 @@ export default function CustomerQuoteForm({
         const data = await res.json();
         throw new Error((data as { error?: string }).error ?? "Failed to save");
       }
-      router.push(`/${locale}/quotes/${quoteId}`);
+      // Stay on the page so the user can review what they saved (and print
+      // / export from here if they want). Refresh pulls the latest server
+      // state — version bump, ref number, etc.
+      setLoading(false);
+      setSavedAt(Date.now());
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setLoading(false);
@@ -1026,6 +1032,14 @@ export default function CustomerQuoteForm({
       {error && (
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 print:hidden">
           {error}
+        </div>
+      )}
+      {savedAt && !error && (
+        <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 flex items-center justify-between print:hidden">
+          <span>Saved at {new Date(savedAt).toLocaleTimeString()}. Review the document above, print it, or head back to the overview.</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/${locale}/quotes/${quoteId}`)}>
+            Done — back to overview
+          </Button>
         </div>
       )}
 

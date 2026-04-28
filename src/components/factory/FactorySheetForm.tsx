@@ -169,6 +169,7 @@ export default function FactorySheetForm({
   const sessionId = useId().replace(/:/g, "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   const lang = (locale === "ja" || locale === "zh") ? "ja" : "en";
 
@@ -375,7 +376,19 @@ export default function FactorySheetForm({
       // is needed. This also covers the case where the typed mould number isn't
       // in the catalog yet (a real mould Annie is registering for the first time).
 
-      router.push(returnTo ?? `/${locale}/quotes/${quoteId}`);
+      // Stay on the page so the user can review what they saved. router.refresh()
+      // pulls the latest server state (e.g. version bump, regenerated ref number).
+      // Banner near the action bar confirms the save fired.
+      setLoading(false);
+      setSavedAt(Date.now());
+      router.refresh();
+      // Scroll to the bottom of the page so the user sees the banner that just
+      // appeared next to the Save button — which is what they were just clicking.
+      setTimeout(() => {
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+        }
+      }, 50);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setLoading(false);
@@ -850,6 +863,14 @@ export default function FactorySheetForm({
 
       {error && (
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
+      {savedAt && !error && (
+        <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 flex items-center justify-between">
+          <span>Saved at {new Date(savedAt).toLocaleTimeString()}. Review your changes above, or continue to the next step.</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => router.push(returnTo ?? `/${locale}/quotes/${quoteId}`)}>
+            Done — back to overview
+          </Button>
+        </div>
       )}
 
       <div className="flex gap-3 justify-end">

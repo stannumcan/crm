@@ -129,6 +129,7 @@ export default function WilfredCalcForm({
   const [approving, setApproving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState("");
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   // Fees state
   const totalEmbossingFromFactory = (fees?.embossingLines ?? [])
@@ -193,6 +194,7 @@ export default function WilfredCalcForm({
         const s = saved.find((c) => c.tier_label === r.tier_label);
         return s ? { ...r, existingId: s.id, approved: s.approved } : r;
       }));
+      setSavedAt(Date.now());
       // Refresh server data so tab switches show up-to-date state
       router.refresh();
     } catch (err) {
@@ -244,6 +246,7 @@ export default function WilfredCalcForm({
       // Update local state
       setRows(rows.map((r) => ({ ...r, approved: true })));
       setIsEditing(false);
+      setSavedAt(Date.now());
       // Refresh server data so tab switches show up-to-date state
       router.refresh();
     } catch (err) {
@@ -444,6 +447,14 @@ export default function WilfredCalcForm({
       {error && (
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+      {savedAt && !error && !(allApproved && !isEditing) && (
+        <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 flex items-center justify-between">
+          <span>Saved at {new Date(savedAt).toLocaleTimeString()}. Review your figures above, or continue.</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/${locale}/quotes/${quoteId}`)}>
+            Done — back to overview
+          </Button>
         </div>
       )}
 

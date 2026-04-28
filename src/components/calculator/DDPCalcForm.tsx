@@ -791,8 +791,11 @@ export default function DDPCalcForm({
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
       {savedAt && !error && (
-        <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
-          Saved at {new Date(savedAt).toLocaleTimeString()}. Shared settings updated globally.
+        <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 flex items-center justify-between">
+          <span>Saved at {new Date(savedAt).toLocaleTimeString()}. Shared settings updated globally. Review your tiers above, or continue.</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/${locale}/quotes/${quoteId}`)}>
+            Done — back to overview
+          </Button>
         </div>
       )}
 
