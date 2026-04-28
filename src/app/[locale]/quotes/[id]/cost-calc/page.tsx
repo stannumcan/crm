@@ -127,7 +127,11 @@ export default async function CostCalcPage({
       wilfredVersion,
       basedOnSheetVersion,
       isApproved: allApproved,
-      factoryTiers: sheet.factory_cost_tiers ?? [],
+      // Always show tiers in ascending qty order downstream — Annie may have
+      // entered them out of order in the factory sheet (FCL quantities aren't
+      // known up front), but every later step expects smallest → largest.
+      factoryTiers: ([...(sheet.factory_cost_tiers ?? [])] as { quantity: number | null }[])
+        .sort((a, b) => (a.quantity ?? Infinity) - (b.quantity ?? Infinity)),
       existingCalcs: wilfredCalcs,
       fees: {
         moldCostNew: sheet.mold_cost_new,

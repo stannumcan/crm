@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Paperclip, X } from "lucide-react";
+import { Plus, Trash2, Paperclip, X, GripVertical } from "lucide-react";
 import { FileUpload, UploadedFile } from "@/components/ui/file-upload";
 import MoldSelect from "@/components/ui/mold-select";
 
@@ -292,6 +292,24 @@ export default function FactorySheetForm({
 
   const updateTier = (label: string, field: keyof TierCost, value: string) =>
     setTierCosts((prev) => prev.map((t) => t.tier_label === label ? { ...t, [field]: value } : t));
+
+  // Drag-to-reorder state for the cost summary table. Annie often gets the
+  // FCL quantities back from the factory after the quote was first entered,
+  // so the tiers may not be in ascending qty order anymore — let her drag
+  // them into the right order before saving.
+  const [draggedTierLabel, setDraggedTierLabel] = useState<string | null>(null);
+  const reorderTier = (sourceLabel: string, targetLabel: string) => {
+    if (sourceLabel === targetLabel) return;
+    setTierCosts((prev) => {
+      const sIdx = prev.findIndex((t) => t.tier_label === sourceLabel);
+      const tIdx = prev.findIndex((t) => t.tier_label === targetLabel);
+      if (sIdx < 0 || tIdx < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(sIdx, 1);
+      next.splice(tIdx, 0, moved);
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -716,6 +734,7 @@ export default function FactorySheetForm({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="w-6"></th>
                 <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-10">Tier</th>
                 <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-32">Qty</th>
                 <th className="text-left text-xs font-medium text-gray-500 px-3 py-2 w-28 text-blue-700">总成本合计</th>
@@ -728,7 +747,30 @@ export default function FactorySheetForm({
             </thead>
             <tbody className="divide-y divide-gray-50">
               {tierCosts.map((tier) => (
-                <tr key={tier.tier_label} className="align-middle">
+                <tr
+                  key={tier.tier_label}
+                  className={`align-middle transition-opacity ${draggedTierLabel === tier.tier_label ? "opacity-40" : ""}`}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const src = e.dataTransfer.getData("text/plain");
+                    if (src) reorderTier(src, tier.tier_label);
+                    setDraggedTierLabel(null);
+                  }}
+                >
+                  <td
+                    className="pl-1 pr-0 py-2 cursor-grab active:cursor-grabbing select-none text-gray-300 hover:text-gray-500"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", tier.tier_label);
+                      e.dataTransfer.effectAllowed = "move";
+                      setDraggedTierLabel(tier.tier_label);
+                    }}
+                    onDragEnd={() => setDraggedTierLabel(null)}
+                    title="Drag to reorder"
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </td>
                   <td className="px-3 py-2">
                     <span className="flex items-center justify-center h-8 w-8 rounded bg-gray-100 text-xs font-bold text-gray-600">
                       {tier.tier_label}

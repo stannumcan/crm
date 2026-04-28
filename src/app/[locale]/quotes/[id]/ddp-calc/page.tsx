@@ -137,12 +137,16 @@ export default async function DDPCalcPage({
     const wilfredCalcs: { tier_label: string; quantity: number; estimated_cost_rmb: number | null; approved: boolean; is_current?: boolean }[] =
       (Array.isArray(sheet.wilfred_calculations) ? sheet.wilfred_calculations : []).filter((c: { is_current?: boolean }) => c.is_current !== false);
 
+    // Always show tiers smallest → largest. The original quote may have
+    // captured them out of order (FCL quantities aren't known up front), but
+    // every step downstream of the factory sheet expects ascending qty.
     const approvedCalcs = wilfredCalcs
       .filter((c) => c.approved)
       .map((calc) => {
         const quoteTier = quoteTiers.find((t) => t.tier_label === calc.tier_label);
         return { ...calc, quantity_type: quoteTier?.quantity_type ?? "units" };
-      });
+      })
+      .sort((a, b) => (a.quantity ?? Infinity) - (b.quantity ?? Infinity));
 
     if (approvedCalcs.length === 0) continue;
 
