@@ -4,6 +4,51 @@ import { notifyWorkflowStep, notifyFactorySheet } from "@/lib/workflow-notify";
 import { getNextVersion, supersedeCurrent, logChange } from "@/lib/versioning";
 import { getNextChainLetter, buildFactorySheetRef, generateNewMoldNumber } from "@/lib/ref-numbers";
 
+/**
+ * Ensure a `molds` row exists matching the factory sheet's mold_number, and
+ * persist the sheet's mold_image_url onto it.
+ *
+ * The quote form lets users type a catalog-style number (ML-1234) for a mould
+ * that exists in real life but isn't in the catalog yet. When Annie creates
+ * the factory cost sheet and uploads the photo, this is the moment we register
+ * the mould in the catalog so it's findable in future quotes.
+ *
+ * Skips ML-NM placeholder numbers — those are temporary and get replaced when
+ * the real mould number is assigned.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function upsertMoldFromFactorySheet(db: any, moldNumber: string | null | undefined, imageUrl: string | null | undefined) {
+  if (!moldNumber) return;
+  const normalized = moldNumber.trim().toUpperCase();
+  if (!normalized) return;
+  // NM placeholders — skip
+  if (/^ML-NM\d+$/i.test(normalized)) return;
+
+  const { data: existing } = await db
+    .from("molds")
+    .select("id, image_url")
+    .eq("mold_number", normalized)
+    .maybeSingle();
+
+  if (existing) {
+    // Update image_url only if a new one was provided and it differs.
+    if (imageUrl && imageUrl !== existing.image_url) {
+      await db.from("molds").update({ image_url: imageUrl }).eq("id", existing.id);
+    }
+    return;
+  }
+
+  // Create the mould record. Mark active so it shows up in catalog searches.
+  const { error } = await db.from("molds").insert({
+    mold_number: normalized,
+    image_url: imageUrl ?? null,
+    is_active: true,
+  });
+  // Log but don't fail the sheet save — the sheet is the primary record; mould
+  // catalog registration is a side effect.
+  if (error) console.error("[factory-sheets] mold upsert failed:", error);
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const body = await request.json();
@@ -63,6 +108,10 @@ export async function POST(request: NextRequest) {
   }
 
   await logChange(supabase, "factory_cost_sheet", sheet.id, 1, "created", null, sheet);
+
+  // Register the mould in the catalog if not already there. If Annie uploaded a
+  // photo, attach it to the mould record so future quotes can reuse the image.
+  await upsertMoldFromFactorySheet(db, sheet.mold_number, sheet.mold_image_url);
 
   await db.from("quotations").update({ status: "pending_wilfred" }).eq("id", sheetData.quotation_id);
   await notifyFactorySheet(sheet.id, sheetData.quotation_id);
@@ -216,6 +265,10 @@ export async function PATCH(request: NextRequest) {
       .eq("cost_sheet_id", id)
       .eq("is_current", true);
   }
+
+  // Register the mould in the catalog if not already there, and persist the
+  // image to the mould record (Annie may have just uploaded one).
+  await upsertMoldFromFactorySheet(db, newSheet.mold_number, newSheet.mold_image_url);
 
   // Update quotation status and notify
   if (newSheet.quotation_id) {

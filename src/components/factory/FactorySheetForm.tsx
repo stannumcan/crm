@@ -352,14 +352,10 @@ export default function FactorySheetForm({
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed to save");
 
-      // If user uploaded a new image for an existing mold, update the mold record
-      if (newMoldImage.length > 0 && moldId) {
-        await fetch("/api/molds/image", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mold_id: moldId, image_url: newMoldImage[0].url }),
-        });
-      }
+      // The factory-sheets API now upserts the molds row + image_url server-side
+      // based on the sheet's mold_number, so no separate /api/molds/image call
+      // is needed. This also covers the case where the typed mould number isn't
+      // in the catalog yet (a real mould Annie is registering for the first time).
 
       router.push(returnTo ?? `/${locale}/quotes/${quoteId}`);
     } catch (err) {
@@ -446,7 +442,7 @@ export default function FactorySheetForm({
               )}
               {!moldId && moldNum && (
                 <p className="text-xs text-muted-foreground mb-2">
-                  New mold — upload a reference picture for this sheet.
+                  This mould isn&apos;t in the catalog yet — upload a reference picture and it will be registered automatically when you save.
                 </p>
               )}
               <FileUpload

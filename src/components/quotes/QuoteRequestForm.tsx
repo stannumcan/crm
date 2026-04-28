@@ -558,7 +558,18 @@ export default function QuoteRequestForm({
                             updateItem(item.id, { mold_number: opt.value, ...(dims && !item.size ? { size: dims } : {}) });
                           }}
                           onSearch={(q) => searchMolds(item.id, q)}
-                          onAddNew={(q) => updateItem(item.id, { type: "new", mold_number: q })}
+                          onAddNew={(q) => {
+                            // ML-\d+[A-Z]? = catalog format. The mould exists in real
+                            // life but hasn't been added to the catalog yet — keep
+                            // type="existing" so Annie registers it (with image) on
+                            // the factory cost sheet rather than treating it as new.
+                            const trimmed = q.trim().toUpperCase();
+                            const looksLikeCatalogNumber = /^ML-\d+[A-Z]?$/.test(trimmed);
+                            updateItem(item.id, {
+                              type: looksLikeCatalogNumber ? "existing" : "new",
+                              mold_number: trimmed,
+                            });
+                          }}
                           addNewLabel="New mold (not in catalog)"
                           placeholder="ML-1004B"
                         />
