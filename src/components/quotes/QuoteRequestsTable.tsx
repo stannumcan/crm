@@ -83,6 +83,13 @@ export interface QuoteRow {
   quote_version: number | null;
   created_at: string | null;
   updated_at: string | null;
+  molds: { value?: string; design_count?: number }[] | null;
+  quotation_quantity_tiers: {
+    tier_label: string;
+    quantity_type: string;
+    quantity: number | null;
+    sort_order: number;
+  }[] | null;
   work_orders: {
     id: string | null;
     wo_number: string | null;
@@ -90,6 +97,29 @@ export interface QuoteRow {
     company_name: string | null;
     project_name: string | null;
   } | null;
+}
+
+// Render mould numbers as a comma list, max 3 visible + "+N more"
+function formatMoulds(molds: QuoteRow["molds"]): { primary: string; rest: number } {
+  if (!molds || molds.length === 0) return { primary: "—", rest: 0 };
+  const numbers = molds.map((m) => m?.value).filter(Boolean) as string[];
+  if (numbers.length === 0) return { primary: "—", rest: 0 };
+  const visible = numbers.slice(0, 3).join(", ");
+  return { primary: visible, rest: Math.max(0, numbers.length - 3) };
+}
+
+// Render tier quantities as compact "5,000 / 10,000 / 25,000"
+// FCL tiers show a "20ft"/"40ft" indicator since they don't have a fixed unit count.
+function formatQuantities(tiers: QuoteRow["quotation_quantity_tiers"]): string {
+  if (!tiers || tiers.length === 0) return "—";
+  const sorted = [...tiers].sort((a, b) => a.sort_order - b.sort_order);
+  const parts = sorted.map((t) => {
+    if (t.quantity_type === "fcl_20ft") return "20ft";
+    if (t.quantity_type === "fcl_40ft") return "40ft";
+    if (t.quantity == null) return "—";
+    return t.quantity.toLocaleString();
+  });
+  return parts.join(" / ");
 }
 
 function Th({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
@@ -231,6 +261,8 @@ export default function QuoteRequestsTable({
               <Th>Quote Request #</Th>
               <Th>Company</Th>
               <Th>Project</Th>
+              <Th>Mould(s)</Th>
+              <Th>Quantities</Th>
               <Th>Progress</Th>
               <Th>Created</Th>
               <Th>Last Action</Th>
@@ -240,7 +272,7 @@ export default function QuoteRequestsTable({
           <tbody className="divide-y divide-border/60">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={10}>
                   {rows.length === 0 ? (
                     <EmptyState
                       icon={FileText}
@@ -310,6 +342,22 @@ export default function QuoteRequestsTable({
                     )}
                   </Td>
                   <Td className="text-muted-foreground">{wo?.project_name ?? "—"}</Td>
+                  <Td className="font-mono text-xs">
+                    {(() => {
+                      const { primary, rest } = formatMoulds(q.molds);
+                      return (
+                        <>
+                          <span>{primary}</span>
+                          {rest > 0 && (
+                            <span className="text-muted-foreground ml-1">+{rest} more</span>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </Td>
+                  <Td className="font-mono text-xs text-muted-foreground">
+                    {formatQuantities(q.quotation_quantity_tiers)}
+                  </Td>
                   <Td>
                     <span
                       className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border"

@@ -76,6 +76,14 @@ interface QuotationWithRollup {
   quote_version: number | null;
   created_at: string | null;
   updated_at: string | null;
+  // JSONB array of line items: { value: mould number, design_count?, ... }
+  molds: { value?: string; design_count?: number }[] | null;
+  quotation_quantity_tiers: {
+    tier_label: string;
+    quantity_type: string;
+    quantity: number | null;
+    sort_order: number;
+  }[] | null;
   work_orders: {
     id: string | null;
     wo_number: string | null;
@@ -109,8 +117,9 @@ export default async function QuotesPage({
   let quotesQuery = db
     .from("quotations")
     .select(`
-      id, status, quote_version, created_at, updated_at,
-      work_orders(id, wo_number, company_id, company_name, project_name)
+      id, status, quote_version, created_at, updated_at, molds,
+      work_orders(id, wo_number, company_id, company_name, project_name),
+      quotation_quantity_tiers(tier_label, quantity_type, quantity, sort_order)
     `)
     .order("updated_at", { ascending: false })
     .limit(500);
