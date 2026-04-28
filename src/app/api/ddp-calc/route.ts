@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
       fx_rate_rmb_to_jpy: t.fxRate,
       shipping_type: t.shippingType,
       shipping_cost_jpy: result.shippingCostJpy,
+      buffer_pct: t.bufferPct,
       import_duty_rate: t.importDutyRate,
       consumption_tax_rate: t.consumptionTaxRate,
       cartons_ordered: result.cartonsOrdered,

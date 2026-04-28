@@ -97,7 +97,7 @@ function autoShippingType(_quantityType: string): TierState["shippingType"] {
   return "auto";
 }
 
-function initTier(calc: ApprovedCalc, existing?: { unit_price_jpy?: number | null; selected_margin?: number | null; shipping_cost_jpy?: number | null }, marginValues?: number[]): TierState {
+function initTier(calc: ApprovedCalc, existing?: { unit_price_jpy?: number | null; selected_margin?: number | null; shipping_cost_jpy?: number | null; buffer_pct?: number | null }, marginValues?: number[]): TierState {
   // If there's an existing saved DDP record, pre-populate the manual override
   // so the form shows the user's previously-saved selling price
   const savedUnitPrice = existing?.unit_price_jpy != null ? String(existing.unit_price_jpy) : "";
@@ -110,11 +110,17 @@ function initTier(calc: ApprovedCalc, existing?: { unit_price_jpy?: number | nul
     if (idx >= 0) selIdx = String(idx);
   }
 
+  // buffer_pct is stored as a fraction (0.05) — show it as a percentage (5).
+  // Fall back to 5% for new tiers that have never been saved.
+  const savedBufferPct = existing?.buffer_pct != null
+    ? String(Math.round(existing.buffer_pct * 1000) / 10)
+    : "5";
+
   return {
     tier_label: calc.tier_label,
     quantity: String(calc.quantity ?? ""),
     rmbUnitPrice: calc.estimated_cost_rmb != null ? calc.estimated_cost_rmb.toFixed(4) : "",
-    bufferPct: "5",
+    bufferPct: savedBufferPct,
     shippingType: autoShippingType(calc.quantity_type),
     manualShippingCostJpy: existing?.shipping_cost_jpy != null ? String(existing.shipping_cost_jpy) : "",
     selectedMarginIdx: selIdx,
@@ -208,7 +214,7 @@ export default function DDPCalcForm({
   const [tiers, setTiers] = useState<TierState[]>(() => {
     const defaultMargins = defaultSettings.margin_values ?? [60, 55, 50, 45, 40, 35, 30, 25];
     return approvedCalcs.map((c) => {
-      const existing = existingDDP.find((d) => (d as { tier_label?: string }).tier_label === c.tier_label) as { unit_price_jpy?: number | null; selected_margin?: number | null; shipping_cost_jpy?: number | null } | undefined;
+      const existing = existingDDP.find((d) => (d as { tier_label?: string }).tier_label === c.tier_label) as { unit_price_jpy?: number | null; selected_margin?: number | null; shipping_cost_jpy?: number | null; buffer_pct?: number | null } | undefined;
       return initTier(c, existing, defaultMargins);
     });
   });
