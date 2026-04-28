@@ -85,12 +85,11 @@ export default function GlobalSearch({ locale }: { locale: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed right-6 bottom-6 z-40 flex items-center gap-2 rounded-full bg-primary text-white shadow-lg hover:shadow-xl px-4 py-2.5 text-sm transition-shadow"
+        className="fixed right-6 bottom-6 z-40 flex items-center justify-center rounded-full bg-primary text-white shadow-lg hover:shadow-xl h-10 w-10 transition-shadow"
         title="Search (Ctrl+K)"
+        aria-label="Search"
       >
         <Search className="h-4 w-4" />
-        <span className="hidden sm:inline">Search</span>
-        <kbd className="hidden sm:inline text-[10px] font-mono opacity-70 border border-white/30 rounded px-1">⌘K</kbd>
       </button>
     );
   }
