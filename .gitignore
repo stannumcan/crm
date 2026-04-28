@@ -37,6 +37,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# manuals — generated .docx files + Playwright auth state
+/docs/manuals/*.docx
+.manual-auth-state.json
+.tmp-*.png
 # typescript
 *.tsbuildinfo
 next-env.d.ts
