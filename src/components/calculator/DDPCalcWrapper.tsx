@@ -14,6 +14,8 @@ interface SheetData {
   moldNumber: string | null;
   refNumber?: string | null;
   variantLabel?: string | null;
+  /** Compact print spec used to disambiguate sheets that share a mould number. */
+  printingSpec?: string | null;
   ddpVersion?: number;
   quoteInfo: {
     companyName: string; projectName: string; woNumber: string; canSize: string;
@@ -142,6 +144,14 @@ export default function DDPCalcWrapper({
               </div>
               {s.refNumber && (
                 <p className="text-[10px] font-mono text-blue-700 mt-0.5">{s.refNumber}/DC</p>
+              )}
+              {s.printingSpec && (
+                <p
+                  className="text-[10px] text-muted-foreground mt-0.5 leading-tight max-w-[200px] truncate"
+                  title={s.printingSpec}
+                >
+                  {s.printingSpec}
+                </p>
               )}
               <div className="flex items-center gap-1 mt-0.5">
                 {isSaved ? (

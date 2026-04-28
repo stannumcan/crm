@@ -11,6 +11,8 @@ interface MoldTab {
   cqVersion?: number;
   hasSaved: boolean;
   basedOnDdpVersion?: number;
+  /** Compact print spec used to disambiguate sheets that share a mould number. */
+  printingSpec?: string | null;
 }
 
 interface Props {
@@ -50,6 +52,14 @@ export default function CustomerQuoteWrapper({ tabs, forms }: Props) {
                     <span className="text-[10px] text-muted-foreground font-mono">v{t.cqVersion}</span>
                   )}
                 </div>
+                {t.printingSpec && (
+                  <p
+                    className="text-[10px] text-muted-foreground mt-0.5 leading-tight max-w-[200px] truncate"
+                    title={t.printingSpec}
+                  >
+                    {t.printingSpec}
+                  </p>
+                )}
                 <div className="flex items-center gap-1 mt-0.5">
                   {t.hasSaved ? (
                     <>

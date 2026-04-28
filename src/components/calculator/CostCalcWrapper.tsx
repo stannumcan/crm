@@ -22,6 +22,8 @@ interface SheetEntry {
   moldNumber: string | null;
   refNumber?: string | null;
   variantLabel?: string | null;
+  /** Compact print spec used to disambiguate sheets that share a mould number. */
+  printingSpec?: string | null;
   steelThickness: number | null;
   version: number;
   wilfredVersion?: number;
@@ -75,6 +77,14 @@ export default function CostCalcWrapper({
                 </div>
                 {s.refNumber && (
                   <p className="text-[10px] font-mono text-blue-700 mt-0.5">{s.refNumber}/CC</p>
+                )}
+                {s.printingSpec && (
+                  <p
+                    className="text-[10px] text-muted-foreground mt-0.5 leading-tight max-w-[200px] truncate"
+                    title={s.printingSpec}
+                  >
+                    {s.printingSpec}
+                  </p>
                 )}
                 <div className="flex items-center gap-1 mt-0.5">
                   {s.isApproved ? (

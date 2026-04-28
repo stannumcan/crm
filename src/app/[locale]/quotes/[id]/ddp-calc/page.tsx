@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import DDPCalcWrapper from "@/components/calculator/DDPCalcWrapper";
 import StannumPlaceholder from "@/components/division/StannumPlaceholder";
+import { summarisePrintingSpec } from "@/lib/printing";
 
 export default async function DDPCalcPage({
   params,
@@ -113,6 +114,7 @@ export default async function DDPCalcPage({
     moldNumber: string | null;
     refNumber?: string | null;
     variantLabel?: string | null;
+    printingSpec?: string | null;
     quoteInfo: {
       companyName: string; projectName: string; woNumber: string; canSize: string;
       moldNumber: string; tinThickness: number | null; moldCostNew: number | null; moldCostModify: number | null; moldLeadTime: number | null;
@@ -162,6 +164,7 @@ export default async function DDPCalcPage({
       moldNumber: sheet.mold_number ?? null,
       refNumber: sheet.ref_number ?? null,
       variantLabel,
+      printingSpec: summarisePrintingSpec(sheet.printing_lines),
       quoteInfo: {
         companyName: wo?.company_name ?? "",
         projectName: wo?.project_name ?? "",

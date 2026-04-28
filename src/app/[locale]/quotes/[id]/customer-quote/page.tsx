@@ -9,6 +9,7 @@ import CustomerQuoteMoldBar from "@/components/customer/CustomerQuoteMoldBar";
 import CustomerQuoteSidebar from "@/components/customer/CustomerQuoteSidebar";
 import StaleCheck from "@/components/ui/stale-check";
 import StannumPlaceholder from "@/components/division/StannumPlaceholder";
+import { summarisePrintingSpec } from "@/lib/printing";
 
 export default async function CustomerQuotePage({
   params,
@@ -196,6 +197,7 @@ export default async function CustomerQuotePage({
       sheetId: sheet.id,
       moldNumber,
       variantLabel,
+      printingSpec: summarisePrintingSpec(printingLines),
       defaultQuoteNumber,
       hasSaved: !!existingCQ,
       cqVersion: existingCQ?.version ?? undefined,
@@ -279,10 +281,11 @@ export default async function CustomerQuotePage({
 
       {/* Mould card bar */}
       <CustomerQuoteMoldBar
-        tabs={moldTabs.map((t: { sheetId: string; moldNumber: string | null; variantLabel?: string | null; hasSaved: boolean; cqVersion?: number; defaultQuoteNumber: string }) => ({
+        tabs={moldTabs.map((t: { sheetId: string; moldNumber: string | null; variantLabel?: string | null; printingSpec?: string | null; hasSaved: boolean; cqVersion?: number; defaultQuoteNumber: string }) => ({
           sheetId: t.sheetId,
           moldNumber: t.moldNumber,
           variantLabel: t.variantLabel,
+          printingSpec: t.printingSpec,
           hasSaved: t.hasSaved,
           cqVersion: t.cqVersion,
           refNumber: t.defaultQuoteNumber,

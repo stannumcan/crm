@@ -11,6 +11,8 @@ interface MoldTab {
   cqVersion?: number;
   hasSaved: boolean;
   refNumber?: string | null;
+  /** Compact print spec used to disambiguate sheets that share a mould number. */
+  printingSpec?: string | null;
 }
 
 export default function CustomerQuoteMoldBar({ tabs, activeSheetId }: { tabs: MoldTab[]; activeSheetId: string }) {
@@ -45,6 +47,14 @@ export default function CustomerQuoteMoldBar({ tabs, activeSheetId }: { tabs: Mo
             </div>
             {t.refNumber && (
               <p className="text-[10px] font-mono text-blue-700 mt-0.5">{t.refNumber}</p>
+            )}
+            {t.printingSpec && (
+              <p
+                className="text-[10px] text-muted-foreground mt-0.5 leading-tight max-w-[200px] truncate"
+                title={t.printingSpec}
+              >
+                {t.printingSpec}
+              </p>
             )}
             <div className="flex items-center gap-1 mt-0.5">
               {t.hasSaved ? (

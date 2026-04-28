@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import CostCalcWrapper from "@/components/calculator/CostCalcWrapper";
+import { summarisePrintingSpec } from "@/lib/printing";
 
 export default async function CostCalcPage({
   params,
@@ -120,6 +121,7 @@ export default async function CostCalcPage({
       moldNumber: sheet.mold_number ?? null,
       refNumber: sheet.ref_number ?? null,
       variantLabel: quoteMolds.find((m: { value?: string }) => m.value === sheet.mold_number)?.variant_label ?? null,
+      printingSpec: summarisePrintingSpec(sheet.printing_lines),
       steelThickness: sheet.steel_thickness ?? null,
       version: sheet.version ?? 1,
       wilfredVersion,
