@@ -365,6 +365,9 @@ export default function CustomerQuoteForm({
         (moldLeadTimeDays ? `${moldLeadTimeDays}日程度` : "40日程度")
     )
   );
+  const [leadTimeEmboss, setLeadTimeEmboss] = useState(
+    String(existingCQ?.lead_time_emboss ?? "3週間")
+  );
   const [leadTimeSample, setLeadTimeSample] = useState(
     String(existingCQ?.lead_time_sample ?? "15～20日＋空輸期間")
   );
@@ -463,6 +466,7 @@ export default function CustomerQuoteForm({
         sample_cost_machine_jpy: parseInt(sampleCostMachineJpy) || null,
         sample_cost_plastic_jpy: parseInt(sampleCostPlasticJpy) || null,
         lead_time_mold: leadTimeMold || null,
+        lead_time_emboss: leadTimeEmboss || null,
         lead_time_sample: leadTimeSample || null,
         lead_time_production: leadTimeProduction || null,
         payment_terms_tooling: paymentTooling || null,
@@ -944,6 +948,10 @@ export default function CustomerQuoteForm({
               <Input value={leadTimeMold} onChange={(e) => setLeadTimeMold(e.target.value)} />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">エンボスプレート Emboss plate lead time</Label>
+              <Input value={leadTimeEmboss} onChange={(e) => setLeadTimeEmboss(e.target.value)} />
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs">サンプル Sample lead time</Label>
               <Input value={leadTimeSample} onChange={(e) => setLeadTimeSample(e.target.value)} />
             </div>
@@ -1337,46 +1345,53 @@ export default function CustomerQuoteForm({
         </table>
 
         {/* ── Lead times ── */}
-        <table
-          style={{ width: "100%", marginBottom: "8px", borderCollapse: "collapse", fontSize: "11px" }}
-        >
-          <tbody>
-            <tr>
-              <td style={S.labelCellWide} rowSpan={3}>
-                製造日数
-              </td>
-              <td style={S.labelCell}>金型</td>
-              <td style={S.cell}>{leadTimeMold}</td>
-            </tr>
-            <tr>
-              <td style={S.labelCell}>サンプル</td>
-              <td style={S.cell}>{leadTimeSample}</td>
-            </tr>
-            <tr>
-              <td style={S.labelCell}>本生産</td>
-              <td style={S.cell}>{leadTimeProduction}</td>
-            </tr>
-          </tbody>
-        </table>
+        {/* 製造日数 (left) + お支払い条件 (right) — side-by-side to save
+             vertical space on the printed customer quote. */}
+        <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+          <table
+            style={{ flex: 1, borderCollapse: "collapse", fontSize: "11px" }}
+          >
+            <tbody>
+              <tr>
+                <td style={S.labelCellWide} rowSpan={4}>
+                  製造日数
+                </td>
+                <td style={S.labelCell}>金型</td>
+                <td style={S.cell}>{leadTimeMold}</td>
+              </tr>
+              <tr>
+                <td style={S.labelCell}>エンボスプレート</td>
+                <td style={S.cell}>{leadTimeEmboss}</td>
+              </tr>
+              <tr>
+                <td style={S.labelCell}>サンプル</td>
+                <td style={S.cell}>{leadTimeSample}</td>
+              </tr>
+              <tr>
+                <td style={S.labelCell}>本生産</td>
+                <td style={S.cell}>{leadTimeProduction}</td>
+              </tr>
+            </tbody>
+          </table>
 
-        {/* ── Payment terms ── */}
-        <table
-          style={{ width: "100%", marginBottom: "8px", borderCollapse: "collapse", fontSize: "11px" }}
-        >
-          <tbody>
-            <tr>
-              <td style={S.labelCellWide} rowSpan={2}>
-                お支払い条件
-              </td>
-              <td style={S.labelCell}>金型・サンプル</td>
-              <td style={S.cell}>{paymentTooling}</td>
-            </tr>
-            <tr>
-              <td style={S.labelCell}>本生産</td>
-              <td style={S.cell}>{paymentProduction}</td>
-            </tr>
-          </tbody>
-        </table>
+          <table
+            style={{ flex: 1, borderCollapse: "collapse", fontSize: "11px" }}
+          >
+            <tbody>
+              <tr>
+                <td style={S.labelCellWide} rowSpan={2}>
+                  お支払い条件
+                </td>
+                <td style={S.labelCell}>金型・サンプル</td>
+                <td style={S.cell}>{paymentTooling}</td>
+              </tr>
+              <tr>
+                <td style={S.labelCell}>本生産</td>
+                <td style={S.cell}>{paymentProduction}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         {/* ── Validity / Delivery ── */}
         <table
