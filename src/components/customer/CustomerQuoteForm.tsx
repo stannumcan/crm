@@ -1224,8 +1224,9 @@ export default function CustomerQuoteForm({
                   {packingDetails}
                 </td>
               </tr>
-              {/* 金型代 */}
-              {(moldType === "new" || moldCostJpy) && (
+              {/* 金型代 — show the block whenever there's a mold cost, an
+                   emboss cost, or the mold is new (which always implies tooling). */}
+              {(moldType === "new" || moldCostJpy || embossCostJpy) && (
                 <>
                   <tr>
                     <td style={S.labelCell} rowSpan={2}>
