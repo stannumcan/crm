@@ -313,9 +313,13 @@ export default async function CustomerQuotePage({
           </div>
         </aside>
 
-        {/* Active mould form */}
+        {/* Active mould form — `key` forces a fresh mount when the user
+            switches between sheets. Without this, useState initialisers don't
+            re-run and the previous tab's state (printing lines, mold cost, etc.)
+            leaks into the next tab and overwrites its CQ on save. */}
         <div className="flex-1 min-w-0">
           <CustomerQuoteForm
+            key={activeTab.sheetId}
             locale={locale}
             quoteId={id}
             costSheetId={activeTab.sheetId}
